@@ -60,14 +60,27 @@ export default function Home() {
   const [carregando, setCarregando] = useState(true);
   const [filtroAtivo, setFiltroAtivo] = useState("Lendo");
   const [pesquisaInterna, setPesquisaInterna] = useState("");
+  const [config, setConfig] = useState({ mostrar_busca: true, mostrar_stats: true, mostrar_backup: true });
 
   // ==========================================
-  // 🔄 5. LÓGICA DE INICIALIZAÇÃO (F5)
+  // 🔄 5. LÓGICA DE INICIALIZAÇÃO
   // ==========================================
   useEffect(() => { 
+    // 1. Checa o Portão Mestre
     const mestre = sessionStorage.getItem("acesso_mestre");
     if (mestre === "true") setMestreAutorizado(true);
+
+    // 2. Reset de segurança no F5
+    sessionStorage.removeItem('hunter_ativo');
     setUsuarioAtual(null);
+    
+    // 3. [NOVO] Busca as configurações de visibilidade do Admin
+    const buscarConfigs = async () => {
+      const { data } = await supabase.from("site_config").select("*").eq("id", 1).maybeSingle();
+      if (data) setConfig(data);
+    };
+
+    buscarConfigs();
     buscarPerfis().then(() => setCarregando(false));
   }, []);
 
