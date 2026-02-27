@@ -31,6 +31,9 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
     }
   }, [estaAberto]);
 
+// ==========================================
+  // [SISTEMA DE BUSCA DUPLA] - AniList + MyAnimeList (Jikan)
+  // ==========================================
   useEffect(() => {
     if (termoAnilist.length < 3) {
       setResultadosAnilist([]);
@@ -39,7 +42,10 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
     const t = setTimeout(async () => {
       setBuscando(true);
       try {
-        const res = await fetch("https://graphql.anilist.co", {
+        let resultados = [];
+
+        // 1º TENTATIVA: Motor AniList
+        const resAnilist = await fetch("https://graphql.anilist.co", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
@@ -47,14 +53,42 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
             variables: { search: termoAnilist }
           })
         });
-        const json = await res.json();
-        setResultadosAnilist(json.data?.Page?.media || []);
+        const jsonAnilist = await resAnilist.json();
+        resultados = jsonAnilist.data?.Page?.media || [];
+
+        // 2º TENTATIVA: Motor MyAnimeList (Se o AniList não achar nada)
+        if (resultados.length === 0) {
+          console.log("⚠️ AniList falhou. Acionando MyAnimeList...");
+          
+          const resMal = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(termoAnilist)}&limit=5`);
+          const jsonMal = await resMal.json();
+          
+          if (jsonMal.data) {
+            // "Disfarçamos" os dados do MAL para o modal achar que é do AniList
+            resultados = jsonMal.data.map((m: any) => ({
+              id: m.mal_id,
+              title: { 
+                romaji: m.title, 
+                english: m.title_english 
+              },
+              coverImage: { 
+                large: m.images?.jpg?.image_url || "" 
+              },
+              chapters: m.chapters || 0,
+              description: m.synopsis || ""
+            }));
+          }
+        }
+
+        // Entrega os resultados finais para a interface
+        setResultadosAnilist(resultados);
+
       } catch (err) {
-        console.error("Erro na busca:", err);
+        console.error("❌ Erro na busca dupla:", err);
       } finally {
         setBuscando(false);
       }
-    }, 500);
+    }, 500); // Aguarda o usuário parar de digitar por meio segundo
     return () => clearTimeout(t);
   }, [termoAnilist]);
 
@@ -173,7 +207,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
               
               <button 
                 onClick={async () => {
-                  
+
                   // LÓGICA DE SALVAMENTO REAL
 
                   if (!usuarioAtual) return alert("Erro: Hunter não identificado!");
