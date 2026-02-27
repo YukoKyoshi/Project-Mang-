@@ -153,6 +153,20 @@ async function salvarNovoHunter() {
   }
 }
 
+// ---- atualizar configs do site ----//
+
+async function atualizarConfig(chave: string, valor: boolean) {
+  const novaConfig = { ...config, [chave]: valor };
+  setConfig(novaConfig); // Atualiza visualmente na hora
+
+  const { error } = await supabase
+    .from("site_config")
+    .update({ [chave]: valor })
+    .eq("id", 1);
+
+  if (error) alert("Erro ao salvar configuração: " + error.message);
+}
+
 // --- Deletar perfis ---//
 
 async function deletarPerfil(perfil: any) {
@@ -271,6 +285,7 @@ async function deletarPerfil(perfil: any) {
         salvarNovoHunter={salvarNovoHunter}
         deletarPerfil={deletarPerfil}
         setUsuarioAtual={setUsuarioAtual}
+        atualizarConfig={atualizarConfig}
       />
     );
   }

@@ -3,6 +3,9 @@
 import React from 'react';
 
 // Definindo o que o AdminPanel precisa receber para funcionar
+
+// src/app/components/AdminPanel.tsx
+
 interface AdminPanelProps {
   perfis: any[];
   config: any;
@@ -13,11 +16,13 @@ interface AdminPanelProps {
   salvarNovoHunter: () => void;
   deletarPerfil: (p: any) => void;
   setUsuarioAtual: (v: string | null) => void;
+  atualizarConfig: (chave: string, valor: boolean) => void; // atualiza as configurações //
 }
 
 export default function AdminPanel({
   perfis, config, mostrandoFormHunter, setMostrandoFormHunter,
-  novoHunter, setNovoHunter, salvarNovoHunter, deletarPerfil, setUsuarioAtual
+  novoHunter, setNovoHunter, salvarNovoHunter, deletarPerfil, setUsuarioAtual,
+  atualizarConfig,
 }: AdminPanelProps) {
   return (
     <main className="min-h-screen bg-[#050505] text-white p-6 md:p-12 animate-in fade-in duration-500">
@@ -115,12 +120,35 @@ export default function AdminPanel({
 
         {/* COLUNA 2: INTERFACE GLOBAL */}
         <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800 shadow-2xl">
-          <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-3 text-yellow-500">
+          <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-3 text-yellow-500 italic">
             <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
             Interface Global
           </h3>
-          <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest text-center mt-20 italic">
-            Aqui colocaremos os interruptores de visibilidade em breve.
+          
+          <div className="space-y-6">
+            {[
+              { id: 'mostrar_busca', label: 'Barra de Pesquisa', desc: 'Permite filtrar mangás pelo título' },
+              { id: 'mostrar_stats', label: 'Estatísticas de Leitura', desc: 'Exibe contagem de capítulos e progresso' },
+              { id: 'mostrar_backup', label: 'Painel de Backup', desc: 'Libera exportação de dados para os Hunters' }
+            ].map((item) => (
+              <div key={item.id} className="flex items-center justify-between p-5 bg-black/20 rounded-2xl border border-zinc-800/50 hover:border-zinc-700 transition-all">
+                <div className="max-w-[70%]">
+                  <p className="font-bold text-xs uppercase tracking-widest">{item.label}</p>
+                  <p className="text-[10px] text-zinc-500 mt-1 uppercase italic">{item.desc}</p>
+                </div>
+                
+                <button 
+                  onClick={() => atualizarConfig(item.id, !config[item.id as keyof typeof config])}
+                  className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${config[item.id as keyof typeof config] ? 'bg-green-500' : 'bg-zinc-800'}`}
+                >
+                  <div className={`bg-white w-6 h-6 rounded-full shadow-lg transform transition-transform duration-300 ${config[item.id as keyof typeof config] ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest text-center mt-12 italic">
+            Alterações aplicadas em tempo real.
           </p>
         </section>
 
