@@ -2,10 +2,9 @@
 
 import React from 'react';
 
-// Definindo o que o AdminPanel precisa receber para funcionar
-
-// src/app/components/AdminPanel.tsx
-
+// ------------------------------------------
+// 1. DEFINIÇÃO DAS FERRAMENTAS (INTERFACE)
+// ------------------------------------------
 interface AdminPanelProps {
   perfis: any[];
   config: any;
@@ -13,16 +12,32 @@ interface AdminPanelProps {
   setMostrandoFormHunter: (v: boolean) => void;
   novoHunter: any;
   setNovoHunter: (v: any) => void;
-  salvarNovoHunter: () => void;
+  salvarHunter: () => void;
   deletarPerfil: (p: any) => void;
   setUsuarioAtual: (v: string | null) => void;
-  atualizarConfig: (chave: string, valor: boolean) => void; // atualiza as configurações //
+  atualizarConfig: (chave: string, valor: boolean) => void;
+  prepararEdicao: (p: any) => void;
+  editandoNomeOriginal: string | null;
+  fecharFormularioHunter: () => void; // <--- GARANTA QUE ESTA LINHA ESTÁ AQUI
 }
 
+// ------------------------------------------
+// 2. RECEBIMENTO DAS FERRAMENTAS (COMPONENTE)
+// ------------------------------------------
 export default function AdminPanel({
-  perfis, config, mostrandoFormHunter, setMostrandoFormHunter,
-  novoHunter, setNovoHunter, salvarNovoHunter, deletarPerfil, setUsuarioAtual,
-  atualizarConfig,
+  perfis, 
+  config, 
+  mostrandoFormHunter, 
+  setMostrandoFormHunter,
+  novoHunter, 
+  setNovoHunter, 
+  salvarHunter, 
+  deletarPerfil, 
+  setUsuarioAtual,
+  atualizarConfig, 
+  prepararEdicao, 
+  editandoNomeOriginal,
+  fecharFormularioHunter // <--- E QUE ESTA TAMBÉM ESTÁ AQUI
 }: AdminPanelProps) {
   return (
     <main className="min-h-screen bg-[#050505] text-white p-6 md:p-12 animate-in fade-in duration-500">
@@ -89,7 +104,7 @@ export default function AdminPanel({
                   <option value="laranja">AURA LARANJA</option>
                 </select>
                 <div className="flex gap-3 pt-2">
-                  <button onClick={salvarNovoHunter} className="flex-1 py-4 bg-yellow-500 text-black font-black uppercase text-xs rounded-xl hover:brightness-110">Confirmar</button>
+                  <button onClick={salvarHunter} className="flex-1 py-4 bg-yellow-500 text-black font-black uppercase text-xs rounded-xl hover:brightness-110">{editandoNomeOriginal ? "Salvar Alterações" : "Confirmar"}</button>
                   <button onClick={() => setMostrandoFormHunter(false)} className="px-6 py-4 bg-zinc-800 text-zinc-400 font-black uppercase text-xs rounded-xl">Cancelar</button>
                 </div>
               </div>
@@ -97,6 +112,7 @@ export default function AdminPanel({
           )}
 
           {/* LISTA DE HUNTERS */}
+
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
             {perfis.map(p => (
               <div key={p.nome_original} className="grid grid-cols-[1fr_auto] items-center gap-4 p-5 bg-black/40 rounded-3xl border border-zinc-800 group hover:border-zinc-700 transition-all shadow-lg">
@@ -107,12 +123,24 @@ export default function AdminPanel({
                     <p className="text-[10px] text-zinc-500 font-bold uppercase">PIN: <span className="text-zinc-300">{p.pin || "Aberto"}</span></p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => deletarPerfil(p)}
-                  className="w-12 h-12 flex items-center justify-center bg-zinc-900 rounded-xl border border-zinc-800 text-zinc-600 hover:text-red-500 transition-all"
-                >
-                  🗑️
-                </button>
+
+                {/* AREA DOS BOTÕES */}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => prepararEdicao(p)}
+                    className="w-10 h-10 flex items-center justify-center bg-zinc-900 rounded-xl border border-zinc-800 text-zinc-500 hover:text-blue-500 transition-all"
+                    title="Editar Hunter"
+                  >
+                    ✏️
+                  </button>
+                  <button 
+                    onClick={() => deletarPerfil(p)}
+                    className="w-10 h-10 flex items-center justify-center bg-zinc-900 rounded-xl border border-zinc-800 text-zinc-600 hover:text-red-500 transition-all"
+                    title="Remover Hunter"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
             ))}
           </div>

@@ -63,8 +63,9 @@ export default function Home() {
   const [filtroAtivo, setFiltroAtivo] = useState("Lendo");
   const [pesquisaInterna, setPesquisaInterna] = useState("");
   const [config, setConfig] = useState({ mostrar_busca: true, mostrar_stats: true, mostrar_backup: true });
-  // --- SUB-SESSÃO 4.A: ESTADOS DO MODO CONSTRUTOR ---
+  // --- SUB-SESSÃO 4.A: novo perfil --- //
   const [novoHunter, setNovoHunter] = useState({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
+  const [editandoNomeOriginal, setEditandoNomeOriginal] = useState<string | null>(null);
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
 
   // ==========================================
@@ -134,24 +135,58 @@ async function atualizarDados(id: number, campos: any) {
 
 // --- criar perfis ---
 
-async function salvarNovoHunter() {
+async function salvarHunter() {
   if (!novoHunter.nome) return alert("O nome é obrigatório!");
 
-  const { error } = await supabase.from("perfis").insert([{
+  const dados = {
     nome_original: novoHunter.nome,
     nome_exibicao: novoHunter.nome,
     avatar: novoHunter.avatar,
     pin: novoHunter.pin,
     cor_tema: novoHunter.cor
-  }]);
+  };
+
+  let error;
+
+  if (editandoNomeOriginal) {
+    // MODO EDIÇÃO
+    const result = await supabase.from("perfis")
+      .update(dados)
+      .eq("nome_original", editandoNomeOriginal);
+    error = result.error;
+  } else {
+    // MODO CRIAÇÃO
+    const result = await supabase.from("perfis").insert([dados]);
+    error = result.error;
+  }
 
   if (error) {
     alert("Erro: " + error.message);
   } else {
-    setMostrandoFormHunter(false); 
-    setNovoHunter({ nome: '', avatar: '👤', pin: '', cor: 'verde' }); 
+    fecharFormularioHunter();
     buscarPerfis();
   }
+}
+
+// Função auxiliar para limpar tudo ao fechar
+
+function fecharFormularioHunter() {
+  setMostrandoFormHunter(false);
+  setEditandoNomeOriginal(null);
+  setNovoHunter({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
+}
+
+// Função para carregar dados no form
+
+function prepararEdicao(perfil: any) {
+  setNovoHunter({
+    nome: perfil.nome_exibicao,
+    avatar: perfil.avatar,
+    pin: perfil.pin || '',
+    cor: perfil.cor_tema
+  });
+  setEditandoNomeOriginal(perfil.nome_original);
+  setMostrandoFormHunter(true);
 }
 
 // ---- atualizar configs do site ----//
@@ -262,10 +297,13 @@ async function deletarPerfil(perfil: any) {
         setMostrandoFormHunter={setMostrandoFormHunter}
         novoHunter={novoHunter}
         setNovoHunter={setNovoHunter}
-        salvarNovoHunter={salvarNovoHunter}
         deletarPerfil={deletarPerfil}
         setUsuarioAtual={setUsuarioAtual}
         atualizarConfig={atualizarConfig}
+        salvarHunter={salvarHunter} 
+        prepararEdicao={prepararEdicao}
+        editandoNomeOriginal={editandoNomeOriginal}
+        fecharFormularioHunter={fecharFormularioHunter}
       />
     );
   }
