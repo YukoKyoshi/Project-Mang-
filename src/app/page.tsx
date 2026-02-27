@@ -10,6 +10,7 @@ import Link from "next/link";
 import MangaCard from "./components/MangaCard";
 import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
+import AdminPanel from "./components/AdminPanel";
 
 // Definindo a interface Manga para o TypeScript não reclamar
 interface Manga { 
@@ -256,72 +257,21 @@ async function deletarPerfil(perfil: any) {
   }
 
   // ------------------------------------------
-  // SUB-SESSÃO 9.B: PAINEL DE CONTROLE (MODO CONSTRUTOR)
+  // SUB-SESSÃO 9.B: PAINEL DE CONTROLE (COMPONENTIZADO)
   // ------------------------------------------
   if (isAdmin) {
     return (
-      <main className="min-h-screen bg-[#050505] text-white p-6 md:p-12">
-        <header className="flex justify-between items-center mb-12 border-b border-yellow-500/20 pb-8">
-          <div>
-            <h1 className="text-4xl font-black uppercase italic text-yellow-500 tracking-tighter">Painel de Controle</h1>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.4em]">Configurações Nível S</p>
-          </div>
-          <button onClick={() => setUsuarioAtual(null)} className="px-8 py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-xs font-black uppercase hover:bg-white hover:text-black transition-all">Fechar</button>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800">
-            <h3 className="text-lg font-black uppercase mb-8 text-blue-500 italic">Gestão de Equipe</h3>
-            
-            {!mostrandoFormHunter ? (
-              <button onClick={() => setMostrandoFormHunter(true)} className="w-full mb-8 group bg-zinc-800/50 p-8 rounded-[2rem] border border-dashed border-zinc-700 hover:border-yellow-500 transition-all">
-                <span className="text-3xl block mb-2">➕</span>
-                <span className="font-black uppercase text-xs tracking-widest text-zinc-500 group-hover:text-white">Recrutar Novo Hunter</span>
-              </button>
-            ) : (
-              <div className="mb-8 p-8 bg-black/60 rounded-[2.5rem] border border-yellow-500/20">
-                <div className="grid grid-cols-1 gap-4">
-                  <input type="text" placeholder="NOME" className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-white outline-none" value={novoHunter.nome} onChange={e => setNovoHunter({...novoHunter, nome: e.target.value})} />
-                  <div className="flex gap-4">
-                    <input type="text" placeholder="AVATAR" className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-center w-20 text-white outline-none" value={novoHunter.avatar} onChange={e => setNovoHunter({...novoHunter, avatar: e.target.value})} />
-                    <input type="password" placeholder="PIN" maxLength={4} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex-1 text-white outline-none" value={novoHunter.pin} onChange={e => setNovoHunter({...novoHunter, pin: e.target.value.replace(/\D/g, '')})} />
-                  </div>
-                  <select className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-white outline-none" value={novoHunter.cor} onChange={e => setNovoHunter({...novoHunter, cor: e.target.value})}>
-                    <option value="verde">AURA VERDE</option>
-                    <option value="azul">AURA AZUL</option>
-                    <option value="roxo">AURA ROXA</option>
-                    <option value="laranja">AURA LARANJA</option>
-                  </select>
-                  <div className="flex gap-3">
-                    <button onClick={salvarNovoHunter} className="flex-1 py-4 bg-yellow-500 text-black font-black uppercase rounded-xl">Confirmar</button>
-                    <button onClick={() => setMostrandoFormHunter(false)} className="px-6 py-4 bg-zinc-800 text-zinc-400 font-black uppercase rounded-xl">Cancelar</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-              {perfis.map(p => (
-                <div key={p.nome_original} className="grid grid-cols-[1fr_auto] items-center gap-4 p-5 bg-black/40 rounded-3xl border border-zinc-800 shadow-lg">
-                  <div className="flex items-center gap-5 min-w-0 text-white">
-                    <div className="w-14 h-14 min-w-[3.5rem] bg-zinc-900 rounded-2xl flex items-center justify-center text-3xl border border-zinc-800">{p.avatar}</div>
-                    <div className="min-w-0">
-                      <p className="font-black uppercase text-sm truncate">{p.nome_exibicao}</p>
-                      <p className="text-[10px] text-zinc-500 uppercase">PIN: {p.pin || "Aberto"}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => deletarPerfil(p)} className="w-12 h-12 flex items-center justify-center bg-zinc-900 rounded-xl text-zinc-600 hover:text-red-500 transition-all">🗑️</button>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800 shadow-2xl">
-            <h3 className="text-lg font-black uppercase mb-8 text-yellow-500 italic text-white">Interface Global</h3>
-            <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest text-center mt-20 italic">Selecione os componentes ativos para os usuários.</p>
-          </section>
-        </div>
-      </main>
+      <AdminPanel 
+        perfis={perfis}
+        config={config}
+        mostrandoFormHunter={mostrandoFormHunter}
+        setMostrandoFormHunter={setMostrandoFormHunter}
+        novoHunter={novoHunter}
+        setNovoHunter={setNovoHunter}
+        salvarNovoHunter={salvarNovoHunter}
+        deletarPerfil={deletarPerfil}
+        setUsuarioAtual={setUsuarioAtual}
+      />
     );
   }
 
