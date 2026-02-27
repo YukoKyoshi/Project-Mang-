@@ -32,7 +32,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
   }, [estaAberto]);
 
 // ==========================================
-  // [SISTEMA DE BUSCA TRIPLA] - AniList -> MAL -> I.A. (Gemini)
+  // [SISTEMA DE BUSCA S+] - I.A. na Linha de Frente -> AniList -> MAL
   // ==========================================
   useEffect(() => {
     if (termoAnilist.length < 3) {
@@ -40,10 +40,13 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
       return;
     }
     
+    // 1.2 segundos de delay. Como a IA vai agir em todas as buscas, 
+    // precisamos garantir que você parou de digitar para não gastar sua cota à toa.
     const t = setTimeout(async () => {
       setBuscando(true);
       try {
         let resultados = [];
+        let termoInteligente = termoAnilist; // Começa com o que você digitou
 
         // 🧰 Função Auxiliar 1: Busca no AniList
         const buscarAnilist = async (termo: string) => {
@@ -75,51 +78,42 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           return [];
         };
 
-        // 🎯 1º TENTATIVA: Original (AniList)
-        resultados = await buscarAnilist(termoAnilist);
-
-        // 🎯 2º TENTATIVA: Original (MAL)
-        if (resultados.length === 0) {
-          resultados = await buscarMAL(termoAnilist);
+        // 🎯 1º PASSO: I.A. OTIMIZADORA (O Cérebro age primeiro)
+        console.log("🧠 Perguntando para a I.A. o nome real de:", termoAnilist);
+        
+        const resIA = await fetch('/api/tradutor-ia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ termo: termoAnilist })
+        });
+        
+        if (resIA.ok) {
+          const jsonIA = await resIA.json();
+          // Se a I.A. devolveu algo válido, substituímos o termo de busca
+          if (jsonIA.resultado && jsonIA.resultado.trim() !== "") {
+            termoInteligente = jsonIA.resultado;
+            console.log(`🤖 A I.A. definiu que a melhor busca é: "${termoInteligente}"`);
+          }
+        } else {
+          console.warn("⚠️ Servidor da I.A. não respondeu, usando texto original.");
         }
 
-        // 🎯 3º TENTATIVA: Inteligência Artificial (Gemini Backend)
-        if (resultados.length === 0) {
-          console.log("🧠 Acionando a I.A. para entender a busca...");
-          
-          // Chama a NOSSA rota segura, escondendo a chave da API
-          const resIA = await fetch('/api/tradutor-ia', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ termo: termoAnilist })
-          });
-          
-          if (resIA.ok) {
-            const jsonIA = await resIA.json();
-            const termoInteligente = jsonIA.resultado;
-            
-            console.log(`🤖 A I.A. traduziu "${termoAnilist}" para: "${termoInteligente}"`);
+        // 🎯 2º PASSO: AniList (Agora armado com o nome perfeito)
+        resultados = await buscarAnilist(termoInteligente);
 
-            // Faz a busca final usando o nome que a I.A. descobriu
-            if (termoInteligente && termoInteligente.toLowerCase() !== termoAnilist.toLowerCase()) {
-              resultados = await buscarAnilist(termoInteligente);
-              if (resultados.length === 0) {
-                resultados = await buscarMAL(termoInteligente);
-              }
-            }
-          } else {
-            console.error("❌ Falha ao contatar o servidor da I.A.");
-          }
+        // 🎯 3º PASSO: MyAnimeList (Caso a obra seja muito obscura e fuja do AniList)
+        if (resultados.length === 0) {
+          resultados = await buscarMAL(termoInteligente);
         }
 
         setResultadosAnilist(resultados);
 
       } catch (err) {
-        console.error("❌ Erro na busca com I.A.:", err);
+        console.error("❌ Erro no motor de busca S+:", err);
       } finally {
         setBuscando(false);
       }
-    }, 1000); // 1 segundo de delay para não gastar a cota da I.A. enquanto digita
+    }, 1200); 
     
     return () => clearTimeout(t);
   }, [termoAnilist]);
