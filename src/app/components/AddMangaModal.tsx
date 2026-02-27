@@ -32,7 +32,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
   }, [estaAberto]);
 
 // ==========================================
-  // [SISTEMA DE BUSCA TRIPLA] - AniList -> MAL -> Tradução Auto (Com Sanitização)
+  // [SISTEMA DE BUSCA TRIPLA] - AniList -> MAL -> I.A. (Gemini)
   // ==========================================
   useEffect(() => {
     if (termoAnilist.length < 3) {
@@ -75,10 +75,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           return [];
         };
 
-        // 🧰 Função Auxiliar 3: Sanitização (Limpa "x" isolados e espaços duplos)
-        // Ex: "Caçador x Caçador" vira "Caçador Caçador", facilitando a tradução
-        const termoLimpo = termoAnilist.replace(/\b[xX]\b/g, ' ').replace(/\s+/g, ' ').trim();
-
         // 🎯 1º TENTATIVA: Original (AniList)
         resultados = await buscarAnilist(termoAnilist);
 
@@ -87,30 +83,43 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           resultados = await buscarMAL(termoAnilist);
         }
 
-        // 🎯 3º TENTATIVA: Sanitizado + Traduzido (Trident)
+        // 🎯 3º TENTATIVA: Inteligência Artificial (Gemini Backend)
         if (resultados.length === 0) {
-          const resTrad = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl=en&dt=t&q=${encodeURIComponent(termoLimpo)}`);
-          const jsonTrad = await resTrad.json();
-          const termoTraduzido = jsonTrad[0].map((item: any) => item[0]).join('');
+          console.log("🧠 Acionando a I.A. para entender a busca...");
           
-          console.log("🔍 Termo Traduzido para Busca:", termoTraduzido); // Para você acompanhar no F12 (Console)
+          // Chama a NOSSA rota segura, escondendo a chave da API
+          const resIA = await fetch('/api/tradutor-ia', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ termo: termoAnilist })
+          });
+          
+          if (resIA.ok) {
+            const jsonIA = await resIA.json();
+            const termoInteligente = jsonIA.resultado;
+            
+            console.log(`🤖 A I.A. traduziu "${termoAnilist}" para: "${termoInteligente}"`);
 
-          if (termoTraduzido) {
-            resultados = await buscarAnilist(termoTraduzido);
-            if (resultados.length === 0) {
-              resultados = await buscarMAL(termoTraduzido);
+            // Faz a busca final usando o nome que a I.A. descobriu
+            if (termoInteligente && termoInteligente.toLowerCase() !== termoAnilist.toLowerCase()) {
+              resultados = await buscarAnilist(termoInteligente);
+              if (resultados.length === 0) {
+                resultados = await buscarMAL(termoInteligente);
+              }
             }
+          } else {
+            console.error("❌ Falha ao contatar o servidor da I.A.");
           }
         }
 
         setResultadosAnilist(resultados);
 
       } catch (err) {
-        console.error("❌ Erro na busca Tridente:", err);
+        console.error("❌ Erro na busca com I.A.:", err);
       } finally {
         setBuscando(false);
       }
-    }, 800); 
+    }, 1000); // 1 segundo de delay para não gastar a cota da I.A. enquanto digita
     
     return () => clearTimeout(t);
   }, [termoAnilist]);
