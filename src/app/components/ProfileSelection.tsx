@@ -22,11 +22,14 @@ interface ProfileSelectionProps {
   pinDigitado: string;
   setPinDigitado: (v: string) => void;
   confirmarPin: () => void;
+  setPinAdminAberto: (v: boolean) => void;
+  pinAdminAberto: boolean;
 }
 
 export default function ProfileSelection({
   perfis, temas, tentarMudarPerfil, perfilAlvoParaBloqueio,
-  pinDigitado, setPinDigitado, confirmarPin
+  pinDigitado, setPinDigitado, confirmarPin, setPinAdminAberto, pinAdminAberto
+  
 }: ProfileSelectionProps) {
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-700">
@@ -54,7 +57,7 @@ export default function ProfileSelection({
         })}
 
         {/* PERFIL ADMINISTRADOR */}
-        <div onClick={() => tentarMudarPerfil("Admin")} className="flex flex-col items-center gap-4 cursor-pointer group">
+        <div onClick={() => setPinAdminAberto(true)} className="flex flex-col items-center gap-4 cursor-pointer group">
           <div className="w-40 h-40 bg-zinc-900 border-4 border-dashed border-zinc-700 rounded-[3rem] flex items-center justify-center text-7xl group-hover:border-yellow-500 group-hover:bg-yellow-500/5 transition-all duration-500">
             ⚙️
           </div>

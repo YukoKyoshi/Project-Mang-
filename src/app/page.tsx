@@ -269,24 +269,49 @@ async function deletarPerfil(perfil: any) {
   if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-zinc-500 font-bold uppercase">Carregando...</div>;
 
-  // ==========================================
-  // 🖥️ 9. RENDERING: SELEÇÃO DE PERFIL / MODO ADMINISTRADOR
-  // ==========================================
-  
   // ------------------------------------------
   // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL (COMPONENTIZADO)
   // ------------------------------------------
   if (!usuarioAtual) {
     return (
-      <ProfileSelection 
-        perfis={perfis}
-        temas={TEMAS}
-        tentarMudarPerfil={tentarMudarPerfil}
-        perfilAlvoParaBloqueio={perfilAlvoParaBloqueio}
-        pinDigitado={pinDigitado}
-        setPinDigitado={setPinDigitado}
-        confirmarPin={confirmarPin}
-      />
+      <>
+        <ProfileSelection 
+          perfis={perfis}
+          temas={TEMAS}
+          tentarMudarPerfil={tentarMudarPerfil}
+          perfilAlvoParaBloqueio={perfilAlvoParaBloqueio}
+          pinDigitado={pinDigitado}
+          setPinDigitado={setPinDigitado}
+          confirmarPin={confirmarPin}
+          setPinAdminAberto={setPinAdminAberto} // <--- Passamos o controle para o componente
+          pinAdminAberto={pinAdminAberto}
+        />
+
+        {/* 🔐 O MODAL DO ADMIN FICA AQUI, NA TELA DE SELEÇÃO */}
+        {pinAdminAberto && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/98 backdrop-blur-2xl animate-in zoom-in-95 duration-300">
+            <div className="bg-zinc-900 p-12 rounded-[3rem] border border-zinc-800 text-center space-y-8 shadow-[0_0_100px_rgba(0,0,0,1)] max-w-sm w-full">
+              <h2 className="text-white font-black uppercase tracking-tighter text-2xl italic text-yellow-500">Admin Login</h2>
+              <input 
+                type="password" maxLength={4} autoFocus
+                className="w-full bg-black border border-zinc-700 p-5 rounded-2xl text-center text-4xl font-bold text-white outline-none focus:border-yellow-500 transition-all font-mono"
+                onChange={(e) => {
+                  if (e.target.value === "1234") { // <--- Hunter, lembre-se de mudar para sua senha!
+                    setIsAdmin(true);
+                    setPinAdminAberto(false);
+                  }
+                }}
+              />
+              <button 
+                onClick={() => setPinAdminAberto(false)} 
+                className="text-[10px] text-zinc-600 hover:text-white uppercase font-black tracking-widest mt-4"
+              >
+                Retornar
+              </button>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -345,29 +370,6 @@ async function deletarPerfil(perfil: any) {
             className={`${aura.bg} ${aura.shadow} px-8 py-4 rounded-2xl font-black uppercase text-xs hover:scale-105 active:scale-95 transition-all text-black`}
           >
             + Adicionar Obra
-          </button>
-          
-          {/* ACESSAR PERFIL (perfil na estante) -> Abre o Painel do Hunter */}
-          <div 
-            onClick={() => setMostrandoPerfil(true)}
-              /// Se você tiver uma tela de perfil, ative-a aqui. 
-               // Por enquanto, vou deixar um alerta para confirmarmos o nome do seu componente de perfil.
-              className="group cursor-pointer flex flex-col items-center gap-2"
-              title="Configurações do Hunter"
-           >
-            <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-3xl border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg`}>
-              {perfilAtivo.avatar}
-            </div>
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter group-hover:text-white transition-colors">Configurações</span>
-          </div>
-
-          {/* NOVO BOTÃO: ACESSO AO ADMIN COM PIN */}
-          <button 
-            onClick={() => setPinAdminAberto(true)} // <--- LINHA DE COMANDO INSERIDA AQUI
-            className="w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-2xl border border-zinc-800 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-all group"
-            title="Painel Administrativo"
-          >
-            <span className="group-hover:rotate-90 transition-transform duration-500">⚙️</span>
           </button>
 
         </div>
@@ -452,39 +454,7 @@ async function deletarPerfil(perfil: any) {
           aura={aura} // <--- essa linha contem as cores
         />
       )}
-
-      {/* 🔐 MODAL DE SEGURANÇA DO ADMINISTRADOR */}
-      {pinAdminAberto && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-zinc-900 p-10 rounded-[2.5rem] border border-zinc-800 text-center space-y-6 shadow-2xl max-w-xs w-full">
-            <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-2">
-              🛡️
-            </div>
-            <h2 className="text-white font-black uppercase tracking-tighter text-xl">Acesso Restrito</h2>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Digite o PIN Administrativo</p>
-            
-            <input 
-              type="password" 
-              maxLength={4} 
-              autoFocus
-              className="w-full bg-black border border-zinc-700 p-4 rounded-xl text-center text-3xl font-bold text-white outline-none focus:border-red-500 transition-all font-mono"
-              onChange={(e) => {
-                if (e.target.value === "1234") { // <--- Hunter, mude este número para sua senha real!
-                  setIsAdmin(true);
-                  setPinAdminAberto(false);
-                }
-              }}
-            />
-            
-            <button 
-              onClick={() => setPinAdminAberto(false)} 
-              className="text-[10px] text-zinc-600 hover:text-white uppercase font-black tracking-[0.2em] transition-colors"
-            >
-              [ Cancelar Operação ]
-            </button>
-          </div>
-        </div>
-      )}
+      
 
     </main> // <--- Esta é a última tag </main> do seu page.tsx
   );
