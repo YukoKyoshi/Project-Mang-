@@ -5,29 +5,30 @@ export async function POST(request: Request) {
     const { termo } = await request.json();
 
     if (!termo) {
-      return NextResponse.json({ erro: 'Termo não fornecido' }, { status: 400 });
+      return NextResponse.json({ resultado: '⚠️ ERRO_LOCAL: Termo vazio' });
     }
 
     const API_KEY = process.env.GEMINI_API_KEY;
 
     if (!API_KEY) {
-      return NextResponse.json({ erro: 'Chave da API ausente' }, { status: 500 });
+      return NextResponse.json({ resultado: '⚠️ ERRO_LOCAL: Chave da API ausente no Vercel' });
     }
 
-    const prompt = `
-      Atue como o maior especialista do mundo em banco de dados de animes e mangás.
-      O usuário digitou a seguinte busca: "${termo}".
-      Sua missão: Descobrir qual é a obra exata.
-      Regra 1: Retorne APENAS o nome oficial da obra em Romaji ou Inglês (ex: para "caderno da morte", retorne "Death Note").
-      Regra 2: Não explique nada, não use aspas, apenas devolva o nome.
-    `;
+    // O NOVO PROMPT: Muito mais direto e com exemplos
+    const prompt = `Você é um sistema especialista em busca de mangás. O usuário pesquisou por: "${termo}".
+    Sua única função é traduzir ou corrigir isso para o título oficial da obra em Romaji ou Inglês (o mais usado no AniList).
+    Exemplos:
+    "caderno da morte" -> Death Note
+    "menino que estica" -> One Piece
+    "caçador x caçador" -> Hunter x Hunter
+    
+    Responda APENAS o nome da obra. Sem aspas, sem explicações, sem pontuação final.`;
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        // 🛡️ DESLIGANDO OS FILTROS DE SEGURANÇA PARA TÍTULOS DE AÇÃO/TERROR
         safetySettings: [
           { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -43,10 +44,9 @@ export async function POST(request: Request) {
 
     const data = await res.json();
 
-    // Se a API do Google reclamar de algo, mandamos o erro para o F12
+    // 🔥 O TRUQUE DE DEBUGGING: Se o Google der erro, mandamos o erro disfarçado de resultado para aparecer no seu Console F12!
     if (data.error) {
-       console.error("Erro interno do Gemini:", data.error);
-       return NextResponse.json({ resultado: termo, erroDaIA: data.error.message });
+       return NextResponse.json({ resultado: `⚠️ ERRO_GOOGLE: ${data.error.message}` });
     }
 
     const textoLimpo = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
@@ -54,7 +54,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ resultado: textoLimpo || termo });
 
   } catch (error: any) {
-    console.error("Erro geral na rota da IA:", error);
-    return NextResponse.json({ erro: 'Falha na comunicação', detalhes: error.message }, { status: 500 });
+    return NextResponse.json({ resultado: `⚠️ ERRO_GERAL: ${error.message}` });
   }
 }
