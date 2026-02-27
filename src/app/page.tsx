@@ -156,11 +156,18 @@ async function criarNovoPerfil() {
   // 🔑 7. LÓGICA DE PERFIS E PIN
   // ==========================================
   function tentarMudarPerfil(nome: string) {
+    if (nome === "Admin") {
+      setIsAdmin(true); // Força o estado de Admin imediatamente
+      setUsuarioAtual("Admin");
+      return;
+    }
+
     const info = perfis.find(p => p.nome_original === nome);
     if (info?.pin) {
       setPerfilAlvoParaBloqueio(nome);
       setPinDigitado("");
     } else {
+      setIsAdmin(false); // Garante que não é admin
       setUsuarioAtual(nome);
     }
   }
