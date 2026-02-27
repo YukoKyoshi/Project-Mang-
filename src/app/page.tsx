@@ -1,18 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+// [AJUSTE] Importando o arquivo que está na mesma pasta (vizinho)
+import { supabase } from "./supabase"; 
 import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 
-// --- BANCO DE DADOS DE USUÁRIOS (PERFIS) ---
+// --- 1. BANCO DE DADOS DE USUÁRIOS ---
+// Aqui definimos quem são os Hunters e seus PINs secretos.
 const USUARIOS = [
   { id: 1, nome: "Baiaku", pin: "1234", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Baiaku", aura: "verde" },
   { id: 2, nome: "Hunter", pin: "0000", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Hunter", aura: "roxo" },
   { id: 3, nome: "Visitante", pin: "1111", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Guest", aura: "azul" },
 ];
 
-// --- MAPA DE AURAS (CORES DINÂMICAS) ---
+// --- 2. MAPA DE ESTILOS (AURAS) ---
+// Cores que mudam conforme o perfil selecionado.
 const AURAS: any = {
   verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500/50", shadow: "shadow-[0_0_40px_rgba(34,197,94,0.2)]", focus: "focus:border-green-500" },
   roxo: { bg: "bg-purple-600", text: "text-purple-500", border: "border-purple-500/50", shadow: "shadow-[0_0_40px_rgba(147,51,234,0.2)]", focus: "focus:border-purple-500" },
@@ -20,19 +23,22 @@ const AURAS: any = {
 };
 
 export default function Home() {
-  // --- ESTADOS DE SEGURANÇA ---
-  const [autenticado, setAutenticado] = useState(false); // Senha Mestra do site
+  // --- 3. CONTROLE DE ACESSO (ESTADOS) ---
+  const [autenticado, setAutenticado] = useState(false);      // Trava 1: Senha Mestra do Site
   const [senhaMestra, setSenhaMestra] = useState("");
-  const [usuarioAtual, setUsuarioAtual] = useState<any>(null); // Usuário logado de fato
-  const [perfilTentativa, setPerfilTentativa] = useState<any>(null); // Perfil que clicamos, aguardando PIN
+  
+  // [IMPORTANTE] usuarioAtual começa como NULL para ninguém entrar direto!
+  const [usuarioAtual, setUsuarioAtual] = useState<any>(null); // Trava 2: Perfil logado
+  const [perfilTentativa, setPerfilTentativa] = useState<any>(null); // Perfil aguardando o PIN
   const [pinDigitado, setPinDigitado] = useState("");
 
-  // --- ESTADOS DE DADOS ---
+  // --- 4. ESTADOS DE DADOS DA ESTANTE ---
   const [mangas, setMangas] = useState<any[]>([]);
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<any>(null);
 
-  // --- 1. BUSCAR DADOS (SUPABASE) ---
+  // --- 5. BUSCA AUTOMÁTICA ---
+  // Toda vez que o usuarioAtual mudar (fizer login), buscamos os mangás dele.
   useEffect(() => {
     if (usuarioAtual) {
       buscarMangas();
@@ -43,33 +49,33 @@ export default function Home() {
     const { data } = await supabase
       .from("mangas")
       .select("*")
-      .eq("usuario_id", usuarioAtual.id) // Só traz os mangás do usuário logado
+      .eq("usuario_id", usuarioAtual.id) // FILTRO: Só traz o que for deste usuário
       .order("created_at", { ascending: false });
     setMangas(data || []);
   }
 
-  // --- 2. LÓGICA DE ACESSO ---
+  // --- 6. FUNÇÕES DE SEGURANÇA ---
   function loginMestre() {
     if (senhaMestra === "Hunter123") setAutenticado(true);
-    else alert("Senha Incorreta!");
+    else alert("Senha Mestra incorreta!");
   }
 
   function abrirPromptPin(usuario: any) {
-    setPerfilTentativa(usuario); // Guarda o perfil clicado na "sala de espera"
-    setPinDigitado(""); // Limpa o campo
+    setPerfilTentativa(usuario); // Coloca o usuário na "sala de espera"
+    setPinDigitado("");          // Limpa o campo para nova digitação
   }
 
   function verificarPin() {
     if (pinDigitado === perfilTentativa.pin) {
-      setUsuarioAtual(perfilTentativa); // Libera o acesso à estante
-      setPerfilTentativa(null); // Fecha o modal de PIN
+      setUsuarioAtual(perfilTentativa); // SUCESSO: O usuário agora é o "atual"
+      setPerfilTentativa(null);        // Fecha o modal de PIN
     } else {
-      alert("PIN Incorreto!");
+      alert("PIN Incorreto, Hunter!");
       setPinDigitado("");
     }
   }
 
-  // --- 3. OPERAÇÕES DA ESTANTE ---
+  // --- 7. AÇÕES DA ESTANTE ---
   async function salvarNovaObra(novaObra: any) {
     const { data, error } = await supabase
       .from("mangas")
@@ -91,7 +97,7 @@ export default function Home() {
   }
 
   async function deletarManga(id: string) {
-    if (confirm("Deseja mesmo remover?")) {
+    if (confirm("Deseja mesmo remover esta obra?")) {
       const { error } = await supabase.from("mangas").delete().eq("id", id);
       if (!error) {
         setMangas(mangas.filter(m => m.id !== id));
@@ -100,10 +106,10 @@ export default function Home() {
     }
   }
 
-  // Define a Aura atual com base no usuário logado ou no perfil clicado (para o modal de PIN)
+  // Descobre qual Aura usar (Verde, Roxo ou Azul)
   const aura = AURAS[usuarioAtual?.aura || perfilTentativa?.aura || "verde"];
 
-  // --- RENDERING: TELA 1 (SENHA MESTRA) ---
+  // --- RENDERING PARTE 1: PORTÃO PRINCIPAL (SENHA DO SITE) ---
   if (!autenticado) {
     return (
       <main className="h-screen bg-black flex items-center justify-center p-6">
@@ -123,7 +129,7 @@ export default function Home() {
     );
   }
 
-  // --- RENDERING: TELA 2 (SELEÇÃO DE PERFIL) ---
+  // --- RENDERING PARTE 2: QUEM ESTÁ LENDO? (SELEÇÃO COM PIN) ---
   if (!usuarioAtual) {
     return (
       <main className="h-screen bg-[#050505] flex flex-col items-center justify-center p-6">
@@ -139,10 +145,10 @@ export default function Home() {
           ))}
         </div>
 
-        {/* MODAL DE PIN (O GUARDIÃO) */}
+        {/* MODAL DE SEGURANÇA DO PERFIL (PIN) */}
         {perfilTentativa && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md">
-            <div className={`bg-zinc-900 border border-white/10 p-10 rounded-[3rem] w-80 text-center shadow-2xl`}>
+            <div className="bg-zinc-900 border border-white/10 p-10 rounded-[3rem] w-80 text-center shadow-2xl">
               <img src={perfilTentativa.avatar} className="w-20 h-20 rounded-full mx-auto mb-6" />
               <p className="text-white font-black uppercase text-xs mb-6">PIN de {perfilTentativa.nome}</p>
               <input 
@@ -162,10 +168,9 @@ export default function Home() {
     );
   }
 
-  // --- RENDERING: TELA 3 (ESTANTE PRINCIPAL) ---
+  // --- RENDERING PARTE 3: A ESTANTE REAL ---
   return (
     <main className="min-h-screen bg-[#080808] text-white p-6 md:p-12">
-      {/* HEADER DINÂMICO COM AURA */}
       <header className="flex justify-between items-end mb-16 max-w-7xl mx-auto">
         <div>
           <p className={`text-[10px] font-black uppercase tracking-[0.4em] mb-2 ${aura.text}`}>Estante Pessoal</p>
@@ -173,15 +178,16 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-6">
           <button onClick={() => setEstaAbertoAdd(true)} className={`${aura.bg} p-4 rounded-2xl shadow-lg hover:scale-105 transition-all`}>
-            <span className="font-black uppercase text-[10px] tracking-widest">Add Manga</span>
+            <span className="font-black uppercase text-[10px] tracking-widest px-4">Add Manga</span>
           </button>
+          {/* Clicar no avatar faz Logoff (volta para seleção de perfil) */}
           <div onClick={() => setUsuarioAtual(null)} className="cursor-pointer group">
             <img src={usuarioAtual.avatar} className={`w-12 h-12 rounded-full border-2 ${aura.border} group-hover:scale-110 transition-all`} />
           </div>
         </div>
       </header>
 
-      {/* GRADE DE MANGÁS */}
+      {/* GRADE DE OBRAS */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
         {mangas.map(m => (
           <div key={m.id} onClick={() => setMangaDetalhe(m)} className="group cursor-pointer relative">
@@ -196,7 +202,7 @@ export default function Home() {
         ))}
       </div>
 
-      {/* COMPONENTES MODAIS (PASSANDO A AURA) */}
+      {/* JANELAS MODAIS */}
       <AddMangaModal 
         estaAberto={estaAbertoAdd} 
         fechar={() => setEstaAbertoAdd(false)} 
