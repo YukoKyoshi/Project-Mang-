@@ -152,6 +152,31 @@ async function criarNovoPerfil() {
   }
 }
 
+// --- Deletar perfis ---//
+
+async function deletarPerfil(perfil: any) {
+  if (perfil.nome_original === "Admin") {
+    alert("O perfil Administrador não pode ser removido.");
+    return;
+  }
+
+  const confirmacao = confirm(`Tens a certeza que queres remover o Hunter "${perfil.nome_exibicao}"? Esta ação é permanente.`);
+  
+  if (confirmacao) {
+    const { error } = await supabase
+      .from("perfis")
+      .delete()
+      .eq("nome_original", perfil.nome_original);
+
+    if (error) {
+      alert("Erro ao remover: " + error.message);
+    } else {
+      alert("Hunter removido com sucesso.");
+      buscarPerfis(); // Atualiza a lista no Admin e na tela inicial
+    }
+  }
+}
+
   // ==========================================
   // 🔑 7. LÓGICA DE PERFIS E PIN
   // ==========================================
@@ -188,11 +213,13 @@ async function criarNovoPerfil() {
   if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-zinc-500 font-bold uppercase">Carregando...</div>;
 
-  /// ==========================================
+  // ==========================================
   // 🖥️ 9. RENDERING: SELEÇÃO DE PERFIL / MODO ADMINISTRADOR
   // ==========================================
   
-  // PARTE A: Tela de "Quem está lendo?" (Sua tela atual)
+  // ------------------------------------------
+  // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL (QUEM ESTÁ LENDO?)
+  // ------------------------------------------
   if (!usuarioAtual) {
     return (
       <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-white">
@@ -231,57 +258,57 @@ async function criarNovoPerfil() {
     );
   }
 
-  // PARTE B: Painel de Controle (Onde o botão novo entra)
+  // ------------------------------------------
+  // SUB-SESSÃO 9.B: PAINEL DE CONTROLE (MODO CONSTRUTOR)
+  // ------------------------------------------
   if (isAdmin) {
     return (
-      <main className="min-h-screen bg-black text-white p-10 animate-in fade-in duration-500">
+      <main className="min-h-screen bg-black text-white p-10">
         <header className="flex justify-between items-center mb-10 border-b border-yellow-500/30 pb-6">
-          <div>
-            <h1 className="text-3xl font-black uppercase italic text-yellow-500">Modo Construtor</h1>
-            <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Painel de Gerenciamento</p>
-          </div>
-          <button onClick={() => setUsuarioAtual(null)} className="px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold uppercase hover:bg-white hover:text-black transition-all">Sair do Painel</button>
+          <h1 className="text-3xl font-black uppercase italic text-yellow-500">Modo Construtor</h1>
+          <button onClick={() => setUsuarioAtual(null)} className="px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold uppercase hover:bg-white hover:text-black transition-all">Sair</button>
         </header>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Seção de Visibilidade (Interruptores) */}
+          
+          {/* SUB-FUNÇÃO: CONTROLE DE VISIBILIDADE */}
           <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-zinc-800">
-            <h3 className="text-sm font-black mb-6 uppercase text-yellow-500">Controles de Visibilidade</h3>
-            <div className="space-y-4">
-               {/* Aqui você já deve ter os interruptores de busca, stats, etc que fizemos antes */}
-               <p className="text-xs text-zinc-500 italic">Configure o que os usuários podem ver na estante.</p>
-            </div>
+            <h3 className="text-sm font-black mb-6 uppercase text-yellow-500">Visibilidade</h3>
+            {/* Aqui entrarão os switches que fizemos anteriormente */}
           </div>
           
-          {/* Seção de Perfis (Gerenciador) */}
+          {/* SUB-FUNÇÃO: GERENCIAMENTO DE HUNTERS */}
           <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-zinc-800">
             <h3 className="text-sm font-black mb-6 uppercase text-yellow-500 italic">Equipe de Hunters</h3>
             
-            {/* O BOTÃO QUE VOCÊ PROCURAVA: */}
-            <button 
-              onClick={criarNovoPerfil} 
-              className="w-full py-5 border-2 border-dashed border-zinc-800 rounded-3xl text-zinc-600 font-black uppercase text-[10px] tracking-[0.2em] hover:border-yellow-500 hover:text-white transition-all mb-6"
-            >
+            {/* Botão de Criação */}
+            <button onClick={criarNovoPerfil} className="w-full py-4 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-600 font-bold uppercase text-[10px] hover:border-yellow-500 hover:text-white transition-all mb-6">
               + Adicionar Novo Hunter
             </button>
 
-            <div className="space-y-2 overflow-y-auto max-h-48 pr-2">
+            {/* Lista de Exclusão */}
+            <div className="space-y-3">
               {perfis.map(p => (
                 <div key={p.nome_original} className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-zinc-800/50">
                    <div className="flex items-center gap-3">
                       <span>{p.avatar}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest">{p.nome_exibicao}</span>
+                      <span className="text-[10px] font-bold uppercase">{p.nome_exibicao}</span>
                    </div>
-                   <span className="text-[10px] text-zinc-600">PIN: {p.pin || '---'}</span>
+                   <button 
+                     onClick={() => deletarPerfil(p)} 
+                     className="p-2 hover:bg-red-500/20 hover:text-red-500 rounded-lg transition-all"
+                   >
+                     🗑️
+                   </button>
                 </div>
               ))}
             </div>
           </div>
+
         </div>
       </main>
     );
   }
-
   // ==========================================
   // 🖥️ 10. ESTANTE DE MANGÁS OU MODO ADMIN
   // ==========================================
