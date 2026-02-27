@@ -48,51 +48,42 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ==========================================
-  // 🔄 5. LÓGICA DE INICIALIZAÇÃO (F5 GUARD)
+  // 🔄 5. LÓGICA DE INICIALIZAÇÃO
   // ==========================================
   useEffect(() => { 
-    // Checa se a Senha Mestra já foi dada nesta sessão
     const mestre = sessionStorage.getItem("acesso_mestre");
     if (mestre === "true") setMestreAutorizado(true);
 
-    // RESET NO F5: Limpamos o usuário ativo para exigir o PIN
+    // Reset de usuário no F5 para segurança do PIN
     sessionStorage.removeItem('hunter_ativo');
     setUsuarioAtual(null);
     
-    // Busca inicial dos dados
-    buscarMangas(); 
     buscarPerfis().then(() => setCarregando(false));
   }, []);
 
-  // Busca mangás toda vez que o usuário logar
+  // Sempre que o usuário mudar, resetamos a lista e buscamos de novo
   useEffect(() => {
-    if (usuarioAtual) buscarMangas();
+    if (usuarioAtual) {
+        setMangas([]); // Limpa a tela para evitar "flash" do usuário anterior
+        buscarMangas();
+    }
   }, [usuarioAtual]);
 
   // ==========================================
-  // 🛠️ 6. FUNÇÕES DO BANCO DE DADOS (FILTRADO)
+  // 🛠️ 6. FUNÇÕES DO BANCO DE DADOS (SUPABASE)
   // ==========================================
   async function buscarMangas() {
-    // Se não houver ninguém logado, não buscamos nada para evitar erros
     if (!usuarioAtual) return;
-
-    const { data, error } = await supabase
-      .from("mangas")
+    const { data } = await supabase.from("mangas")
       .select("*")
-      .eq("usuario", usuarioAtual) // <-- AQUI ESTÁ O FILTRO REAL
+      .eq("usuario", usuarioAtual)
       .order("ultima_leitura", { ascending: false });
-
-    if (error) {
-      console.error("Erro Supabase Mangas:", error.message);
-    } else {
-      setMangas(data as Manga[]);
-    }
+    if (data) setMangas(data as Manga[]);
   }
 
   async function buscarPerfis() {
-    const { data, error } = await supabase.from("perfis").select("*");
+    const { data } = await supabase.from("perfis").select("*");
     if (data) setPerfis(data);
-    if (error) console.error("Erro Supabase Perfis:", error.message);
   }
 
   async function atualizarCapitulo(manga: Manga, novo: number) {
@@ -111,18 +102,15 @@ export default function Home() {
   }
 
   async function salvarNovaObra(novoManga: any) {
-    const existe = mangas.some(m => m.titulo === novoManga.titulo && m.usuario === usuarioAtual);
+    const existe = mangas.some(m => m.titulo === novoManga.titulo);
     if (existe) return alert("⚠️ Você já tem este mangá!");
-    let statusFinal = "Planejo Ler";
-    if (novoManga.total_capitulos > 0 && novoManga.capitulo_atual >= novoManga.total_capitulos) statusFinal = "Completos";
-    else if (novoManga.capitulo_atual > 0) statusFinal = "Lendo";
-    await supabase.from("mangas").insert([{ ...novoManga, usuario: usuarioAtual, status: statusFinal, ultima_leitura: new Date().toISOString() }]);
+    await supabase.from("mangas").insert([{ ...novoManga, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() }]);
     setEstaAbertoAdd(false);
     buscarMangas();
   }
 
   // ==========================================
-  // 🔑 7. LÓGICA DE PERFIS E SEGURANÇA PIN
+  // 🔑 7. LÓGICA DE PERFIS E PIN
   // ==========================================
   function tentarMudarPerfil(nomeOriginal: string) {
     if (nomeOriginal === usuarioAtual) return;
@@ -144,7 +132,7 @@ export default function Home() {
       setPerfilAlvoParaBloqueio(null);
       setPinDigitado("");
     } else {
-      alert("❌ PIN Incorreto! Acesso negado.");
+      alert("❌ PIN Incorreto!");
       setPinDigitado("");
     }
   }
@@ -154,46 +142,37 @@ export default function Home() {
     setUsuarioAtual(null);
   }
 
-  // ==========================================
-  // 🖥️ 8. RENDERING: PORTÃO MESTRE
-  // ==========================================
-  if (!mestreAutorizado) {
-    return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
-  }
-
-  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-zinc-500 font-bold tracking-widest uppercase">Carregando Sistema...</div>;
+  if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
+  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-zinc-500">Carregando...</div>;
 
   // ==========================================
-  // 🖥️ 9. RENDERING: SELEÇÃO DE PERFIL
+  // 🖥️ 8. RENDERING: SELEÇÃO DE PERFIL
   // ==========================================
   if (!usuarioAtual) {
     return (
       <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-[#e5e5e5] relative">
-        {/* MODAL DO PIN */}
         {perfilAlvoParaBloqueio && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300">
-            <div className="bg-[#0e0e11] border border-zinc-800 p-10 rounded-[3rem] shadow-2xl flex flex-col items-center max-w-sm w-full relative">
-              <button onClick={() => setPerfilAlvoParaBloqueio(null)} className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors">✕</button>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
+            <div className="bg-[#0e0e11] border border-zinc-800 p-10 rounded-[3rem] shadow-2xl flex flex-col items-center max-w-sm w-full">
+              <button onClick={() => setPerfilAlvoParaBloqueio(null)} className="absolute top-6 right-6 text-zinc-500">✕</button>
               <div className="text-6xl mb-4">🔒</div>
-              <h2 className="text-xl font-black text-white uppercase tracking-widest mb-2 text-center">Acesso Restrito</h2>
-              <input autoFocus type="password" maxLength={4} className="bg-zinc-950 border border-zinc-700 focus:border-red-500 rounded-2xl w-full py-4 text-center text-3xl font-black tracking-[1em] text-white outline-none mb-6 shadow-inner transition-colors" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && confirmarAcessoPin()} />
-              <button onClick={confirmarAcessoPin} className="w-full bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all border border-red-500/20 hover:border-red-600">Desbloquear</button>
+              <h2 className="text-xl font-black text-white uppercase tracking-widest mb-6 text-center">Digite o PIN</h2>
+              <input autoFocus type="password" maxLength={4} className="bg-zinc-950 border border-zinc-700 focus:border-red-500 rounded-2xl w-full py-4 text-center text-3xl font-black text-white outline-none mb-6" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && confirmarAcessoPin()} />
+              <button onClick={confirmarAcessoPin} className="w-full bg-red-600 text-white font-black py-4 rounded-xl">Desbloquear</button>
             </div>
           </div>
         )}
-
-        <h1 className="text-4xl md:text-5xl font-black mb-16 tracking-tighter text-white drop-shadow-md">Quem está lendo?</h1>
-        <div className="flex flex-wrap justify-center gap-8 md:gap-14">
+        <h1 className="text-4xl font-black mb-16 text-white uppercase tracking-tighter">Quem está lendo?</h1>
+        <div className="flex flex-wrap justify-center gap-10">
           {perfis.map(p => {
-            const isCustomP = p.cor_tema?.startsWith('#');
-            const auraP = isCustomP ? TEMAS.custom : (TEMAS[p.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
+            const auraP = p.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[p.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
             return (
-              <div key={p.nome_original} onClick={() => tentarMudarPerfil(p.nome_original)} className="flex flex-col items-center gap-6 cursor-pointer group" style={isCustomP ? { '--aura': p.cor_tema } as React.CSSProperties : {}}>
-                <div className={`w-32 h-32 md:w-44 md:h-44 bg-zinc-900 rounded-[3rem] flex items-center justify-center text-7xl shadow-2xl border-4 border-zinc-800 hover:${auraP.border} group-hover:scale-105 transition-all duration-300 relative group-hover:${auraP.shadow}`}>
+              <div key={p.nome_original} onClick={() => tentarMudarPerfil(p.nome_original)} className="flex flex-col items-center gap-6 cursor-pointer group" style={p.cor_tema?.startsWith('#') ? { '--aura': p.cor_tema } as React.CSSProperties : {}}>
+                <div className={`w-40 h-40 bg-zinc-900 rounded-[3rem] flex items-center justify-center text-7xl border-4 border-zinc-800 group-hover:${auraP.border} group-hover:${auraP.shadow} transition-all duration-300 relative`}>
                   {p.avatar}
-                  {p.pin && p.pin !== "" && <div className="absolute -top-3 -right-3 bg-red-600 w-12 h-12 rounded-full flex items-center justify-center text-xl border-4 border-[#040405] shadow-lg">🔒</div>}
+                  {p.pin && <div className="absolute -top-2 -right-2 bg-red-600 w-10 h-10 rounded-full flex items-center justify-center text-lg border-4 border-[#040405]">🔒</div>}
                 </div>
-                <span className="text-zinc-500 font-black tracking-widest uppercase text-sm group-hover:text-white transition-colors">{p.nome_exibicao}</span>
+                <span className="text-zinc-500 font-black uppercase text-sm group-hover:text-white">{p.nome_exibicao}</span>
               </div>
             );
           })}
@@ -203,44 +182,72 @@ export default function Home() {
   }
 
   // ==========================================
-  // 🖥️ 10. RENDERING: ESTANTE PRINCIPAL
+  // 🖥️ 9. RENDERING: ESTANTE (LOGADO)
   // ==========================================
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const isCustom = perfilAtivo.cor_tema?.startsWith('#');
   const aura = isCustom ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
-  
-  const mangasFiltrados = mangas.filter(m => m.usuario === usuarioAtual).filter(m => (filtroAtivo === "Todos" ? true : m.status === filtroAtivo)).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
+  const mangasFiltrados = mangas.filter(m => (filtroAtivo === "Todos" ? true : m.status === filtroAtivo)).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
   return (
-    <main className={`min-h-screen bg-[#0a0a0c] p-6 md:p-10 text-[#e5e5e5] selection:${aura.bg}/30`} style={isCustom ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
+    <main className={`min-h-screen bg-[#0a0a0c] p-6 md:p-10 text-[#e5e5e5]`} style={isCustom ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
+      
+      {/* HEADER RECUPERADO COM BOTÕES DE BACKUP E STATS */}
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-50">
         <section>
           <h1 className="text-3xl font-bold tracking-tight">Estante de Mangás</h1>
           <div className="flex gap-3 mt-4">
             {perfis.map(p => (
-              <button key={p.nome_original} onClick={() => tentarMudarPerfil(p.nome_original)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold border transition-all ${usuarioAtual === p.nome_original ? `${aura.bgActive} border-transparent text-white shadow-lg scale-105` : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300"}`}>
+              <button key={p.nome_original} onClick={() => tentarMudarPerfil(p.nome_original)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold border transition-all ${usuarioAtual === p.nome_original ? `${aura.bgActive} border-transparent text-white shadow-lg` : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300"}`}>
                 <span className="text-sm">{p.avatar}</span>
                 <span className="uppercase tracking-widest">{p.nome_exibicao}</span>
-                {p.pin && p.pin !== "" && usuarioAtual !== p.nome_original && <span className="text-red-500 ml-1">🔒</span>}
               </button>
             ))}
           </div>
         </section>
 
-        <section className="flex gap-2 w-full md:w-auto items-center flex-wrap md:flex-nowrap">
+        <section className="flex gap-2 items-center flex-wrap">
+          {/* SAIR E PERFIL */}
           <Link href="/perfil" className={`group flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl hover:${aura.border} transition-all`}>
-            <div className={`w-10 h-10 rounded-xl bg-zinc-950 flex items-center justify-center text-xl shadow-lg border border-zinc-800 group-hover:${aura.border} transition-colors`}>{perfilAtivo.avatar}</div>
-            <div className="flex flex-col"><span className="text-[10px] font-bold text-zinc-500 uppercase leading-none">Acessar Perfil</span><span className="text-xs font-black text-white line-clamp-1">{perfilAtivo.nome_exibicao}</span></div>
+            <div className={`w-10 h-10 rounded-xl bg-zinc-950 flex items-center justify-center text-xl border border-zinc-800 group-hover:${aura.border}`}>{perfilAtivo.avatar}</div>
+            <div className="flex flex-col"><span className="text-[10px] font-bold text-zinc-500 uppercase leading-none">Perfil</span><span className="text-xs font-black text-white">{perfilAtivo.nome_exibicao}</span></div>
           </Link>
-          <button onClick={sairDoPerfil} className="px-4 py-3 bg-red-950/30 text-red-500 border border-red-900/50 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-lg">Sair 🚪</button>
-          <button onClick={() => setEstaAbertoAdd(true)} className={`px-6 py-3 bg-[#e5e5e5] text-black rounded-xl font-bold hover:${aura.bgActive} hover:text-white transition-all shadow-xl whitespace-nowrap`}>+ Adicionar Obra</button>
+          <button onClick={sairDoPerfil} className="px-4 py-3 bg-red-950/30 text-red-500 border border-red-900/50 rounded-2xl text-[10px] font-black uppercase">Sair 🚪</button>
+          
+          {/* BOTÃO ESTATÍSTICAS RECUPERADO */}
+          <button onClick={() => setMostrarStats(!mostrarStats)} className={`px-4 py-3 rounded-xl font-bold border transition-all ${mostrarStats ? `${aura.bg} border-transparent text-white` : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>📊</button>
+
+          {/* MENU DE BACKUP RECUPERADO */}
+          <div className="relative">
+            <button onClick={() => setMenuDados(!menuDados)} className={`px-4 py-3 rounded-xl text-xs font-bold border transition-all ${menuDados ? 'bg-zinc-800 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>⚙️</button>
+            {menuDados && (
+              <div className="absolute top-14 right-0 w-48 bg-[#18181b] border border-zinc-800 rounded-xl shadow-2xl z-[100] overflow-hidden">
+                <button onClick={() => { const data = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mangas)); const link = document.createElement('a'); link.href = data; link.download = "backup.json"; link.click(); setMenuDados(false); }} className="w-full p-4 text-left text-[10px] font-bold uppercase hover:bg-zinc-800 border-b border-zinc-800">📥 Exportar</button>
+                <button onClick={() => { fileInputRef.current?.click(); setMenuDados(false); }} className="w-full p-4 text-left text-[10px] font-bold uppercase hover:bg-zinc-800">📤 Importar</button>
+                <input type="file" ref={fileInputRef} onChange={(e) => { const reader = new FileReader(); reader.onload = async (ev: any) => { const list = JSON.parse(ev.target.result); await supabase.from("mangas").insert(list.map(({id, ...rest}: any) => ({...rest, usuario: usuarioAtual}))); buscarMangas(); }; reader.readAsText(e.target.files![0]); }} className="hidden" accept=".json" />
+              </div>
+            )}
+          </div>
+          
+          {/* BOTÃO ADICIONAR (CORRIGIDO VISUALMENTE) */}
+          <button onClick={() => setEstaAbertoAdd(true)} className={`px-6 py-3 bg-white text-black rounded-xl font-bold transition-all shadow-xl whitespace-nowrap hover:bg-[var(--aura)] hover:text-white`} style={isCustom ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
+            + Adicionar Obra
+          </button>
         </section>
       </header>
 
+      {/* SEÇÃO DE ESTATÍSTICAS RECUPERADA */}
+      {mostrarStats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 p-6 bg-[#111114] rounded-xl border border-zinc-800 animate-in fade-in">
+          <div className="flex flex-col"><span className="text-zinc-500 text-[10px] font-bold uppercase">Obras</span><span className={`text-2xl font-bold ${aura.text}`}>{mangasFiltrados.length}</span></div>
+          <div className="flex flex-col"><span className="text-zinc-500 text-[10px] font-bold uppercase">Caps. Lidos</span><span className="text-2xl font-bold text-white">{mangasFiltrados.reduce((a, b) => a + (b.capitulo_atual || 0), 0)}</span></div>
+        </div>
+      )}
+
+      {/* FILTROS E BUSCA */}
       <div className={`transition-all duration-500 ${estaAbertoAdd || mangaDetalhe || perfilAlvoParaBloqueio ? "blur-md opacity-20 pointer-events-none" : ""}`}>
-        <div className="mb-6"><input type="text" placeholder="🔍 Buscar na minha estante..." className={`w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-sm outline-none transition-colors ${aura.focus}`} value={pesquisaInterna} onChange={(e) => setPesquisaInterna(e.target.value)} /></div>
-        
-        <nav className="flex gap-6 mb-10 border-b border-zinc-900 overflow-x-auto no-scrollbar">
+        <div className="mb-6"><input type="text" placeholder="🔍 Buscar..." className={`w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-sm outline-none ${aura.focus}`} value={pesquisaInterna} onChange={(e) => setPesquisaInterna(e.target.value)} /></div>
+        <nav className="flex gap-6 mb-10 border-b border-zinc-900 overflow-x-auto">
           {["Lendo", "Planejo Ler", "Completos", "Dropados", "Todos"].map(s => (
             <button key={s} onClick={() => setFiltroAtivo(s)} className={`text-xs font-bold relative pb-4 transition-all ${filtroAtivo === s ? aura.text : "text-zinc-500 hover:text-zinc-300"}`}>
               {s}
@@ -249,6 +256,7 @@ export default function Home() {
           ))}
         </nav>
 
+        {/* LISTA DE MANGÁS */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
           {mangasFiltrados.map(m => (
             <MangaCard key={m.id} manga={m} atualizarCapitulo={atualizarCapitulo} deletarManga={(id) => { if(confirm("Excluir?")) supabase.from("mangas").delete().eq("id", id).then(buscarMangas) }} mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} aura={aura} />
@@ -256,6 +264,7 @@ export default function Home() {
         </div>
       </div>
       
+      {/* MODAIS */}
       <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} aoSalvar={salvarNovaObra} />
       <MangaDetailsModal manga={mangaDetalhe} aoFechar={() => setMangaDetalhe(null)} aoAtualizarCapitulo={atualizarCapitulo} aoAtualizarDados={atualizarDados} aoDeletar={(id) => { if(confirm("Excluir?")) supabase.from("mangas").delete().eq("id", id).then(() => { setMangaDetalhe(null); buscarMangas(); }) }} />
     </main>
