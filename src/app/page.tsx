@@ -102,7 +102,7 @@ export default function Home() {
     }
   }, [usuarioAtual]);
 
-  // ==========================================
+// ==========================================
 // 🛠️ 6. FUNÇÕES DO BANCO DE DADOS
 // ==========================================
 
@@ -117,25 +117,52 @@ async function buscarPerfis() {
   if (data) setPerfis(data);
 }
 
+// --- LÓGICA OTIMISTA (INSTANTÂNEA) ---
 async function atualizarCapitulo(manga: Manga, novo: number) {
   if (novo < 0) return;
+  
   let novoStatus = manga.status;
   if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
   else if (novo > 0 && (manga.status === "Planejo Ler" || manga.status === "Dropados")) novoStatus = "Lendo";
   
-  await supabase.from("mangas").update({ 
+  const agora = new Date().toISOString();
+
+  // 1. ATUALIZA A TELA IMEDIATAMENTE (Otimismo)
+  setMangas(prev => prev.map(m => m.id === manga.id ? { ...m, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : m));
+  if (mangaDetalhe?.id === manga.id) {
+    setMangaDetalhe(prev => prev ? { ...prev, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : null);
+  }
+
+  // 2. SALVA NO BANCO DE DADOS EM SEGUNDO PLANO
+  const { error } = await supabase.from("mangas").update({ 
     capitulo_atual: novo, 
     status: novoStatus, 
-    ultima_leitura: new Date().toISOString() 
+    ultima_leitura: agora 
   }).eq("id", manga.id);
   
-  buscarMangas();
+  // 3. REVERSÃO DE EMERGÊNCIA (Caso falhe a internet)
+  if (error) {
+    alert("❌ Erro de conexão. Revertendo o capítulo...");
+    buscarMangas(); 
+  }
 }
 
+// --- LÓGICA OTIMISTA (INSTANTÂNEA) ---
 async function atualizarDados(id: number, campos: any) {
-  await supabase.from("mangas").update(campos).eq("id", id);
+  // 1. ATUALIZA A TELA IMEDIATAMENTE
   setMangas(prev => prev.map(m => m.id === id ? { ...m, ...campos } : m));
-  if (mangaDetalhe?.id === id) setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
+  if (mangaDetalhe?.id === id) {
+    setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
+  }
+
+  // 2. SALVA NO BANCO DE DADOS EM SEGUNDO PLANO
+  const { error } = await supabase.from("mangas").update(campos).eq("id", id);
+  
+  // 3. REVERSÃO DE EMERGÊNCIA
+  if (error) {
+    alert("❌ Erro de conexão. Revertendo alteração...");
+    buscarMangas();
+  }
 }
 
 // --- criar perfis ---
