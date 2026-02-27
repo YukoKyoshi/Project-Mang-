@@ -23,6 +23,21 @@ export default function UserProfile({ perfil, mangas, aoFechar, aoAtualizar, set
   const concluidos = mangas.filter(m => m.status === "Completos").length;
   const favoritos = mangas.filter(m => m.favorito).length;
 
+  // --- NOVA LÓGICA DE RANKED AQUI ---
+  const patentes = [
+    { nome: "INICIANTE", min: 0, cor: "text-zinc-500" },
+    { nome: "BRONZE", min: 100, cor: "text-orange-700" },
+    { nome: "PRATA", min: 500, cor: "text-zinc-300" },
+    { nome: "OURO", min: 1000, cor: "text-yellow-500" },
+    { nome: "PLATINA", min: 2500, cor: "text-cyan-400" },
+    { nome: "DIAMANTE", min: 5000, cor: "text-blue-400" },
+    { nome: "MESTRE HUNTER", min: 10000, cor: "text-purple-500" }
+  ];
+
+  // O sistema inverte a lista e acha a primeira patente onde os capítulos lidos são maiores que o mínimo exigido
+  const patenteAtual = [...patentes].reverse().find(p => totalCapitulos >= p.min) || patentes[0];
+  // ----------------------------------
+
   const conquistas = [
     { id: 1, nome: "PRIMEIRO PASSO", desc: "Adicionou a primeira obra", icone: "🌱", check: totalObras >= 1 },
     { id: 2, nome: "MARATONISTA", desc: "Leu mais de 500 capítulos", icone: "🏃", check: totalCapitulos >= 500 },
@@ -31,6 +46,8 @@ export default function UserProfile({ perfil, mangas, aoFechar, aoAtualizar, set
     { id: 5, nome: "BIBLIOTECÁRIO", desc: "Ter 50 obras na estante", icone: "📚", check: totalObras >= 50 },
     { id: 6, nome: "VICIADO", desc: "Passar dos 2000 capítulos", icone: "⚡", check: totalCapitulos >= 2000 },
   ];
+
+
 
   async function atualizarPin() {
     setSalvando(true);
@@ -59,6 +76,16 @@ export default function UserProfile({ perfil, mangas, aoFechar, aoAtualizar, set
             {perfil.avatar}
           </div>
           <h2 className="text-2xl font-black uppercase tracking-tighter text-white">{perfil.nome_exibicao}</h2>
+          
+        {/* EXIBIÇÃO DA PATENTE (RANKED) */}
+          <div className="mt-2 flex flex-col items-center gap-1">
+            <p className={`text-[12px] font-black uppercase tracking-[0.4em] ${patenteAtual.cor} drop-shadow-[0_0_8px_currentColor] transition-all duration-700`}>
+              RANK: {patenteAtual.nome}
+            </p>
+            <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">
+              Poder de Leitura: {totalCapitulos} Capítulos
+            </p>
+          </div>
           
           {/* SELECTOR DE ABAS */}
           <div className="flex justify-center gap-8 mt-6">
