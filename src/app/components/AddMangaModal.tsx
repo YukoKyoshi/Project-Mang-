@@ -32,51 +32,72 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
   }, [estaAberto]);
 
 // ==========================================
-  // [SISTEMA DE BUSCA DUPLA] - AniList + MyAnimeList (Jikan)
+  // [SISTEMA DE BUSCA TRIPLA] - AniList -> MAL -> Tradução Auto
   // ==========================================
   useEffect(() => {
     if (termoAnilist.length < 3) {
       setResultadosAnilist([]);
       return;
     }
+    
+    // Aumentamos o delay para 800ms para evitar bloqueios das APIs ao digitar rápido
     const t = setTimeout(async () => {
       setBuscando(true);
       try {
         let resultados = [];
 
-        // 1º TENTATIVA: Motor AniList
-        const resAnilist = await fetch("https://graphql.anilist.co", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: `query ($search: String) { Page(perPage: 5) { media(search: $search, type: MANGA) { id title { romaji english } coverImage { large } chapters description } } }`,
-            variables: { search: termoAnilist }
-          })
-        });
-        const jsonAnilist = await resAnilist.json();
-        resultados = jsonAnilist.data?.Page?.media || [];
+        // 🧰 Função Auxiliar 1: Busca no AniList
+        const buscarAnilist = async (termo: string) => {
+          const res = await fetch("https://graphql.anilist.co", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              query: `query ($search: String) { Page(perPage: 5) { media(search: $search, type: MANGA) { id title { romaji english } coverImage { large } chapters description } } }`,
+              variables: { search: termo }
+            })
+          });
+          const json = await res.json();
+          return json.data?.Page?.media || [];
+        };
 
-        // 2º TENTATIVA: Motor MyAnimeList (Se o AniList não achar nada)
-        if (resultados.length === 0) {
-          console.log("⚠️ AniList falhou. Acionando MyAnimeList...");
-          
-          const resMal = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(termoAnilist)}&limit=5`);
-          const jsonMal = await resMal.json();
-          
-          if (jsonMal.data) {
-            // "Disfarçamos" os dados do MAL para o modal achar que é do AniList
-            resultados = jsonMal.data.map((m: any) => ({
+        // 🧰 Função Auxiliar 2: Busca no MyAnimeList
+        const buscarMAL = async (termo: string) => {
+          const res = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(termo)}&limit=5`);
+          const json = await res.json();
+          if (json.data && json.data.length > 0) {
+            return json.data.map((m: any) => ({
               id: m.mal_id,
-              title: { 
-                romaji: m.title, 
-                english: m.title_english 
-              },
-              coverImage: { 
-                large: m.images?.jpg?.image_url || "" 
-              },
+              title: { romaji: m.title, english: m.title_english },
+              coverImage: { large: m.images?.jpg?.image_url || "" },
               chapters: m.chapters || 0,
               description: m.synopsis || ""
             }));
+          }
+          return [];
+        };
+
+        // 🎯 1º TENTATIVA: AniList com o termo original
+        resultados = await buscarAnilist(termoAnilist);
+
+        // 🎯 2º TENTATIVA: MyAnimeList com o termo original
+        if (resultados.length === 0) {
+          resultados = await buscarMAL(termoAnilist);
+        }
+
+        // 🎯 3º TENTATIVA: Traduzir para o Inglês e tentar de novo!
+        if (resultados.length === 0) {
+          const resTrad = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl=en&dt=t&q=${encodeURIComponent(termoAnilist)}`);
+          const jsonTrad = await resTrad.json();
+          const termoTraduzido = jsonTrad[0].map((item: any) => item[0]).join('');
+
+          // Só busca de novo se a tradução for realmente diferente do que foi digitado
+          if (termoTraduzido && termoTraduzido.toLowerCase() !== termoAnilist.toLowerCase()) {
+            resultados = await buscarAnilist(termoTraduzido);
+            
+            // Se o AniList ainda falhar com o termo em inglês, tenta o MAL pela última vez
+            if (resultados.length === 0) {
+              resultados = await buscarMAL(termoTraduzido);
+            }
           }
         }
 
@@ -84,11 +105,12 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
         setResultadosAnilist(resultados);
 
       } catch (err) {
-        console.error("❌ Erro na busca dupla:", err);
+        console.error("❌ Erro na busca Tridente:", err);
       } finally {
         setBuscando(false);
       }
-    }, 500); // Aguarda o usuário parar de digitar por meio segundo
+    }, 800); 
+    
     return () => clearTimeout(t);
   }, [termoAnilist]);
 
