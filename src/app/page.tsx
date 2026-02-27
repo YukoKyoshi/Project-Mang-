@@ -1,4 +1,8 @@
 "use client";
+
+// ==========================================
+// 📦 1. IMPORTAÇÕES E DEPENDÊNCIAS
+// ==========================================
 import AcessoMestre from "./components/AcessoMestre";
 import { supabase } from "./supabase";
 import { useEffect, useState, useRef } from "react";
@@ -8,7 +12,7 @@ import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 
 // ==========================================
-// 🎨 CONFIGURAÇÃO DE TEMAS E AURAS
+// 🎨 2. DICIONÁRIO DE AURAS (TEMAS)
 // ==========================================
 const TEMAS = {
   verde: { nome: "Verde Néon", bg: "bg-green-500", bgActive: "bg-green-600", text: "text-green-500", border: "border-green-500", focus: "focus:border-green-500 focus:ring-green-500/20", shadow: "shadow-green-500/40" },
@@ -22,7 +26,7 @@ interface Manga { id: number; titulo: string; capa: string; capitulo_atual: numb
 
 export default function Home() {
   // ==========================================
-  // 🔐 ESTADOS DE SEGURANÇA E ACESSO
+  // 🔐 3. ESTADOS DE SEGURANÇA E ACESSO
   // ==========================================
   const [mestreAutorizado, setMestreAutorizado] = useState(false);
   const [usuarioAtual, setUsuarioAtual] = useState<string | null>(null);
@@ -30,7 +34,7 @@ export default function Home() {
   const [pinDigitado, setPinDigitado] = useState("");
 
   // ==========================================
-  // 📦 ESTADOS DE DADOS E INTERFACE
+  // 📦 4. ESTADOS DE DADOS E INTERFACE
   // ==========================================
   const [mangas, setMangas] = useState<Manga[]>([]);
   const [perfis, setPerfis] = useState<any[]>([]); 
@@ -44,37 +48,40 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ==========================================
-  // 🔄 CICLO DE VIDA (useEffect)
+  // 🔄 5. LÓGICA DE INICIALIZAÇÃO (F5 GUARD)
   // ==========================================
   useEffect(() => { 
-    // 1. Checa o Portão Principal (SessionStorage mantém mesmo no F5)
+    // Checa se a Senha Mestra já foi dada nesta sessão
     const mestre = sessionStorage.getItem("acesso_mestre");
     if (mestre === "true") setMestreAutorizado(true);
 
-    // 2. [CORREÇÃO F5] Sempre remove o usuário ativo ao recarregar a página
-    // Isso garante que o PIN seja solicitado novamente, mas a senha mestra não.
+    // RESET NO F5: Limpamos o usuário ativo para exigir o PIN
     sessionStorage.removeItem('hunter_ativo');
     setUsuarioAtual(null);
     
+    // Busca inicial dos dados
     buscarMangas(); 
     buscarPerfis().then(() => setCarregando(false));
   }, []);
 
+  // Busca mangás toda vez que o usuário logar
   useEffect(() => {
     if (usuarioAtual) buscarMangas();
   }, [usuarioAtual]);
 
   // ==========================================
-  // 🛠️ FUNÇÕES DE BANCO DE DADOS (SUPABASE)
+  // 🛠️ 6. FUNÇÕES DO BANCO DE DADOS (SUPABASE)
   // ==========================================
   async function buscarMangas() {
-    const { data } = await supabase.from("mangas").select("*").order("ultima_leitura", { ascending: false });
+    const { data, error } = await supabase.from("mangas").select("*").order("ultima_leitura", { ascending: false });
     if (data) setMangas(data as Manga[]);
+    if (error) console.error("Erro Supabase Mangas:", error.message);
   }
 
   async function buscarPerfis() {
-    const { data } = await supabase.from("perfis").select("*");
+    const { data, error } = await supabase.from("perfis").select("*");
     if (data) setPerfis(data);
+    if (error) console.error("Erro Supabase Perfis:", error.message);
   }
 
   async function atualizarCapitulo(manga: Manga, novo: number) {
@@ -104,7 +111,7 @@ export default function Home() {
   }
 
   // ==========================================
-  // 🔑 LÓGICA DE PERFIS E PIN
+  // 🔑 7. LÓGICA DE PERFIS E SEGURANÇA PIN
   // ==========================================
   function tentarMudarPerfil(nomeOriginal: string) {
     if (nomeOriginal === usuarioAtual) return;
@@ -137,7 +144,7 @@ export default function Home() {
   }
 
   // ==========================================
-  // 🖥️ RENDERING: BLOQUEIO MESTRE
+  // 🖥️ 8. RENDERING: PORTÃO MESTRE
   // ==========================================
   if (!mestreAutorizado) {
     return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
@@ -146,18 +153,18 @@ export default function Home() {
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-zinc-500 font-bold tracking-widest uppercase">Carregando Sistema...</div>;
 
   // ==========================================
-  // 🖥️ RENDERING: TELA SELEÇÃO DE PERFIL (NETFLIX STYLE)
+  // 🖥️ 9. RENDERING: SELEÇÃO DE PERFIL
   // ==========================================
   if (!usuarioAtual) {
     return (
       <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-[#e5e5e5] relative">
+        {/* MODAL DO PIN */}
         {perfilAlvoParaBloqueio && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300">
             <div className="bg-[#0e0e11] border border-zinc-800 p-10 rounded-[3rem] shadow-2xl flex flex-col items-center max-w-sm w-full relative">
               <button onClick={() => setPerfilAlvoParaBloqueio(null)} className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors">✕</button>
-              <div className="text-6xl mb-4 drop-shadow-[0_0_15px_rgba(239,68,68,0.3)]">🔒</div>
+              <div className="text-6xl mb-4">🔒</div>
               <h2 className="text-xl font-black text-white uppercase tracking-widest mb-2 text-center">Acesso Restrito</h2>
-              <p className="text-xs text-zinc-500 mb-8 text-center">Introduza o PIN de segurança para aceder ao perfil.</p>
               <input autoFocus type="password" maxLength={4} className="bg-zinc-950 border border-zinc-700 focus:border-red-500 rounded-2xl w-full py-4 text-center text-3xl font-black tracking-[1em] text-white outline-none mb-6 shadow-inner transition-colors" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && confirmarAcessoPin()} />
               <button onClick={confirmarAcessoPin} className="w-full bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all border border-red-500/20 hover:border-red-600">Desbloquear</button>
             </div>
@@ -185,7 +192,7 @@ export default function Home() {
   }
 
   // ==========================================
-  // 🖥️ RENDERING: ESTANTE DE MANGÁS (LOGADO)
+  // 🖥️ 10. RENDERING: ESTANTE PRINCIPAL
   // ==========================================
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const isCustom = perfilAtivo.cor_tema?.startsWith('#');
@@ -194,10 +201,7 @@ export default function Home() {
   const mangasFiltrados = mangas.filter(m => m.usuario === usuarioAtual).filter(m => (filtroAtivo === "Todos" ? true : m.status === filtroAtivo)).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
   return (
-    <main 
-      className={`min-h-screen bg-[#0a0a0c] p-6 md:p-10 text-[#e5e5e5] selection:${aura.bg}/30`}
-      style={isCustom ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}
-    >
+    <main className={`min-h-screen bg-[#0a0a0c] p-6 md:p-10 text-[#e5e5e5] selection:${aura.bg}/30`} style={isCustom ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-50">
         <section>
           <h1 className="text-3xl font-bold tracking-tight">Estante de Mangás</h1>
@@ -218,19 +222,12 @@ export default function Home() {
             <div className="flex flex-col"><span className="text-[10px] font-bold text-zinc-500 uppercase leading-none">Acessar Perfil</span><span className="text-xs font-black text-white line-clamp-1">{perfilAtivo.nome_exibicao}</span></div>
           </Link>
           <button onClick={sairDoPerfil} className="px-4 py-3 bg-red-950/30 text-red-500 border border-red-900/50 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-lg">Sair 🚪</button>
-          
-          <button onClick={() => setMostrarStats(!mostrarStats)} className={`px-4 py-3 rounded-xl font-bold border transition-all ${mostrarStats ? `${aura.bg} border-transparent text-white` : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>📊</button>
-          
-          <button onClick={() => setEstaAbertoAdd(true)} className={`px-6 py-3 bg-[#e5e5e5] text-black rounded-xl font-bold hover:${aura.bgActive} hover:text-white transition-all shadow-xl whitespace-nowrap`}>
-            + Adicionar Obra
-          </button>
+          <button onClick={() => setEstaAbertoAdd(true)} className={`px-6 py-3 bg-[#e5e5e5] text-black rounded-xl font-bold hover:${aura.bgActive} hover:text-white transition-all shadow-xl whitespace-nowrap`}>+ Adicionar Obra</button>
         </section>
       </header>
 
       <div className={`transition-all duration-500 ${estaAbertoAdd || mangaDetalhe || perfilAlvoParaBloqueio ? "blur-md opacity-20 pointer-events-none" : ""}`}>
-        <div className="mb-6">
-          <input type="text" placeholder="🔍 Buscar na minha estante..." className={`w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-sm outline-none transition-colors ${aura.focus}`} value={pesquisaInterna} onChange={(e) => setPesquisaInterna(e.target.value)} />
-        </div>
+        <div className="mb-6"><input type="text" placeholder="🔍 Buscar na minha estante..." className={`w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-sm outline-none transition-colors ${aura.focus}`} value={pesquisaInterna} onChange={(e) => setPesquisaInterna(e.target.value)} /></div>
         
         <nav className="flex gap-6 mb-10 border-b border-zinc-900 overflow-x-auto no-scrollbar">
           {["Lendo", "Planejo Ler", "Completos", "Dropados", "Todos"].map(s => (
@@ -243,15 +240,7 @@ export default function Home() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
           {mangasFiltrados.map(m => (
-            <MangaCard 
-              key={m.id} 
-              manga={m} 
-              atualizarCapitulo={atualizarCapitulo} 
-              deletarManga={(id) => { if(confirm("Excluir?")) supabase.from("mangas").delete().eq("id", id).then(buscarMangas) }} 
-              mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} 
-              abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} 
-              aura={aura} 
-            />
+            <MangaCard key={m.id} manga={m} atualizarCapitulo={atualizarCapitulo} deletarManga={(id) => { if(confirm("Excluir?")) supabase.from("mangas").delete().eq("id", id).then(buscarMangas) }} mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} aura={aura} />
           ))}
         </div>
       </div>
