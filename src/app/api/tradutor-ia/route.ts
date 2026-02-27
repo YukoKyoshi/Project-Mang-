@@ -11,42 +11,50 @@ export async function POST(request: Request) {
     const API_KEY = process.env.GEMINI_API_KEY;
 
     if (!API_KEY) {
-      console.error("ERRO: Chave da API não encontrada no .env.local");
-      return NextResponse.json({ erro: 'Erro interno de configuração' }, { status: 500 });
+      return NextResponse.json({ erro: 'Chave da API ausente' }, { status: 500 });
     }
 
-    // O "Prompt" (A ordem estrita que damos para a I.A.)
     const prompt = `
-      Atue como o maior especialista do mundo em banco de dados de animes e mangás (AniList e MyAnimeList).
+      Atue como o maior especialista do mundo em banco de dados de animes e mangás.
       O usuário digitou a seguinte busca: "${termo}".
-      
       Sua missão: Descobrir qual é a obra exata.
-      Regra 1: Retorne APENAS o nome oficial da obra em Romaji (japonês romanizado) ou Inglês, que seja o mais perfeito para encontrar no AniList.
-      Regra 2: Se o usuário digitou uma descrição (ex: "mangá do menino de borracha"), retorne o nome da obra (ex: "One Piece").
-      Regra 3: Se o usuário digitou algo com "x" ou caracteres confusos (ex: "Caçador x Caçador"), conserte para o nome real (ex: "Hunter x Hunter").
-      Regra 4: NÃO retorne nenhum outro texto, pontuação, aspas ou explicações. Apenas o nome da obra.
+      Regra 1: Retorne APENAS o nome oficial da obra em Romaji ou Inglês (ex: para "caderno da morte", retorne "Death Note").
+      Regra 2: Não explique nada, não use aspas, apenas devolva o nome.
     `;
 
-    // Conectando com a I.A.
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
+        // 🛡️ DESLIGANDO OS FILTROS DE SEGURANÇA PARA TÍTULOS DE AÇÃO/TERROR
+        safetySettings: [
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }
+        ],
         generationConfig: {
-            temperature: 0.1, // Temperatura baixa para respostas diretas e sem criatividade inventada
+            temperature: 0.1,
             maxOutputTokens: 20,
         }
       })
     });
 
     const data = await res.json();
+
+    // Se a API do Google reclamar de algo, mandamos o erro para o F12
+    if (data.error) {
+       console.error("Erro interno do Gemini:", data.error);
+       return NextResponse.json({ resultado: termo, erroDaIA: data.error.message });
+    }
+
     const textoLimpo = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
     return NextResponse.json({ resultado: textoLimpo || termo });
 
-  } catch (error) {
-    console.error("Erro na rota da IA:", error);
-    return NextResponse.json({ erro: 'Falha na comunicação com a IA' }, { status: 500 });
+  } catch (error: any) {
+    console.error("Erro geral na rota da IA:", error);
+    return NextResponse.json({ erro: 'Falha na comunicação', detalhes: error.message }, { status: 500 });
   }
 }
