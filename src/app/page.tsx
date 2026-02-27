@@ -12,6 +12,7 @@ import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 import AdminPanel from "./components/AdminPanel";
 import ProfileSelection from "./components/ProfileSelection";
+import UserProfile from "./components/UserProfile";
 
 // Definindo a interface Manga para o TypeScript não reclamar
 interface Manga { 
@@ -67,6 +68,8 @@ export default function Home() {
   const [novoHunter, setNovoHunter] = useState({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
   const [editandoNomeOriginal, setEditandoNomeOriginal] = useState<string | null>(null);
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
+  // --- SUB-SESSÃO 4.B: MOSTRANDO PERFIL --- //
+  const [mostrandoPerfil, setMostrandoPerfil] = useState(false);
 
   // ==========================================
   // 🔄 5. LÓGICA DE INICIALIZAÇÃO
@@ -342,19 +345,18 @@ async function deletarPerfil(perfil: any) {
             + Adicionar Obra
           </button>
           
-          {/* ACESSAR PERFIL (perfil na estante) */}
+          {/* ACESSAR PERFIL (perfil na estante) -> Abre o Painel do Hunter */}
           <div 
-            onClick={() => {
+            onClick={() => setMostrandoPerfil(true)}
               /// Se você tiver uma tela de perfil, ative-a aqui. 
                // Por enquanto, vou deixar um alerta para confirmarmos o nome do seu componente de perfil.
-              alert("Abrindo Painel do Hunter: " + perfilAtivo.nome_exibicao);
-            }}
-            className="group cursor-pointer flex flex-col items-center gap-2"
+              className="group cursor-pointer flex flex-col items-center gap-2"
+              title="Configurações do Hunter"
            >
-            <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-3xl border-2 ${aura.border} group-hover:scale-110 transition-all`}>
+            <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-3xl border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg`}>
               {perfilAtivo.avatar}
             </div>
-            <span className="text-[10px] font-black text-zinc-500 uppercase">Configurações</span>
+            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter group-hover:text-white transition-colors">Configurações</span>
           </div>
         </div>
       </header>
@@ -423,6 +425,18 @@ async function deletarPerfil(perfil: any) {
           aoAtualizarCapitulo={atualizarCapitulo} 
           aoAtualizarDados={atualizarDados} 
           aoDeletar={(id) => { if(confirm("Excluir definitivamente?")) supabase.from("mangas").delete().eq("id", id).then(() => { setMangaDetalhe(null); buscarMangas(); }) }} 
+        />
+      )}
+      
+      {/* PAINEL DE PERFIL DO USUÁRIO (ESTATÍSTICAS E PIN) */}
+
+      {mostrandoPerfil && (
+        <UserProfile
+          perfil={perfilAtivo}
+          mangas={mangas}
+          aoFechar={() => setMostrandoPerfil(false)}
+          aoAtualizar={buscarPerfis}
+          setUsuarioAtual={setUsuarioAtual}
         />
       )}
     </main>
