@@ -427,7 +427,7 @@ async function deletarPerfil(perfil: any) {
           aoDeletar={(id) => { if(confirm("Excluir definitivamente?")) supabase.from("mangas").delete().eq("id", id).then(() => { setMangaDetalhe(null); buscarMangas(); }) }} 
         />
       )}
-      
+
       {/* PAINEL DE PERFIL DO USUÁRIO (ESTATÍSTICAS E PIN) */}
 
       {mostrandoPerfil && (
@@ -437,6 +437,7 @@ async function deletarPerfil(perfil: any) {
           aoFechar={() => setMostrandoPerfil(false)}
           aoAtualizar={buscarPerfis}
           setUsuarioAtual={setUsuarioAtual}
+          aura={aura} // <--- essa linha contem as cores
         />
       )}
     </main>
