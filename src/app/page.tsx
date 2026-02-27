@@ -263,47 +263,71 @@ async function deletarPerfil(perfil: any) {
   // ------------------------------------------
   if (isAdmin) {
     return (
-      <main className="min-h-screen bg-black text-white p-10">
-        <header className="flex justify-between items-center mb-10 border-b border-yellow-500/30 pb-6">
-          <h1 className="text-3xl font-black uppercase italic text-yellow-500">Modo Construtor</h1>
-          <button onClick={() => setUsuarioAtual(null)} className="px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold uppercase hover:bg-white hover:text-black transition-all">Sair</button>
-        </header>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* SUB-FUNÇÃO: CONTROLE DE VISIBILIDADE */}
-          <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-zinc-800">
-            <h3 className="text-sm font-black mb-6 uppercase text-yellow-500">Visibilidade</h3>
-            {/* Aqui entrarão os switches que fizemos anteriormente */}
+      <main className="min-h-screen bg-[#050505] text-white p-6 md:p-12 animate-in fade-in duration-500">
+        <header className="flex justify-between items-center mb-12 border-b border-yellow-500/20 pb-8">
+          <div>
+            <h1 className="text-4xl font-black uppercase italic text-yellow-500 tracking-tighter">Painel de Controle</h1>
+            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.4em]">Configurações Nível S</p>
           </div>
+          <button onClick={() => setUsuarioAtual(null)} className="px-8 py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-xs font-black uppercase hover:bg-white hover:text-black transition-all shadow-xl">Fechar Painel</button>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           
-          {/* SUB-FUNÇÃO: GERENCIAMENTO DE HUNTERS */}
-          <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-zinc-800">
-            <h3 className="text-sm font-black mb-6 uppercase text-yellow-500 italic">Equipe de Hunters</h3>
+          {/* SUB-FUNÇÃO: GERENCIAMENTO DE HUNTERS (VISUAL MELHORADO) */}
+          <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800 shadow-2xl">
+            <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-3">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              Gestão de Equipe
+            </h3>
             
-            {/* Botão de Criação */}
-            <button onClick={criarNovoPerfil} className="w-full py-4 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-600 font-bold uppercase text-[10px] hover:border-yellow-500 hover:text-white transition-all mb-6">
-              + Adicionar Novo Hunter
+            {/* BOTÃO DE CRIAÇÃO (GRANDE E DESTACADO) */}
+            <button 
+              onClick={criarNovoPerfil}
+              className="w-full mb-8 group relative overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 p-1 rounded-[2rem] transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <div className="bg-[#080808] rounded-[1.9rem] py-8 flex flex-col items-center gap-3 border border-zinc-800 group-hover:border-yellow-500/50 transition-colors">
+                <span className="text-4xl group-hover:scale-110 transition-transform">➕</span>
+                <span className="font-black uppercase text-xs tracking-[0.3em] text-zinc-400 group-hover:text-white">Recrutar Novo Hunter</span>
+              </div>
             </button>
 
-            {/* Lista de Exclusão */}
-            <div className="space-y-3">
+            {/* LISTA DE HUNTERS COM BOTÃO DE EXCLUSÃO VISÍVEL */}
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {perfis.map(p => (
-                <div key={p.nome_original} className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-zinc-800/50">
-                   <div className="flex items-center gap-3">
-                      <span>{p.avatar}</span>
-                      <span className="text-[10px] font-bold uppercase">{p.nome_exibicao}</span>
-                   </div>
-                   <button 
-                     onClick={() => deletarPerfil(p)} 
-                     className="p-2 hover:bg-red-500/20 hover:text-red-500 rounded-lg transition-all"
-                   >
-                     🗑️
-                   </button>
+                <div key={p.nome_original} className="flex items-center justify-between p-5 bg-black/40 rounded-3xl border border-zinc-800 group hover:border-zinc-700 transition-all">
+                  <div className="flex items-center gap-5">
+                    <div className="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center text-3xl border border-zinc-800 group-hover:border-zinc-600 transition-all">
+                      {p.avatar}
+                    </div>
+                    <div>
+                      <p className="font-black uppercase text-sm tracking-wider">{p.nome_exibicao}</p>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">Status: Ativo | PIN: {p.pin || "---"}</p>
+                    </div>
+                  </div>
+                  
+                  {/* BOTÃO DE EXCLUSÃO (VISÍVEL E VERMELHO NO HOVER) */}
+                  <button 
+                    onClick={() => deletarPerfil(p)}
+                    className="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 text-zinc-600 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/50 transition-all"
+                    title="Remover Hunter"
+                  >
+                    <span className="text-xl">🗑️</span>
+                  </button>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
+
+          {/* SUB-FUNÇÃO: CONTROLE DE VISIBILIDADE (ESTILIZADA) */}
+          <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800 shadow-2xl">
+            <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-3">
+              <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+              Interface Global
+            </h3>
+            {/* ... (Switches de visibilidade aqui) ... */}
+            <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest text-center mt-20 italic">Selecione os componentes ativos para os usuários.</p>
+          </section>
 
         </div>
       </main>
