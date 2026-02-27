@@ -70,6 +70,8 @@ export default function Home() {
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
   // --- SUB-SESSÃO 4.B: MOSTRANDO PERFIL --- //
   const [mostrandoPerfil, setMostrandoPerfil] = useState(false);
+  const [pinAdminAberto, setPinAdminAberto] = useState(false);
+  // --- Adicionando um pin administrativo --- //
 
   // ==========================================
   // 🔄 5. LÓGICA DE INICIALIZAÇÃO
@@ -358,6 +360,16 @@ async function deletarPerfil(perfil: any) {
             </div>
             <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter group-hover:text-white transition-colors">Configurações</span>
           </div>
+
+          {/* NOVO BOTÃO: ACESSO AO ADMIN COM PIN */}
+          <button 
+            onClick={() => setPinAdminAberto(true)} // <--- LINHA DE COMANDO INSERIDA AQUI
+            className="w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-2xl border border-zinc-800 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-all group"
+            title="Painel Administrativo"
+          >
+            <span className="group-hover:rotate-90 transition-transform duration-500">⚙️</span>
+          </button>
+
         </div>
       </header>
 
@@ -440,6 +452,40 @@ async function deletarPerfil(perfil: any) {
           aura={aura} // <--- essa linha contem as cores
         />
       )}
-    </main>
+
+      {/* 🔐 MODAL DE SEGURANÇA DO ADMINISTRADOR */}
+      {pinAdminAberto && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="bg-zinc-900 p-10 rounded-[2.5rem] border border-zinc-800 text-center space-y-6 shadow-2xl max-w-xs w-full">
+            <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-2">
+              🛡️
+            </div>
+            <h2 className="text-white font-black uppercase tracking-tighter text-xl">Acesso Restrito</h2>
+            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Digite o PIN Administrativo</p>
+            
+            <input 
+              type="password" 
+              maxLength={4} 
+              autoFocus
+              className="w-full bg-black border border-zinc-700 p-4 rounded-xl text-center text-3xl font-bold text-white outline-none focus:border-red-500 transition-all font-mono"
+              onChange={(e) => {
+                if (e.target.value === "1234") { // <--- Hunter, mude este número para sua senha real!
+                  setIsAdmin(true);
+                  setPinAdminAberto(false);
+                }
+              }}
+            />
+            
+            <button 
+              onClick={() => setPinAdminAberto(false)} 
+              className="text-[10px] text-zinc-600 hover:text-white uppercase font-black tracking-[0.2em] transition-colors"
+            >
+              [ Cancelar Operação ]
+            </button>
+          </div>
+        </div>
+      )}
+
+    </main> // <--- Esta é a última tag </main> do seu page.tsx
   );
 }
