@@ -61,6 +61,9 @@ export default function Home() {
   const [filtroAtivo, setFiltroAtivo] = useState("Lendo");
   const [pesquisaInterna, setPesquisaInterna] = useState("");
   const [config, setConfig] = useState({ mostrar_busca: true, mostrar_stats: true, mostrar_backup: true });
+  // --- SUB-SESSÃO 4.A: ESTADOS DO MODO CONSTRUTOR ---
+  const [novoHunter, setNovoHunter] = useState({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
+  const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
 
   // ==========================================
   // 🔄 5. LÓGICA DE INICIALIZAÇÃO
@@ -128,26 +131,23 @@ async function atualizarDados(id: number, campos: any) {
 }
 
 // --- criar perfis ---
-async function criarNovoPerfil() {
-  const nome = prompt("Nome do novo Hunter:");
-  if (!nome) return;
-  
-  const avatar = prompt("Emoji do Avatar (ex: 👤):", "👤");
-  const pin = prompt("Defina um PIN de 4 dígitos (ou deixe vazio):", "");
-  const cor = prompt("Cor da Aura (verde, azul, roxo, laranja ou #hex):", "verde");
+
+async function salvarNovoHunter() {
+  if (!novoHunter.nome) return alert("O nome é obrigatório!");
 
   const { error } = await supabase.from("perfis").insert([{
-    nome_original: nome,
-    nome_exibicao: nome,
-    avatar: avatar,
-    pin: pin,
-    cor_tema: cor
+    nome_original: novoHunter.nome,
+    nome_exibicao: novoHunter.nome,
+    avatar: novoHunter.avatar,
+    pin: novoHunter.pin,
+    cor_tema: novoHunter.cor
   }]);
 
   if (error) {
-    alert("Erro ao criar perfil: " + error.message);
+    alert("Erro: " + error.message);
   } else {
-    alert("Hunter " + nome + " recrutado com sucesso!");
+    setMostrandoFormHunter(false); 
+    setNovoHunter({ nome: '', avatar: '👤', pin: '', cor: 'verde' }); 
     buscarPerfis();
   }
 }
@@ -218,12 +218,12 @@ async function deletarPerfil(perfil: any) {
   // ==========================================
   
   // ------------------------------------------
-  // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL (QUEM ESTÁ LENDO?)
+  // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL
   // ------------------------------------------
   if (!usuarioAtual) {
     return (
       <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-white">
-        <h1 className="text-4xl font-black mb-16 uppercase tracking-tighter">Escolha seu Perfil</h1>
+        <h1 className="text-4xl font-black mb-16 uppercase tracking-tighter text-white">Escolha seu Perfil</h1>
         <div className="flex flex-wrap justify-center gap-10">
           {perfis.map(p => {
             const auraP = p.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[p.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
@@ -236,11 +236,8 @@ async function deletarPerfil(perfil: any) {
               </div>
             );
           })}
-          {/* PERFIL ADMINISTRADOR */}
           <div onClick={() => tentarMudarPerfil("Admin")} className="flex flex-col items-center gap-4 cursor-pointer group">
-            <div className="w-40 h-40 bg-zinc-900 border-4 border-dashed border-zinc-700 rounded-[3rem] flex items-center justify-center text-7xl group-hover:border-yellow-500 transition-all">
-              ⚙️
-            </div>
+            <div className="w-40 h-40 bg-zinc-900 border-4 border-dashed border-zinc-700 rounded-[3rem] flex items-center justify-center text-7xl group-hover:border-yellow-500 transition-all">⚙️</div>
             <span className="font-bold uppercase text-zinc-700 group-hover:text-yellow-500 text-xs">Administrador</span>
           </div>
         </div>
@@ -263,87 +260,73 @@ async function deletarPerfil(perfil: any) {
   // ------------------------------------------
   if (isAdmin) {
     return (
-      <main className="min-h-screen bg-[#050505] text-white p-6 md:p-12 animate-in fade-in duration-500">
+      <main className="min-h-screen bg-[#050505] text-white p-6 md:p-12">
         <header className="flex justify-between items-center mb-12 border-b border-yellow-500/20 pb-8">
           <div>
             <h1 className="text-4xl font-black uppercase italic text-yellow-500 tracking-tighter">Painel de Controle</h1>
             <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.4em]">Configurações Nível S</p>
           </div>
-          <button onClick={() => setUsuarioAtual(null)} className="px-8 py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-xs font-black uppercase hover:bg-white hover:text-black transition-all shadow-xl">Fechar Painel</button>
+          <button onClick={() => setUsuarioAtual(null)} className="px-8 py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-xs font-black uppercase hover:bg-white hover:text-black transition-all">Fechar</button>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          
-          {/* SUB-FUNÇÃO: GERENCIAMENTO DE HUNTERS (VISUAL MELHORADO) */}
-          <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800 shadow-2xl">
-            <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-3">
-              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-              Gestão de Equipe
-            </h3>
+          <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800">
+            <h3 className="text-lg font-black uppercase mb-8 text-blue-500 italic">Gestão de Equipe</h3>
             
-            {/* BOTÃO DE CRIAÇÃO (GRANDE E DESTACADO) */}
-            <button 
-              onClick={criarNovoPerfil}
-              className="w-full mb-8 group relative overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 p-1 rounded-[2rem] transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <div className="bg-[#080808] rounded-[1.9rem] py-8 flex flex-col items-center gap-3 border border-zinc-800 group-hover:border-yellow-500/50 transition-colors">
-                <span className="text-4xl group-hover:scale-110 transition-transform">➕</span>
-                <span className="font-black uppercase text-xs tracking-[0.3em] text-zinc-400 group-hover:text-white">Recrutar Novo Hunter</span>
+            {!mostrandoFormHunter ? (
+              <button onClick={() => setMostrandoFormHunter(true)} className="w-full mb-8 group bg-zinc-800/50 p-8 rounded-[2rem] border border-dashed border-zinc-700 hover:border-yellow-500 transition-all">
+                <span className="text-3xl block mb-2">➕</span>
+                <span className="font-black uppercase text-xs tracking-widest text-zinc-500 group-hover:text-white">Recrutar Novo Hunter</span>
+              </button>
+            ) : (
+              <div className="mb-8 p-8 bg-black/60 rounded-[2.5rem] border border-yellow-500/20">
+                <div className="grid grid-cols-1 gap-4">
+                  <input type="text" placeholder="NOME" className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-white outline-none" value={novoHunter.nome} onChange={e => setNovoHunter({...novoHunter, nome: e.target.value})} />
+                  <div className="flex gap-4">
+                    <input type="text" placeholder="AVATAR" className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-center w-20 text-white outline-none" value={novoHunter.avatar} onChange={e => setNovoHunter({...novoHunter, avatar: e.target.value})} />
+                    <input type="password" placeholder="PIN" maxLength={4} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex-1 text-white outline-none" value={novoHunter.pin} onChange={e => setNovoHunter({...novoHunter, pin: e.target.value.replace(/\D/g, '')})} />
+                  </div>
+                  <select className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-white outline-none" value={novoHunter.cor} onChange={e => setNovoHunter({...novoHunter, cor: e.target.value})}>
+                    <option value="verde">AURA VERDE</option>
+                    <option value="azul">AURA AZUL</option>
+                    <option value="roxo">AURA ROXA</option>
+                    <option value="laranja">AURA LARANJA</option>
+                  </select>
+                  <div className="flex gap-3">
+                    <button onClick={salvarNovoHunter} className="flex-1 py-4 bg-yellow-500 text-black font-black uppercase rounded-xl">Confirmar</button>
+                    <button onClick={() => setMostrandoFormHunter(false)} className="px-6 py-4 bg-zinc-800 text-zinc-400 font-black uppercase rounded-xl">Cancelar</button>
+                  </div>
+                </div>
               </div>
-            </button>
+            )}
 
-            {/* LISTA DE HUNTERS COM BOTÃO DE EXCLUSÃO FIXO */}
-            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
               {perfis.map(p => (
-                <div 
-                  key={p.nome_original} 
-                  className="grid grid-cols-[1fr_auto] items-center gap-4 p-5 bg-black/40 rounded-3xl border border-zinc-800 group hover:border-zinc-700 transition-all shadow-lg"
-                >
-                  {/* LADO ESQUERDO: INFOS (OCUPA O ESPAÇO DISPONÍVEL) */}
-                  <div className="flex items-center gap-5 min-w-0">
-                    <div className="w-14 h-14 min-w-[3.5rem] bg-zinc-900 rounded-2xl flex items-center justify-center text-3xl border border-zinc-800 group-hover:border-zinc-600 transition-all">
-                      {p.avatar}
-                    </div>
+                <div key={p.nome_original} className="grid grid-cols-[1fr_auto] items-center gap-4 p-5 bg-black/40 rounded-3xl border border-zinc-800 shadow-lg">
+                  <div className="flex items-center gap-5 min-w-0 text-white">
+                    <div className="w-14 h-14 min-w-[3.5rem] bg-zinc-900 rounded-2xl flex items-center justify-center text-3xl border border-zinc-800">{p.avatar}</div>
                     <div className="min-w-0">
-                      <p className="font-black uppercase text-sm tracking-wider truncate text-white">{p.nome_exibicao}</p>
-                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter truncate">
-                        Status: Ativo | PIN: <span className="text-zinc-300">{p.pin || "Aberto"}</span>
-                      </p>
+                      <p className="font-black uppercase text-sm truncate">{p.nome_exibicao}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase">PIN: {p.pin || "Aberto"}</p>
                     </div>
                   </div>
-                  
-                  {/* LADO DIREITO: BOTÃO DE AÇÃO (LARGURA FIXA) */}
-                  <div className="flex items-center">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deletarPerfil(p);
-                      }}
-                      className="w-12 h-12 flex items-center justify-center bg-zinc-900 rounded-xl border border-zinc-800 text-zinc-600 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/50 transition-all"
-                      title="Remover Hunter"
-                    >
-                      <span className="text-xl leading-none">🗑️</span>
-                    </button>
-                  </div>
+                  <button onClick={() => deletarPerfil(p)} className="w-12 h-12 flex items-center justify-center bg-zinc-900 rounded-xl text-zinc-600 hover:text-red-500 transition-all">🗑️</button>
                 </div>
               ))}
             </div>
           </section>
-          
-          {/* SUB-FUNÇÃO: CONTROLE DE VISIBILIDADE (ESTILIZADA) */}
+
           <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800 shadow-2xl">
-            <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-3">
-              <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-              Interface Global
-            </h3>
-            {/* ... (Switches de visibilidade aqui) ... */}
+            <h3 className="text-lg font-black uppercase mb-8 text-yellow-500 italic text-white">Interface Global</h3>
             <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest text-center mt-20 italic">Selecione os componentes ativos para os usuários.</p>
           </section>
-
         </div>
       </main>
     );
   }
+
+  // --- SUB-SESSÃO FINAL: ESTANTE DE MANGÁS (USUÁRIOS COMUNS) ---
+
   // ==========================================
   // 🖥️ 10. ESTANTE DE MANGÁS OU MODO ADMIN
   // ==========================================
