@@ -296,9 +296,10 @@ async function deletarPerfil(perfil: any) {
                 type="password" maxLength={4} autoFocus
                 className="w-full bg-black border border-zinc-700 p-5 rounded-2xl text-center text-4xl font-bold text-white outline-none focus:border-yellow-500 transition-all font-mono"
                 onChange={(e) => {
-                  if (e.target.value === "1234") { // <--- Hunter, lembre-se de mudar para sua senha!
-                    setIsAdmin(true);
-                    setPinAdminAberto(false);
+                   if (e.target.value === "5236") { // Lembre-se de colocar a sua senha
+                     setIsAdmin(true);
+                     setUsuarioAtual("Admin"); // <--- ESSA É A CHAVE MESTRA QUE FALTAVA
+                     setPinAdminAberto(false);
                   }
                 }}
               />
@@ -364,6 +365,7 @@ async function deletarPerfil(perfil: any) {
         </div>
 
         <div className="flex items-center gap-6">
+
           {/* BOTÃO ADICIONAR OBRA */}
           <button 
             onClick={() => setEstaAbertoAdd(true)} 
@@ -372,6 +374,17 @@ async function deletarPerfil(perfil: any) {
             + Adicionar Obra
           </button>
 
+          {/* ACESSAR PERFIL (VOLTOU PARA O SEU LUGAR) */}
+          <div 
+            onClick={() => setMostrandoPerfil(true)} 
+            className="group cursor-pointer flex flex-col items-center gap-2"
+            title="Configurações do Hunter"
+          >
+            <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-3xl border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg`}>
+              {perfilAtivo.avatar}
+            </div>
+            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter group-hover:text-white transition-colors">Configurações</span>
+          </div>
         </div>
       </header>
 
