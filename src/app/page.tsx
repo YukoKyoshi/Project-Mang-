@@ -11,6 +11,7 @@ import MangaCard from "./components/MangaCard";
 import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 import AdminPanel from "./components/AdminPanel";
+import ProfileSelection from "./components/ProfileSelection";
 
 // Definindo a interface Manga para o TypeScript não reclamar
 interface Manga { 
@@ -233,40 +234,19 @@ async function deletarPerfil(perfil: any) {
   // ==========================================
   
   // ------------------------------------------
-  // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL
+  // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL (COMPONENTIZADO)
   // ------------------------------------------
   if (!usuarioAtual) {
     return (
-      <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-white">
-        <h1 className="text-4xl font-black mb-16 uppercase tracking-tighter text-white">Escolha seu Perfil</h1>
-        <div className="flex flex-wrap justify-center gap-10">
-          {perfis.map(p => {
-            const auraP = p.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[p.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
-            return (
-              <div key={p.nome_original} onClick={() => tentarMudarPerfil(p.nome_original)} className="flex flex-col items-center gap-4 cursor-pointer group" style={p.cor_tema?.startsWith('#') ? { '--aura': p.cor_tema } as React.CSSProperties : {}}>
-                <div className={`w-40 h-40 bg-zinc-900 rounded-[3rem] flex items-center justify-center text-7xl border-4 border-zinc-800 group-hover:${auraP.border} transition-all`}>
-                  {p.avatar}
-                </div>
-                <span className="font-bold uppercase text-zinc-500 group-hover:text-white">{p.nome_exibicao}</span>
-              </div>
-            );
-          })}
-          <div onClick={() => tentarMudarPerfil("Admin")} className="flex flex-col items-center gap-4 cursor-pointer group">
-            <div className="w-40 h-40 bg-zinc-900 border-4 border-dashed border-zinc-700 rounded-[3rem] flex items-center justify-center text-7xl group-hover:border-yellow-500 transition-all">⚙️</div>
-            <span className="font-bold uppercase text-zinc-700 group-hover:text-yellow-500 text-xs">Administrador</span>
-          </div>
-        </div>
-
-        {perfilAlvoParaBloqueio && (
-          <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4 backdrop-blur-md">
-            <div className="bg-zinc-900 p-10 rounded-[2.5rem] border border-zinc-800 text-center max-w-sm w-full">
-              <h2 className="text-white font-black mb-6 uppercase tracking-widest text-xl">PIN de Segurança</h2>
-              <input autoFocus type="password" maxLength={4} className="bg-black border border-zinc-700 rounded-xl w-full py-4 text-center text-3xl text-white outline-none mb-6" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && confirmarPin()} />
-              <button onClick={confirmarPin} className="w-full py-4 bg-white text-black rounded-xl font-black uppercase">Entrar</button>
-            </div>
-          </div>
-        )}
-      </main>
+      <ProfileSelection 
+        perfis={perfis}
+        temas={TEMAS}
+        tentarMudarPerfil={tentarMudarPerfil}
+        perfilAlvoParaBloqueio={perfilAlvoParaBloqueio}
+        pinDigitado={pinDigitado}
+        setPinDigitado={setPinDigitado}
+        confirmarPin={confirmarPin}
+      />
     );
   }
 
