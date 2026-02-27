@@ -143,8 +143,8 @@ async function atualizarDados(id: number, campos: any) {
 async function salvarHunter() {
   if (!novoHunter.nome) return alert("O nome é obrigatório!");
 
-  const dados = {
-    nome_original: novoHunter.nome,
+  // ATENÇÃO: Separamos o nome_original para ele não ser reescrito na edição
+  const dados: any = {
     nome_exibicao: novoHunter.nome,
     avatar: novoHunter.avatar,
     pin: novoHunter.pin,
@@ -154,13 +154,14 @@ async function salvarHunter() {
   let error;
 
   if (editandoNomeOriginal) {
-    // MODO EDIÇÃO
+    // MODO EDIÇÃO: Atualiza apenas as aparências, mantém a raiz intacta
     const result = await supabase.from("perfis")
       .update(dados)
       .eq("nome_original", editandoNomeOriginal);
     error = result.error;
   } else {
-    // MODO CRIAÇÃO
+    // MODO CRIAÇÃO: Aqui sim, definimos o nome_original pela primeira vez
+    dados.nome_original = novoHunter.nome;
     const result = await supabase.from("perfis").insert([dados]);
     error = result.error;
   }
