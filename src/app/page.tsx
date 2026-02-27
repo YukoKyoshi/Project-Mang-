@@ -5,7 +5,6 @@ import { supabase } from "./supabase";
 import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 
-// --- CONFIGURAÇÃO DE USUÁRIOS ---
 const USUARIOS = [
   { id: 1, nome: "Baiaku", pin: "1234", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Baiaku", aura: "verde" },
   { id: 2, nome: "Hunter", pin: "0000", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Hunter", aura: "roxo" },
@@ -19,12 +18,9 @@ const AURAS: any = {
 };
 
 export default function Home() {
-  // --- ESTADOS DE SEGURANÇA (OBRIGATÓRIO COMECAR RESETADO) ---
-  const [autenticado, setAutenticado] = useState(false); 
+  const [autenticado, setAutenticado] = useState(false);
   const [senhaMestra, setSenhaMestra] = useState("");
-  
-  // Aqui estava o provável erro: Verifique se não há nada entre os parênteses do null
-  const [usuarioAtual, setUsuarioAtual] = useState<any>(null); 
+  const [usuarioAtual, setUsuarioAtual] = useState<any>(null);
   const [perfilTentativa, setPerfilTentativa] = useState<any>(null);
   const [pinDigitado, setPinDigitado] = useState("");
 
@@ -32,12 +28,17 @@ export default function Home() {
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<any>(null);
 
-  // --- TRAVA DE SEGURANÇA EXTRA ---
-  // Este efeito roda UMA VEZ quando a página abre. Ele garante que os estados estejam limpos.
+  // --- LOGICA DE PERSISTÊNCIA E RESET NO F5 ---
   useEffect(() => {
+    // 1. Verifica se a senha mestra já foi validada antes
+    const jaLogado = sessionStorage.getItem("hunter_tracker_auth");
+    if (jaLogado === "true") {
+      setAutenticado(true);
+    }
+
+    // 2. IMPORTANTE: Sempre resetamos o usuário no F5.
+    // Assim, o site volta para a tela "Quem está lendo?" e exige o PIN.
     setUsuarioAtual(null);
-    setPerfilTentativa(null);
-    setAutenticado(false);
   }, []);
 
   useEffect(() => {
@@ -56,8 +57,13 @@ export default function Home() {
   }
 
   function loginMestre() {
-    if (senhaMestra === "Hunter123") setAutenticado(true);
-    else alert("Senha Mestra incorreta!");
+    if (senhaMestra === "YHRyf(V46_F2") {
+      setAutenticado(true);
+      // Salva que a senha mestra está ok para esta aba
+      sessionStorage.setItem("hunter_tracker_auth", "true");
+    } else {
+      alert("Senha Mestra incorreta!");
+    }
   }
 
   function abrirPromptPin(usuario: any) {
@@ -75,7 +81,6 @@ export default function Home() {
     }
   }
 
-  // --- OPERAÇÕES ---
   async function salvarNovaObra(novaObra: any) {
     const { data, error } = await supabase
       .from("mangas")
@@ -97,7 +102,7 @@ export default function Home() {
   }
 
   async function deletarManga(id: string) {
-    if (confirm("Deseja mesmo remover?")) {
+    if (confirm("Deseja mesmo remover esta obra?")) {
       const { error } = await supabase.from("mangas").delete().eq("id", id);
       if (!error) {
         setMangas(mangas.filter(m => m.id !== id));
@@ -108,7 +113,6 @@ export default function Home() {
 
   const aura = AURAS[usuarioAtual?.aura || perfilTentativa?.aura || "verde"];
 
-  // TELA 1: ACESSO MESTRE
   if (!autenticado) {
     return (
       <main className="h-screen bg-black flex items-center justify-center p-6">
@@ -128,17 +132,15 @@ export default function Home() {
     );
   }
 
-  // TELA 2: SELEÇÃO DE PERFIL
   if (!usuarioAtual) {
     return (
-      <main className="h-screen bg-[#050505] flex flex-col items-center justify-center p-6 animate-in fade-in duration-700">
+      <main className="h-screen bg-[#050505] flex flex-col items-center justify-center p-6">
         <h2 className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.5em] mb-12">Quem está lendo?</h2>
-        <div className="flex flex-wrap justify-center gap-12">
+        <div className="flex gap-12">
           {USUARIOS.map(u => (
             <div key={u.id} onClick={() => abrirPromptPin(u)} className="group cursor-pointer text-center">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-transparent group-hover:border-white transition-all mb-4 relative">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-transparent group-hover:border-white transition-all mb-4">
                 <img src={u.avatar} alt={u.nome} className="w-full h-full object-cover grayscale group-hover:grayscale-0" />
-                <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-all" />
               </div>
               <p className="text-zinc-500 group-hover:text-white font-bold uppercase text-[10px] tracking-widest">{u.nome}</p>
             </div>
@@ -146,10 +148,10 @@ export default function Home() {
         </div>
 
         {perfilTentativa && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in zoom-in duration-300">
-            <div className="bg-zinc-900 border border-white/10 p-10 rounded-[3rem] w-full max-w-xs text-center shadow-2xl">
-              <img src={perfilTentativa.avatar} className="w-20 h-20 rounded-full mx-auto mb-6 border-2 border-white/10" />
-              <p className="text-white font-black uppercase text-xs mb-6 tracking-widest">PIN de {perfilTentativa.nome}</p>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md">
+            <div className="bg-zinc-900 border border-white/10 p-10 rounded-[3rem] w-80 text-center shadow-2xl">
+              <img src={perfilTentativa.avatar} className="w-20 h-20 rounded-full mx-auto mb-6" />
+              <p className="text-white font-black uppercase text-xs mb-6">PIN de {perfilTentativa.nome}</p>
               <input 
                 autoFocus
                 type="password" 
@@ -157,12 +159,9 @@ export default function Home() {
                 value={pinDigitado}
                 onChange={(e) => setPinDigitado(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && verificarPin()}
-                className={`w-full bg-black border border-zinc-800 rounded-2xl py-4 text-center text-3xl text-white outline-none transition-all ${aura.focus}`}
+                className={`w-full bg-black border border-zinc-800 rounded-2xl py-4 text-center text-2xl text-white outline-none ${aura.focus}`}
               />
-              <div className="mt-8 flex flex-col gap-4">
-                <button onClick={verificarPin} className="w-full py-4 bg-white text-black rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-200 transition-all">Confirmar</button>
-                <button onClick={() => setPerfilTentativa(null)} className="text-zinc-600 uppercase text-[10px] font-bold hover:text-white transition-colors">Cancelar</button>
-              </div>
+              <button onClick={() => setPerfilTentativa(null)} className="mt-6 text-zinc-600 uppercase text-[10px] font-bold hover:text-white">Cancelar</button>
             </div>
           </div>
         )}
@@ -170,25 +169,29 @@ export default function Home() {
     );
   }
 
-  // TELA 3: ESTANTE
   return (
-    <main className="min-h-screen bg-[#080808] text-white p-6 md:p-12 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row justify-between items-center md:items-end mb-16 max-w-7xl mx-auto gap-8">
+    <main className="min-h-screen bg-[#080808] text-white p-6 md:p-12">
+      <header className="flex justify-between items-end mb-16 max-w-7xl mx-auto">
         <div>
           <p className={`text-[10px] font-black uppercase tracking-[0.4em] mb-2 ${aura.text}`}>Estante Pessoal</p>
           <h1 className="text-5xl font-black uppercase italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
         </div>
         <div className="flex items-center gap-6">
-          <button onClick={() => setEstaAbertoAdd(true)} className={`${aura.bg} px-8 py-4 rounded-2xl shadow-lg hover:scale-105 transition-all`}>
-            <span className="font-black uppercase text-[10px] tracking-widest">Add Manga</span>
+          <button onClick={() => setEstaAbertoAdd(true)} className={`${aura.bg} p-4 rounded-2xl shadow-lg hover:scale-105 transition-all`}>
+            <span className="font-black uppercase text-[10px] tracking-widest px-4">Add Manga</span>
           </button>
-          <div onClick={() => { setUsuarioAtual(null); setAutenticado(false); }} className="cursor-pointer group flex flex-col items-center gap-2">
-            <img src={usuarioAtual.avatar} className={`w-12 h-12 rounded-full border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg`} />
-            <span className="text-[8px] font-bold text-zinc-600 group-hover:text-white uppercase tracking-tighter">Sair</span>
+          {/* Botão de sair limpa o usuario E a senha mestra da sessão */}
+          <div onClick={() => {
+            setUsuarioAtual(null);
+            setAutenticado(false);
+            sessionStorage.removeItem("hunter_tracker_auth");
+          }} className="cursor-pointer group">
+            <img src={usuarioAtual.avatar} className={`w-12 h-12 rounded-full border-2 ${aura.border} group-hover:scale-110 transition-all`} />
           </div>
         </div>
       </header>
 
+      {/* ... Resto do grid (mantido igual) ... */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
         {mangas.map(m => (
           <div key={m.id} onClick={() => setMangaDetalhe(m)} className="group cursor-pointer relative">
