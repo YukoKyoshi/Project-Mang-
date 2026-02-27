@@ -32,7 +32,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
   }, [estaAberto]);
 
 // ==========================================
-  // [SISTEMA DE BUSCA TRIPLA] - AniList -> MAL -> Tradução Auto
+  // [SISTEMA DE BUSCA TRIPLA] - AniList -> MAL -> Tradução Auto (Com Sanitização)
   // ==========================================
   useEffect(() => {
     if (termoAnilist.length < 3) {
@@ -40,7 +40,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
       return;
     }
     
-    // Aumentamos o delay para 800ms para evitar bloqueios das APIs ao digitar rápido
     const t = setTimeout(async () => {
       setBuscando(true);
       try {
@@ -76,32 +75,34 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           return [];
         };
 
-        // 🎯 1º TENTATIVA: AniList com o termo original
+        // 🧰 Função Auxiliar 3: Sanitização (Limpa "x" isolados e espaços duplos)
+        // Ex: "Caçador x Caçador" vira "Caçador Caçador", facilitando a tradução
+        const termoLimpo = termoAnilist.replace(/\b[xX]\b/g, ' ').replace(/\s+/g, ' ').trim();
+
+        // 🎯 1º TENTATIVA: Original (AniList)
         resultados = await buscarAnilist(termoAnilist);
 
-        // 🎯 2º TENTATIVA: MyAnimeList com o termo original
+        // 🎯 2º TENTATIVA: Original (MAL)
         if (resultados.length === 0) {
           resultados = await buscarMAL(termoAnilist);
         }
 
-        // 🎯 3º TENTATIVA: Traduzir para o Inglês e tentar de novo!
+        // 🎯 3º TENTATIVA: Sanitizado + Traduzido (Trident)
         if (resultados.length === 0) {
-          const resTrad = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl=en&dt=t&q=${encodeURIComponent(termoAnilist)}`);
+          const resTrad = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl=en&dt=t&q=${encodeURIComponent(termoLimpo)}`);
           const jsonTrad = await resTrad.json();
           const termoTraduzido = jsonTrad[0].map((item: any) => item[0]).join('');
+          
+          console.log("🔍 Termo Traduzido para Busca:", termoTraduzido); // Para você acompanhar no F12 (Console)
 
-          // Só busca de novo se a tradução for realmente diferente do que foi digitado
-          if (termoTraduzido && termoTraduzido.toLowerCase() !== termoAnilist.toLowerCase()) {
+          if (termoTraduzido) {
             resultados = await buscarAnilist(termoTraduzido);
-            
-            // Se o AniList ainda falhar com o termo em inglês, tenta o MAL pela última vez
             if (resultados.length === 0) {
               resultados = await buscarMAL(termoTraduzido);
             }
           }
         }
 
-        // Entrega os resultados finais para a interface
         setResultadosAnilist(resultados);
 
       } catch (err) {
@@ -113,7 +114,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
     
     return () => clearTimeout(t);
   }, [termoAnilist]);
-
+  
   // ==========================================
   // [CORREÇÃO MASTER] - Novo Motor: Google Translate
   // ==========================================
