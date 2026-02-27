@@ -14,7 +14,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ resultado: '⚠️ ERRO_LOCAL: Chave da API ausente no Vercel' });
     }
 
-    // O NOVO PROMPT: Muito mais direto e com exemplos
     const prompt = `Você é um sistema especialista em busca de mangás. O usuário pesquisou por: "${termo}".
     Sua única função é traduzir ou corrigir isso para o título oficial da obra em Romaji ou Inglês (o mais usado no AniList).
     Exemplos:
@@ -24,7 +23,8 @@ export async function POST(request: Request) {
     
     Responda APENAS o nome da obra. Sem aspas, sem explicações, sem pontuação final.`;
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+    // 🔥 AQUI ESTÁ A MUDANÇA: Trocamos para o gemini-pro (Motor Universal)
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -44,7 +44,6 @@ export async function POST(request: Request) {
 
     const data = await res.json();
 
-    // 🔥 O TRUQUE DE DEBUGGING: Se o Google der erro, mandamos o erro disfarçado de resultado para aparecer no seu Console F12!
     if (data.error) {
        return NextResponse.json({ resultado: `⚠️ ERRO_GOOGLE: ${data.error.message}` });
     }
