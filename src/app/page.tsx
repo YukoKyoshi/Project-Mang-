@@ -70,12 +70,23 @@ export default function Home() {
   }, [usuarioAtual]);
 
   // ==========================================
-  // 🛠️ 6. FUNÇÕES DO BANCO DE DADOS (SUPABASE)
+  // 🛠️ 6. FUNÇÕES DO BANCO DE DADOS (FILTRADO)
   // ==========================================
   async function buscarMangas() {
-    const { data, error } = await supabase.from("mangas").select("*").order("ultima_leitura", { ascending: false });
-    if (data) setMangas(data as Manga[]);
-    if (error) console.error("Erro Supabase Mangas:", error.message);
+    // Se não houver ninguém logado, não buscamos nada para evitar erros
+    if (!usuarioAtual) return;
+
+    const { data, error } = await supabase
+      .from("mangas")
+      .select("*")
+      .eq("usuario", usuarioAtual) // <-- AQUI ESTÁ O FILTRO REAL
+      .order("ultima_leitura", { ascending: false });
+
+    if (error) {
+      console.error("Erro Supabase Mangas:", error.message);
+    } else {
+      setMangas(data as Manga[]);
+    }
   }
 
   async function buscarPerfis() {
