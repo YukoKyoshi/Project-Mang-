@@ -1,213 +1,263 @@
 "use client";
-
-import { useState, useEffect } from "react";
-import { supabase } from "./supabase"; 
+import AcessoMestre from "./components/AcessoMestre";
+import { supabase } from "./supabase";
+import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import MangaCard from "./components/MangaCard";
 import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 
-const USUARIOS = [
-  { id: 1, nome: "Baiaku", pin: "1234", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Baiaku", aura: "verde" },
-  { id: 2, nome: "Hunter", pin: "0000", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Hunter", aura: "roxo" },
-  { id: 3, nome: "Visitante", pin: "1111", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Guest", aura: "azul" },
-];
-
-const AURAS: any = {
-  verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500/50", shadow: "shadow-[0_0_40px_rgba(34,197,94,0.2)]", focus: "focus:border-green-500" },
-  roxo: { bg: "bg-purple-600", text: "text-purple-500", border: "border-purple-500/50", shadow: "shadow-[0_0_40px_rgba(147,51,234,0.2)]", focus: "focus:border-purple-500" },
-  azul: { bg: "bg-blue-600", text: "text-blue-500", border: "border-blue-500/50", shadow: "shadow-[0_0_40px_rgba(37,99,235,0.2)]", focus: "focus:border-blue-500" },
+// ==========================================
+// 🎨 CONFIGURAÇÃO DE TEMAS E AURAS
+// ==========================================
+const TEMAS = {
+  verde: { nome: "Verde Néon", bg: "bg-green-500", bgActive: "bg-green-600", text: "text-green-500", border: "border-green-500", focus: "focus:border-green-500 focus:ring-green-500/20", shadow: "shadow-green-500/40" },
+  azul: { nome: "Azul Elétrico", bg: "bg-blue-500", bgActive: "bg-blue-600", text: "text-blue-500", border: "border-blue-500", focus: "focus:border-blue-500 focus:ring-blue-500/20", shadow: "shadow-blue-500/40" },
+  roxo: { nome: "Roxo Carmesim", bg: "bg-purple-500", bgActive: "bg-purple-600", text: "text-purple-500", border: "border-purple-500", focus: "focus:border-purple-500 focus:ring-purple-500/20", shadow: "shadow-purple-500/40" },
+  laranja: { nome: "Laranja Outono", bg: "bg-orange-500", bgActive: "bg-orange-600", text: "text-orange-500", border: "border-orange-500", focus: "focus:border-orange-500 focus:ring-orange-500/20", shadow: "shadow-orange-500/40" },
+  custom: { nome: "Cor Livre", bg: "bg-[var(--aura)]", bgActive: "bg-[var(--aura)] brightness-110", text: "text-[var(--aura)]", border: "border-[var(--aura)]", focus: "focus:border-[var(--aura)] focus:ring-[var(--aura)]", shadow: "shadow-[0_0_15px_var(--aura)]" }
 };
 
+interface Manga { id: number; titulo: string; capa: string; capitulo_atual: number; total_capitulos: number; status: string; sinopse: string; nota_pessoal: number; nota_amigos: number; comentarios: string; usuario: string; ultima_leitura: string; favorito: boolean; }
+
 export default function Home() {
-  const [autenticado, setAutenticado] = useState(false);
-  const [senhaMestra, setSenhaMestra] = useState("");
-  const [usuarioAtual, setUsuarioAtual] = useState<any>(null);
-  const [perfilTentativa, setPerfilTentativa] = useState<any>(null);
+  // ==========================================
+  // 🔐 ESTADOS DE SEGURANÇA E ACESSO
+  // ==========================================
+  const [mestreAutorizado, setMestreAutorizado] = useState(false);
+  const [usuarioAtual, setUsuarioAtual] = useState<string | null>(null);
+  const [perfilAlvoParaBloqueio, setPerfilAlvoParaBloqueio] = useState<string | null>(null);
   const [pinDigitado, setPinDigitado] = useState("");
 
-  const [mangas, setMangas] = useState<any[]>([]);
+  // ==========================================
+  // 📦 ESTADOS DE DADOS E INTERFACE
+  // ==========================================
+  const [mangas, setMangas] = useState<Manga[]>([]);
+  const [perfis, setPerfis] = useState<any[]>([]); 
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
-  const [mangaDetalhe, setMangaDetalhe] = useState<any>(null);
+  const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [mostrarStats, setMostrarStats] = useState(false);
+  const [menuDados, setMenuDados] = useState(false);
+  const [filtroAtivo, setFiltroAtivo] = useState("Lendo");
+  const [pesquisaInterna, setPesquisaInterna] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- LOGICA DE PERSISTÊNCIA E RESET NO F5 ---
-  useEffect(() => {
-    // 1. Verifica se a senha mestra já foi validada antes
-    const jaLogado = sessionStorage.getItem("hunter_tracker_auth");
-    if (jaLogado === "true") {
-      setAutenticado(true);
-    }
+  // ==========================================
+  // 🔄 CICLO DE VIDA (useEffect)
+  // ==========================================
+  useEffect(() => { 
+    // 1. Checa o Portão Principal (SessionStorage mantém mesmo no F5)
+    const mestre = sessionStorage.getItem("acesso_mestre");
+    if (mestre === "true") setMestreAutorizado(true);
 
-    // 2. IMPORTANTE: Sempre resetamos o usuário no F5.
-    // Assim, o site volta para a tela "Quem está lendo?" e exige o PIN.
+    // 2. [CORREÇÃO F5] Sempre remove o usuário ativo ao recarregar a página
+    // Isso garante que o PIN seja solicitado novamente, mas a senha mestra não.
+    sessionStorage.removeItem('hunter_ativo');
     setUsuarioAtual(null);
+    
+    buscarMangas(); 
+    buscarPerfis().then(() => setCarregando(false));
   }, []);
 
   useEffect(() => {
-    if (usuarioAtual) {
-      buscarMangas();
-    }
+    if (usuarioAtual) buscarMangas();
   }, [usuarioAtual]);
 
+  // ==========================================
+  // 🛠️ FUNÇÕES DE BANCO DE DADOS (SUPABASE)
+  // ==========================================
   async function buscarMangas() {
-    const { data } = await supabase
-      .from("mangas")
-      .select("*")
-      .eq("usuario_id", usuarioAtual.id)
-      .order("created_at", { ascending: false });
-    setMangas(data || []);
+    const { data } = await supabase.from("mangas").select("*").order("ultima_leitura", { ascending: false });
+    if (data) setMangas(data as Manga[]);
   }
 
-  function loginMestre() {
-    if (senhaMestra === "YHRyf(V46_F2") {
-      setAutenticado(true);
-      // Salva que a senha mestra está ok para esta aba
-      sessionStorage.setItem("hunter_tracker_auth", "true");
+  async function buscarPerfis() {
+    const { data } = await supabase.from("perfis").select("*");
+    if (data) setPerfis(data);
+  }
+
+  async function atualizarCapitulo(manga: Manga, novo: number) {
+    if (novo < 0) return;
+    let novoStatus = manga.status;
+    if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
+    else if (novo > 0 && (manga.status === "Planejo Ler" || manga.status === "Dropados")) novoStatus = "Lendo";
+    await supabase.from("mangas").update({ capitulo_atual: novo, status: novoStatus, ultima_leitura: new Date().toISOString() }).eq("id", manga.id);
+    buscarMangas();
+  }
+
+  async function atualizarDados(id: number, campos: any) {
+    await supabase.from("mangas").update(campos).eq("id", id);
+    setMangas(prev => prev.map(m => m.id === id ? { ...m, ...campos } : m));
+    if (mangaDetalhe?.id === id) setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
+  }
+
+  async function salvarNovaObra(novoManga: any) {
+    const existe = mangas.some(m => m.titulo === novoManga.titulo && m.usuario === usuarioAtual);
+    if (existe) return alert("⚠️ Você já tem este mangá!");
+    let statusFinal = "Planejo Ler";
+    if (novoManga.total_capitulos > 0 && novoManga.capitulo_atual >= novoManga.total_capitulos) statusFinal = "Completos";
+    else if (novoManga.capitulo_atual > 0) statusFinal = "Lendo";
+    await supabase.from("mangas").insert([{ ...novoManga, usuario: usuarioAtual, status: statusFinal, ultima_leitura: new Date().toISOString() }]);
+    setEstaAbertoAdd(false);
+    buscarMangas();
+  }
+
+  // ==========================================
+  // 🔑 LÓGICA DE PERFIS E PIN
+  // ==========================================
+  function tentarMudarPerfil(nomeOriginal: string) {
+    if (nomeOriginal === usuarioAtual) return;
+    const info = perfis.find(p => p.nome_original === nomeOriginal);
+    if (info && info.pin && info.pin.trim() !== "") {
+      setPerfilAlvoParaBloqueio(nomeOriginal);
+      setPinDigitado("");
     } else {
-      alert("Senha Mestra incorreta!");
+      setUsuarioAtual(nomeOriginal);
+      sessionStorage.setItem('hunter_ativo', nomeOriginal);
     }
   }
 
-  function abrirPromptPin(usuario: any) {
-    setPerfilTentativa(usuario);
-    setPinDigitado("");
-  }
-
-  function verificarPin() {
-    if (pinDigitado === perfilTentativa.pin) {
-      setUsuarioAtual(perfilTentativa);
-      setPerfilTentativa(null);
+  function confirmarAcessoPin() {
+    const info = perfis.find(p => p.nome_original === perfilAlvoParaBloqueio);
+    if (info && info.pin === pinDigitado) {
+      setUsuarioAtual(perfilAlvoParaBloqueio!);
+      sessionStorage.setItem('hunter_ativo', perfilAlvoParaBloqueio!);
+      setPerfilAlvoParaBloqueio(null);
+      setPinDigitado("");
     } else {
-      alert("PIN Incorreto, Hunter!");
+      alert("❌ PIN Incorreto! Acesso negado.");
       setPinDigitado("");
     }
   }
 
-  async function salvarNovaObra(novaObra: any) {
-    const { data, error } = await supabase
-      .from("mangas")
-      .insert([{ ...novaObra, usuario_id: usuarioAtual.id }])
-      .select();
-    
-    if (!error) {
-      setMangas([data[0], ...mangas]);
-      setEstaAbertoAdd(false);
-    }
+  function sairDoPerfil() {
+    sessionStorage.removeItem('hunter_ativo');
+    setUsuarioAtual(null);
   }
 
-  async function atualizarDados(id: string, novosDados: any) {
-    const { error } = await supabase.from("mangas").update(novosDados).eq("id", id);
-    if (!error) {
-      setMangas(mangas.map(m => m.id === id ? { ...m, ...novosDados } : m));
-      if (mangaDetalhe?.id === id) setMangaDetalhe({ ...mangaDetalhe, ...novosDados });
-    }
+  // ==========================================
+  // 🖥️ RENDERING: BLOQUEIO MESTRE
+  // ==========================================
+  if (!mestreAutorizado) {
+    return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
   }
 
-  async function deletarManga(id: string) {
-    if (confirm("Deseja mesmo remover esta obra?")) {
-      const { error } = await supabase.from("mangas").delete().eq("id", id);
-      if (!error) {
-        setMangas(mangas.filter(m => m.id !== id));
-        setMangaDetalhe(null);
-      }
-    }
-  }
+  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-zinc-500 font-bold tracking-widest uppercase">Carregando Sistema...</div>;
 
-  const aura = AURAS[usuarioAtual?.aura || perfilTentativa?.aura || "verde"];
-
-  if (!autenticado) {
-    return (
-      <main className="h-screen bg-black flex items-center justify-center p-6">
-        <div className="w-full max-w-md text-center">
-          <h1 className="text-white text-3xl font-black uppercase tracking-[0.2em] mb-8 italic">Estante Hunter</h1>
-          <input 
-            type="password" 
-            placeholder="SENHA MESTRA" 
-            className="w-full bg-zinc-900 border border-zinc-800 p-5 rounded-2xl text-white text-center outline-none focus:border-white/50 transition-all mb-4"
-            value={senhaMestra}
-            onChange={(e) => setSenhaMestra(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loginMestre()}
-          />
-          <button onClick={loginMestre} className="w-full bg-white text-black font-black py-4 rounded-2xl uppercase tracking-widest hover:bg-zinc-200 transition-all">Entrar</button>
-        </div>
-      </main>
-    );
-  }
-
+  // ==========================================
+  // 🖥️ RENDERING: TELA SELEÇÃO DE PERFIL (NETFLIX STYLE)
+  // ==========================================
   if (!usuarioAtual) {
     return (
-      <main className="h-screen bg-[#050505] flex flex-col items-center justify-center p-6">
-        <h2 className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.5em] mb-12">Quem está lendo?</h2>
-        <div className="flex gap-12">
-          {USUARIOS.map(u => (
-            <div key={u.id} onClick={() => abrirPromptPin(u)} className="group cursor-pointer text-center">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-transparent group-hover:border-white transition-all mb-4">
-                <img src={u.avatar} alt={u.nome} className="w-full h-full object-cover grayscale group-hover:grayscale-0" />
-              </div>
-              <p className="text-zinc-500 group-hover:text-white font-bold uppercase text-[10px] tracking-widest">{u.nome}</p>
-            </div>
-          ))}
-        </div>
-
-        {perfilTentativa && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md">
-            <div className="bg-zinc-900 border border-white/10 p-10 rounded-[3rem] w-80 text-center shadow-2xl">
-              <img src={perfilTentativa.avatar} className="w-20 h-20 rounded-full mx-auto mb-6" />
-              <p className="text-white font-black uppercase text-xs mb-6">PIN de {perfilTentativa.nome}</p>
-              <input 
-                autoFocus
-                type="password" 
-                maxLength={4}
-                value={pinDigitado}
-                onChange={(e) => setPinDigitado(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && verificarPin()}
-                className={`w-full bg-black border border-zinc-800 rounded-2xl py-4 text-center text-2xl text-white outline-none ${aura.focus}`}
-              />
-              <button onClick={() => setPerfilTentativa(null)} className="mt-6 text-zinc-600 uppercase text-[10px] font-bold hover:text-white">Cancelar</button>
+      <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-[#e5e5e5] relative">
+        {perfilAlvoParaBloqueio && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300">
+            <div className="bg-[#0e0e11] border border-zinc-800 p-10 rounded-[3rem] shadow-2xl flex flex-col items-center max-w-sm w-full relative">
+              <button onClick={() => setPerfilAlvoParaBloqueio(null)} className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors">✕</button>
+              <div className="text-6xl mb-4 drop-shadow-[0_0_15px_rgba(239,68,68,0.3)]">🔒</div>
+              <h2 className="text-xl font-black text-white uppercase tracking-widest mb-2 text-center">Acesso Restrito</h2>
+              <p className="text-xs text-zinc-500 mb-8 text-center">Introduza o PIN de segurança para aceder ao perfil.</p>
+              <input autoFocus type="password" maxLength={4} className="bg-zinc-950 border border-zinc-700 focus:border-red-500 rounded-2xl w-full py-4 text-center text-3xl font-black tracking-[1em] text-white outline-none mb-6 shadow-inner transition-colors" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && confirmarAcessoPin()} />
+              <button onClick={confirmarAcessoPin} className="w-full bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all border border-red-500/20 hover:border-red-600">Desbloquear</button>
             </div>
           </div>
         )}
+
+        <h1 className="text-4xl md:text-5xl font-black mb-16 tracking-tighter text-white drop-shadow-md">Quem está lendo?</h1>
+        <div className="flex flex-wrap justify-center gap-8 md:gap-14">
+          {perfis.map(p => {
+            const isCustomP = p.cor_tema?.startsWith('#');
+            const auraP = isCustomP ? TEMAS.custom : (TEMAS[p.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
+            return (
+              <div key={p.nome_original} onClick={() => tentarMudarPerfil(p.nome_original)} className="flex flex-col items-center gap-6 cursor-pointer group" style={isCustomP ? { '--aura': p.cor_tema } as React.CSSProperties : {}}>
+                <div className={`w-32 h-32 md:w-44 md:h-44 bg-zinc-900 rounded-[3rem] flex items-center justify-center text-7xl shadow-2xl border-4 border-zinc-800 hover:${auraP.border} group-hover:scale-105 transition-all duration-300 relative group-hover:${auraP.shadow}`}>
+                  {p.avatar}
+                  {p.pin && p.pin !== "" && <div className="absolute -top-3 -right-3 bg-red-600 w-12 h-12 rounded-full flex items-center justify-center text-xl border-4 border-[#040405] shadow-lg">🔒</div>}
+                </div>
+                <span className="text-zinc-500 font-black tracking-widest uppercase text-sm group-hover:text-white transition-colors">{p.nome_exibicao}</span>
+              </div>
+            );
+          })}
+        </div>
       </main>
     );
   }
 
+  // ==========================================
+  // 🖥️ RENDERING: ESTANTE DE MANGÁS (LOGADO)
+  // ==========================================
+  const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
+  const isCustom = perfilAtivo.cor_tema?.startsWith('#');
+  const aura = isCustom ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
+  
+  const mangasFiltrados = mangas.filter(m => m.usuario === usuarioAtual).filter(m => (filtroAtivo === "Todos" ? true : m.status === filtroAtivo)).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
+
   return (
-    <main className="min-h-screen bg-[#080808] text-white p-6 md:p-12">
-      <header className="flex justify-between items-end mb-16 max-w-7xl mx-auto">
-        <div>
-          <p className={`text-[10px] font-black uppercase tracking-[0.4em] mb-2 ${aura.text}`}>Estante Pessoal</p>
-          <h1 className="text-5xl font-black uppercase italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
-        </div>
-        <div className="flex items-center gap-6">
-          <button onClick={() => setEstaAbertoAdd(true)} className={`${aura.bg} p-4 rounded-2xl shadow-lg hover:scale-105 transition-all`}>
-            <span className="font-black uppercase text-[10px] tracking-widest px-4">Add Manga</span>
-          </button>
-          {/* Botão de sair limpa o usuario E a senha mestra da sessão */}
-          <div onClick={() => {
-            setUsuarioAtual(null);
-            setAutenticado(false);
-            sessionStorage.removeItem("hunter_tracker_auth");
-          }} className="cursor-pointer group">
-            <img src={usuarioAtual.avatar} className={`w-12 h-12 rounded-full border-2 ${aura.border} group-hover:scale-110 transition-all`} />
+    <main 
+      className={`min-h-screen bg-[#0a0a0c] p-6 md:p-10 text-[#e5e5e5] selection:${aura.bg}/30`}
+      style={isCustom ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}
+    >
+      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-50">
+        <section>
+          <h1 className="text-3xl font-bold tracking-tight">Estante de Mangás</h1>
+          <div className="flex gap-3 mt-4">
+            {perfis.map(p => (
+              <button key={p.nome_original} onClick={() => tentarMudarPerfil(p.nome_original)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold border transition-all ${usuarioAtual === p.nome_original ? `${aura.bgActive} border-transparent text-white shadow-lg scale-105` : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300"}`}>
+                <span className="text-sm">{p.avatar}</span>
+                <span className="uppercase tracking-widest">{p.nome_exibicao}</span>
+                {p.pin && p.pin !== "" && usuarioAtual !== p.nome_original && <span className="text-red-500 ml-1">🔒</span>}
+              </button>
+            ))}
           </div>
-        </div>
+        </section>
+
+        <section className="flex gap-2 w-full md:w-auto items-center flex-wrap md:flex-nowrap">
+          <Link href="/perfil" className={`group flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl hover:${aura.border} transition-all`}>
+            <div className={`w-10 h-10 rounded-xl bg-zinc-950 flex items-center justify-center text-xl shadow-lg border border-zinc-800 group-hover:${aura.border} transition-colors`}>{perfilAtivo.avatar}</div>
+            <div className="flex flex-col"><span className="text-[10px] font-bold text-zinc-500 uppercase leading-none">Acessar Perfil</span><span className="text-xs font-black text-white line-clamp-1">{perfilAtivo.nome_exibicao}</span></div>
+          </Link>
+          <button onClick={sairDoPerfil} className="px-4 py-3 bg-red-950/30 text-red-500 border border-red-900/50 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-lg">Sair 🚪</button>
+          
+          <button onClick={() => setMostrarStats(!mostrarStats)} className={`px-4 py-3 rounded-xl font-bold border transition-all ${mostrarStats ? `${aura.bg} border-transparent text-white` : 'bg-zinc-900 border-zinc-800 text-zinc-400'}`}>📊</button>
+          
+          <button onClick={() => setEstaAbertoAdd(true)} className={`px-6 py-3 bg-[#e5e5e5] text-black rounded-xl font-bold hover:${aura.bgActive} hover:text-white transition-all shadow-xl whitespace-nowrap`}>
+            + Adicionar Obra
+          </button>
+        </section>
       </header>
 
-      {/* ... Resto do grid (mantido igual) ... */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
-        {mangas.map(m => (
-          <div key={m.id} onClick={() => setMangaDetalhe(m)} className="group cursor-pointer relative">
-            <div className={`aspect-[3/4.5] rounded-[2rem] overflow-hidden border border-white/5 transition-all group-hover:border-white/20 ${aura.shadow}`}>
-              <img src={m.capa} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={m.titulo} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-              <div className="absolute bottom-6 left-6 right-6">
-                <h3 className="font-black uppercase text-[10px] leading-tight line-clamp-2">{m.titulo}</h3>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <div className={`transition-all duration-500 ${estaAbertoAdd || mangaDetalhe || perfilAlvoParaBloqueio ? "blur-md opacity-20 pointer-events-none" : ""}`}>
+        <div className="mb-6">
+          <input type="text" placeholder="🔍 Buscar na minha estante..." className={`w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-sm outline-none transition-colors ${aura.focus}`} value={pesquisaInterna} onChange={(e) => setPesquisaInterna(e.target.value)} />
+        </div>
+        
+        <nav className="flex gap-6 mb-10 border-b border-zinc-900 overflow-x-auto no-scrollbar">
+          {["Lendo", "Planejo Ler", "Completos", "Dropados", "Todos"].map(s => (
+            <button key={s} onClick={() => setFiltroAtivo(s)} className={`text-xs font-bold relative pb-4 transition-all ${filtroAtivo === s ? aura.text : "text-zinc-500 hover:text-zinc-300"}`}>
+              {s}
+              {filtroAtivo === s && <div className={`absolute bottom-0 w-full h-1 ${aura.bg} shadow-[0_0_10px_var(--aura)]`} />}
+            </button>
+          ))}
+        </nav>
 
-      <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} aoSalvar={salvarNovaObra} aura={aura} />
-      <MangaDetailsModal manga={mangaDetalhe} aoFechar={() => setMangaDetalhe(null)} aoAtualizarDados={atualizarDados} aoDeletar={deletarManga} aura={aura} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8">
+          {mangasFiltrados.map(m => (
+            <MangaCard 
+              key={m.id} 
+              manga={m} 
+              atualizarCapitulo={atualizarCapitulo} 
+              deletarManga={(id) => { if(confirm("Excluir?")) supabase.from("mangas").delete().eq("id", id).then(buscarMangas) }} 
+              mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} 
+              abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} 
+              aura={aura} 
+            />
+          ))}
+        </div>
+      </div>
+      
+      <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} aoSalvar={salvarNovaObra} />
+      <MangaDetailsModal manga={mangaDetalhe} aoFechar={() => setMangaDetalhe(null)} aoAtualizarCapitulo={atualizarCapitulo} aoAtualizarDados={atualizarDados} aoDeletar={(id) => { if(confirm("Excluir?")) supabase.from("mangas").delete().eq("id", id).then(() => { setMangaDetalhe(null); buscarMangas(); }) }} />
     </main>
   );
 }
