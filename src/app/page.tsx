@@ -92,39 +92,65 @@ export default function Home() {
   }, [usuarioAtual]);
 
   // ==========================================
-  // 🛠️ 6. FUNÇÕES DO BANCO DE DADOS (RECUPERADAS)
-  // ==========================================
-  async function buscarMangas() {
-    if (!usuarioAtual || usuarioAtual === "Admin") return;
-    const { data } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
-    if (data) setMangas(data as Manga[]);
-  }
+// 🛠️ 6. FUNÇÕES DO BANCO DE DADOS
+// ==========================================
 
-  async function buscarPerfis() {
-    const { data } = await supabase.from("perfis").select("*");
-    if (data) setPerfis(data);
-  }
+async function buscarMangas() {
+  if (!usuarioAtual || usuarioAtual === "Admin") return;
+  const { data } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
+  if (data) setMangas(data as Manga[]);
+}
 
-  async function atualizarCapitulo(manga: Manga, novo: number) {
-    if (novo < 0) return;
-    let novoStatus = manga.status;
-    if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
-    else if (novo > 0 && (manga.status === "Planejo Ler" || manga.status === "Dropados")) novoStatus = "Lendo";
-    
-    await supabase.from("mangas").update({ 
-      capitulo_atual: novo, 
-      status: novoStatus, 
-      ultima_leitura: new Date().toISOString() 
-    }).eq("id", manga.id);
-    
-    buscarMangas();
-  }
+async function buscarPerfis() {
+  const { data } = await supabase.from("perfis").select("*");
+  if (data) setPerfis(data);
+}
 
-  async function atualizarDados(id: number, campos: any) {
-    await supabase.from("mangas").update(campos).eq("id", id);
-    setMangas(prev => prev.map(m => m.id === id ? { ...m, ...campos } : m));
-    if (mangaDetalhe?.id === id) setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
+async function atualizarCapitulo(manga: Manga, novo: number) {
+  if (novo < 0) return;
+  let novoStatus = manga.status;
+  if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
+  else if (novo > 0 && (manga.status === "Planejo Ler" || manga.status === "Dropados")) novoStatus = "Lendo";
+  
+  await supabase.from("mangas").update({ 
+    capitulo_atual: novo, 
+    status: novoStatus, 
+    ultima_leitura: new Date().toISOString() 
+  }).eq("id", manga.id);
+  
+  buscarMangas();
+}
+
+async function atualizarDados(id: number, campos: any) {
+  await supabase.from("mangas").update(campos).eq("id", id);
+  setMangas(prev => prev.map(m => m.id === id ? { ...m, ...campos } : m));
+  if (mangaDetalhe?.id === id) setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
+}
+
+// --- criar perfis ---
+async function criarNovoPerfil() {
+  const nome = prompt("Nome do novo Hunter:");
+  if (!nome) return;
+  
+  const avatar = prompt("Emoji do Avatar (ex: 👤):", "👤");
+  const pin = prompt("Defina um PIN de 4 dígitos (ou deixe vazio):", "");
+  const cor = prompt("Cor da Aura (verde, azul, roxo, laranja ou #hex):", "verde");
+
+  const { error } = await supabase.from("perfis").insert([{
+    nome_original: nome,
+    nome_exibicao: nome,
+    avatar: avatar,
+    pin: pin,
+    cor_tema: cor
+  }]);
+
+  if (error) {
+    alert("Erro ao criar perfil: " + error.message);
+  } else {
+    alert("Hunter " + nome + " recrutado com sucesso!");
+    buscarPerfis();
   }
+}
 
   // ==========================================
   // 🔑 7. LÓGICA DE PERFIS E PIN
@@ -155,9 +181,11 @@ export default function Home() {
   if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-zinc-500 font-bold uppercase">Carregando...</div>;
 
+  /// ==========================================
+  // 🖥️ 9. RENDERING: SELEÇÃO DE PERFIL / MODO ADMINISTRADOR
   // ==========================================
-  // 🖥️ 9. RENDERING: SELEÇÃO DE PERFIL / ADMIN
-  // ==========================================
+  
+  // PARTE A: Tela de "Quem está lendo?" (Sua tela atual)
   if (!usuarioAtual) {
     return (
       <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-white">
@@ -192,6 +220,57 @@ export default function Home() {
             </div>
           </div>
         )}
+      </main>
+    );
+  }
+
+  // PARTE B: Painel de Controle (Onde o botão novo entra)
+  if (isAdmin) {
+    return (
+      <main className="min-h-screen bg-black text-white p-10 animate-in fade-in duration-500">
+        <header className="flex justify-between items-center mb-10 border-b border-yellow-500/30 pb-6">
+          <div>
+            <h1 className="text-3xl font-black uppercase italic text-yellow-500">Modo Construtor</h1>
+            <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Painel de Gerenciamento</p>
+          </div>
+          <button onClick={() => setUsuarioAtual(null)} className="px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold uppercase hover:bg-white hover:text-black transition-all">Sair do Painel</button>
+        </header>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Seção de Visibilidade (Interruptores) */}
+          <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-zinc-800">
+            <h3 className="text-sm font-black mb-6 uppercase text-yellow-500">Controles de Visibilidade</h3>
+            <div className="space-y-4">
+               {/* Aqui você já deve ter os interruptores de busca, stats, etc que fizemos antes */}
+               <p className="text-xs text-zinc-500 italic">Configure o que os usuários podem ver na estante.</p>
+            </div>
+          </div>
+          
+          {/* Seção de Perfis (Gerenciador) */}
+          <div className="bg-zinc-900/50 p-8 rounded-[2rem] border border-zinc-800">
+            <h3 className="text-sm font-black mb-6 uppercase text-yellow-500 italic">Equipe de Hunters</h3>
+            
+            {/* O BOTÃO QUE VOCÊ PROCURAVA: */}
+            <button 
+              onClick={criarNovoPerfil} 
+              className="w-full py-5 border-2 border-dashed border-zinc-800 rounded-3xl text-zinc-600 font-black uppercase text-[10px] tracking-[0.2em] hover:border-yellow-500 hover:text-white transition-all mb-6"
+            >
+              + Adicionar Novo Hunter
+            </button>
+
+            <div className="space-y-2 overflow-y-auto max-h-48 pr-2">
+              {perfis.map(p => (
+                <div key={p.nome_original} className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-zinc-800/50">
+                   <div className="flex items-center gap-3">
+                      <span>{p.avatar}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{p.nome_exibicao}</span>
+                   </div>
+                   <span className="text-[10px] text-zinc-600">PIN: {p.pin || '---'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </main>
     );
   }
