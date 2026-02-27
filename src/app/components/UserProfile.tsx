@@ -23,18 +23,53 @@ export default function UserProfile({ perfil, mangas, aoFechar, aoAtualizar, set
   const concluidos = mangas.filter(m => m.status === "Completos").length;
   const favoritos = mangas.filter(m => m.favorito).length;
 
-  // --- NOVA LÓGICA DE RANKED AQUI ---
+  // --- NOVA LÓGICA DE RANKED TURBINADA --- //
   const patentes = [
-    { nome: "INICIANTE", min: 0, cor: "text-zinc-500" },
-    { nome: "BRONZE", min: 100, cor: "text-orange-700" },
-    { nome: "PRATA", min: 500, cor: "text-zinc-300" },
-    { nome: "OURO", min: 1000, cor: "text-yellow-500" },
-    { nome: "PLATINA", min: 2500, cor: "text-cyan-400" },
-    { nome: "DIAMANTE", min: 5000, cor: "text-blue-400" },
-    { nome: "MESTRE HUNTER", min: 10000, cor: "text-purple-500" }
+    { 
+      nome: "INICIANTE", min: 0, 
+      cor: "text-zinc-500", 
+      borda: "border-zinc-800", 
+      sombra: "shadow-none" 
+    },
+    { 
+      nome: "BRONZE", min: 100, 
+      cor: "text-orange-600", 
+      borda: "border-orange-600", 
+      sombra: "shadow-[0_0_30px_rgba(234,88,12,0.2)]" 
+    },
+    { 
+      nome: "PRATA", min: 500, 
+      cor: "text-zinc-300", 
+      borda: "border-zinc-400", 
+      sombra: "shadow-[0_0_30px_rgba(212,212,216,0.2)]" 
+    },
+    { 
+      nome: "OURO", min: 1000, 
+      cor: "text-yellow-500", 
+      borda: "border-yellow-500", 
+      sombra: "shadow-[0_0_40px_rgba(234,179,8,0.4)]" 
+    },
+    { 
+      nome: "PLATINA", min: 2500, 
+      cor: "text-cyan-400", 
+      borda: "border-cyan-400", 
+      sombra: "shadow-[0_0_50px_rgba(34,211,238,0.5)]" 
+    },
+    { 
+      nome: "DIAMANTE", min: 5000, 
+      cor: "text-blue-500", 
+      borda: "border-blue-500", 
+      sombra: "shadow-[0_0_60px_rgba(59,130,246,0.6)]" 
+    },
+    { 
+      nome: "MESTRE HUNTER", min: 10000, 
+      cor: "text-purple-500", 
+      borda: "border-purple-500", 
+      sombra: "shadow-[0_0_70px_rgba(168,85,247,0.7)] bg-purple-500/5" // Mestre ganha um leve fundo tintado
+    }
   ];
 
-  // O sistema inverte a lista e acha a primeira patente onde os capítulos lidos são maiores que o mínimo exigido
+  // O sistema inverte a lista e acha a primeira patente...
   const patenteAtual = [...patentes].reverse().find(p => totalCapitulos >= p.min) || patentes[0];
   // ----------------------------------
 
@@ -65,14 +100,14 @@ export default function UserProfile({ perfil, mangas, aoFechar, aoAtualizar, set
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-      <div className={`bg-[#0c0c0e] w-full ${abaAtiva === 'conquistas' ? 'max-w-4xl' : 'max-w-xl'} rounded-[3rem] border border-zinc-800 overflow-hidden shadow-2xl transition-all duration-500`}>
-        
+      <div className={`bg-[#0c0c0e] w-full ${abaAtiva === 'conquistas' ? 'max-w-4xl' : 'max-w-xl'} rounded-[3rem] border-2 ${patenteAtual.borda} ${patenteAtual.sombra} overflow-hidden transition-all duration-700`}>
+
         {/* BOTÃO FECHAR */}
         <button onClick={aoFechar} className="absolute top-8 right-8 z-50 text-zinc-500 hover:text-white transition-colors">✕</button>
 
         {/* HEADER UNIFICADO */}
         <div className="p-10 bg-gradient-to-b from-zinc-900/50 to-transparent text-center border-b border-zinc-800/20">
-          <div className="w-20 h-20 bg-zinc-900 rounded-[2rem] flex items-center justify-center text-5xl mx-auto mb-4 border border-zinc-800 shadow-xl">
+          <div className={`w-24 h-24 bg-zinc-900 rounded-[2rem] flex items-center justify-center text-6xl mx-auto mb-4 border-4 ${patenteAtual.borda} ${patenteAtual.sombra} transition-all duration-700`}>
             {perfil.avatar}
           </div>
           <h2 className="text-2xl font-black uppercase tracking-tighter text-white">{perfil.nome_exibicao}</h2>
