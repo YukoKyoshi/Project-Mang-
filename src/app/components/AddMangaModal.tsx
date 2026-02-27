@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 
 interface AddMangaModalProps {
   estaAberto: boolean;
@@ -160,6 +161,8 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
               <p className="text-[10px] text-zinc-600 mt-2 ml-1">Total da obra: {novoManga.total_capitulos || 'Desconhecido'} capítulos.</p>
             </div>
 
+            {/* BOTÕES DE AÇÃO */}
+
             <div className="flex gap-4">
               <button 
                 onClick={() => setNovoManga({titulo:"", capa:"", capitulo_atual:0, total_capitulos:0, status:"Planejo Ler", sinopse:""})} 
@@ -167,8 +170,32 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
               >
                 Voltar
               </button>
+              
               <button 
-                onClick={() => aoSalvar(novoManga)} 
+                onClick={async () => {
+                  
+                  // LÓGICA DE SALVAMENTO REAL
+
+                  if (!usuarioAtual) return alert("Erro: Hunter não identificado!");
+
+                  const { error } = await supabase.from("mangas").insert([{
+                    titulo: novoManga.titulo,
+                    capa: novoManga.capa,
+                    capitulo_atual: novoManga.capitulo_atual,
+                    total_capitulos: novoManga.total_capitulos,
+                    status: novoManga.status,
+                    sinopse: novoManga.sinopse,
+                    usuario: usuarioAtual, // Vincula ao Hunter logado
+                    ultima_leitura: new Date().toISOString()
+                  }]);
+
+                  if (error) {
+                    alert("Erro ao salvar: " + error.message);
+                  } else {
+                    aoSalvar(novoManga); // Avisa o page.tsx para atualizar a lista
+                    fechar(); // Fecha o modal
+                  }
+                }} 
                 className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-500 shadow-lg shadow-green-900/30 transition-all uppercase text-xs tracking-widest"
               >
                 Salvar na Estante

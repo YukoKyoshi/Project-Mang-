@@ -342,15 +342,19 @@ async function deletarPerfil(perfil: any) {
             + Adicionar Obra
           </button>
           
-          {/* ACESSAR PERFIL (VOLTAR) */}
+          {/* ACESSAR PERFIL (perfil na estante) */}
           <div 
-            onClick={() => setUsuarioAtual(null)} 
+            onClick={() => {
+              /// Se você tiver uma tela de perfil, ative-a aqui. 
+               // Por enquanto, vou deixar um alerta para confirmarmos o nome do seu componente de perfil.
+              alert("Abrindo Painel do Hunter: " + perfilAtivo.nome_exibicao);
+            }}
             className="group cursor-pointer flex flex-col items-center gap-2"
-            title="Trocar Hunter"
-          >
+           >
             <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-3xl border-2 ${aura.border} group-hover:scale-110 transition-all`}>
               {perfilAtivo.avatar}
             </div>
+            <span className="text-[10px] font-black text-zinc-500 uppercase">Configurações</span>
           </div>
         </div>
       </header>
@@ -406,7 +410,10 @@ async function deletarPerfil(perfil: any) {
         estaAberto={estaAbertoAdd} 
         fechar={() => setEstaAbertoAdd(false)} 
         usuarioAtual={usuarioAtual} 
-        aoSalvar={buscarMangas} 
+        aoSalvar={() => {
+          buscarMangas(); // Atualiza a lista
+          setEstaAbertoAdd(false); // Fecha o modal
+          }}
       />
       
       {mangaDetalhe && (
