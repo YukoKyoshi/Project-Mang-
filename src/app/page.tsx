@@ -292,33 +292,44 @@ async function deletarPerfil(perfil: any) {
               </div>
             </button>
 
-            {/* LISTA DE HUNTERS COM BOTÃO DE EXCLUSÃO VISÍVEL */}
-            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {/* LISTA DE HUNTERS COM BOTÃO DE EXCLUSÃO FIXO */}
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
               {perfis.map(p => (
-                <div key={p.nome_original} className="flex items-center justify-between p-5 bg-black/40 rounded-3xl border border-zinc-800 group hover:border-zinc-700 transition-all">
-                  <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center text-3xl border border-zinc-800 group-hover:border-zinc-600 transition-all">
+                <div 
+                  key={p.nome_original} 
+                  className="grid grid-cols-[1fr_auto] items-center gap-4 p-5 bg-black/40 rounded-3xl border border-zinc-800 group hover:border-zinc-700 transition-all shadow-lg"
+                >
+                  {/* LADO ESQUERDO: INFOS (OCUPA O ESPAÇO DISPONÍVEL) */}
+                  <div className="flex items-center gap-5 min-w-0">
+                    <div className="w-14 h-14 min-w-[3.5rem] bg-zinc-900 rounded-2xl flex items-center justify-center text-3xl border border-zinc-800 group-hover:border-zinc-600 transition-all">
                       {p.avatar}
                     </div>
-                    <div>
-                      <p className="font-black uppercase text-sm tracking-wider">{p.nome_exibicao}</p>
-                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">Status: Ativo | PIN: {p.pin || "---"}</p>
+                    <div className="min-w-0">
+                      <p className="font-black uppercase text-sm tracking-wider truncate text-white">{p.nome_exibicao}</p>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter truncate">
+                        Status: Ativo | PIN: <span className="text-zinc-300">{p.pin || "Aberto"}</span>
+                      </p>
                     </div>
                   </div>
                   
-                  {/* BOTÃO DE EXCLUSÃO (VISÍVEL E VERMELHO NO HOVER) */}
-                  <button 
-                    onClick={() => deletarPerfil(p)}
-                    className="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 text-zinc-600 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/50 transition-all"
-                    title="Remover Hunter"
-                  >
-                    <span className="text-xl">🗑️</span>
-                  </button>
+                  {/* LADO DIREITO: BOTÃO DE AÇÃO (LARGURA FIXA) */}
+                  <div className="flex items-center">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deletarPerfil(p);
+                      }}
+                      className="w-12 h-12 flex items-center justify-center bg-zinc-900 rounded-xl border border-zinc-800 text-zinc-600 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/50 transition-all"
+                      title="Remover Hunter"
+                    >
+                      <span className="text-xl leading-none">🗑️</span>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </section>
-
+          
           {/* SUB-FUNÇÃO: CONTROLE DE VISIBILIDADE (ESTILIZADA) */}
           <section className="bg-zinc-900/40 p-8 rounded-[3rem] border border-zinc-800 shadow-2xl">
             <h3 className="text-lg font-black uppercase mb-8 flex items-center gap-3">
