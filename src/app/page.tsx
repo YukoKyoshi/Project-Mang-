@@ -311,49 +311,113 @@ async function deletarPerfil(perfil: any) {
   // --- SUB-SESSÃO FINAL: ESTANTE DE MANGÁS (USUÁRIOS COMUNS) ---
 
   // ==========================================
-  // 🖥️ 10. ESTANTE DE MANGÁS OU MODO ADMIN
+  // 🖥️ 10. ESTANTE DE MANGÁS (INTERFACE DO USUÁRIO)
   // ==========================================
-  if (isAdmin) {
-    return (
-      <main className="min-h-screen bg-black text-white p-10">
-        <h1 className="text-3xl font-black uppercase text-yellow-500 mb-6">Modo Construtor (Wix)</h1>
-        <button onClick={() => setUsuarioAtual(null)} className="px-6 py-2 bg-zinc-900 rounded-xl">Voltar</button>
-      </main>
-    );
-  }
-
+  
+  // Pegamos os dados do Hunter logado para aplicar a Aura correta
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
-  const mangasFiltrados = mangas.filter(m => (filtroAtivo === "Todos" ? true : m.status === filtroAtivo)).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
+  
+  // Filtramos os mangás com base no que o usuário clica ou digita
+  const mangasFiltrados = mangas
+    .filter(m => (filtroAtivo === "Todos" ? true : m.status === filtroAtivo))
+    .filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
   return (
-    <main className={`min-h-screen bg-[#080808] p-6 md:p-12 text-white`} style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
-      <header className="flex justify-between items-end mb-16">
-        <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
+    <main className="min-h-screen bg-[#080808] p-6 md:p-12 text-white animate-in fade-in duration-700" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
+      
+      {/* HEADER DA ESTANTE */}
+      <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-16 border-b border-zinc-800/50 pb-10">
+        <div className="text-center md:text-left">
+          <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
+          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-500 mt-2">Sincronizado como: {perfilAtivo.nome_exibicao}</p>
+        </div>
+
         <div className="flex items-center gap-6">
-          <button onClick={() => setEstaAbertoAdd(true)} className={`${aura.bg} px-6 py-3 rounded-xl font-black uppercase text-xs shadow-lg`}>+ Add Manga</button>
-          <div onClick={() => setUsuarioAtual(null)} className="cursor-pointer text-center">
-            <div className={`w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center text-2xl border-2 ${aura.border}`}>{perfilAtivo.avatar}</div>
+          {/* BOTÃO ADICIONAR OBRA */}
+          <button 
+            onClick={() => setEstaAbertoAdd(true)} 
+            className={`${aura.bg} ${aura.shadow} px-8 py-4 rounded-2xl font-black uppercase text-xs hover:scale-105 active:scale-95 transition-all text-black`}
+          >
+            + Adicionar Obra
+          </button>
+          
+          {/* ACESSAR PERFIL (VOLTAR) */}
+          <div 
+            onClick={() => setUsuarioAtual(null)} 
+            className="group cursor-pointer flex flex-col items-center gap-2"
+            title="Trocar Hunter"
+          >
+            <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-3xl border-2 ${aura.border} group-hover:scale-110 transition-all`}>
+              {perfilAtivo.avatar}
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-        {mangasFiltrados.map(m => (
-          <MangaCard 
-            key={m.id} 
-            manga={m} 
-            aura={aura}
-            atualizarCapitulo={atualizarCapitulo} 
-            deletarManga={(id) => { if(confirm("Excluir?")) supabase.from("mangas").delete().eq("id", id).then(buscarMangas) }} 
-            mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} 
-            abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} 
+      {/* BARRA DE FILTROS (DADOS / STATUS) */}
+      {config.mostrar_busca && (
+        <section className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
+          <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800 w-full md:w-auto overflow-x-auto">
+            {["Todos", "Lendo", "Completos", "Planejo Ler", "Dropados"].map(f => (
+              <button
+                key={f}
+                onClick={() => setFiltroAtivo(f)}
+                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${filtroAtivo === f ? `${aura.bg} text-black` : 'text-zinc-500 hover:text-white'}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          
+          <input 
+            type="text" 
+            placeholder="Pesquisar na estante..." 
+            className="w-full md:w-80 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-xs font-bold uppercase outline-none focus:border-white transition-all"
+            value={pesquisaInterna}
+            onChange={(e) => setPesquisaInterna(e.target.value)}
           />
-        ))}
+        </section>
+      )}
+
+      {/* GRADE DE MANGÁS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+        {mangasFiltrados.length > 0 ? (
+          mangasFiltrados.map(m => (
+            <MangaCard 
+              key={m.id} 
+              manga={m} 
+              aura={aura}
+              atualizarCapitulo={atualizarCapitulo} 
+              deletarManga={(id) => { if(confirm("Remover esta obra da sua estante?")) supabase.from("mangas").delete().eq("id", id).then(buscarMangas) }} 
+              mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} 
+              abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} 
+            />
+          ))
+        ) : (
+          <div className="col-span-full py-20 text-center border-2 border-dashed border-zinc-800 rounded-[3rem]">
+            <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs">Nenhum mangá encontrado nesta categoria.</p>
+          </div>
+        )}
       </div>
 
-      <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} aoSalvar={buscarMangas} />
-      <MangaDetailsModal manga={mangaDetalhe} aoFechar={() => setMangaDetalhe(null)} aoAtualizarCapitulo={atualizarCapitulo} aoAtualizarDados={atualizarDados} aoDeletar={(id) => { if(confirm("Excluir?")) supabase.from("mangas").delete().eq("id", id).then(() => { setMangaDetalhe(null); buscarMangas(); }) }} />
+      {/* MODAIS (SALVAR NA ESTANTE E DETALHES) */}
+      <AddMangaModal 
+        estaAberto={estaAbertoAdd} 
+        fechar={() => setEstaAbertoAdd(false)} 
+        usuarioAtual={usuarioAtual} 
+        aoSalvar={buscarMangas} 
+      />
+      
+      {mangaDetalhe && (
+        <MangaDetailsModal 
+          manga={mangaDetalhe} 
+          aoFechar={() => setMangaDetalhe(null)} 
+          aoAtualizarCapitulo={atualizarCapitulo} 
+          aoAtualizarDados={atualizarDados} 
+          aoDeletar={(id) => { if(confirm("Excluir definitivamente?")) supabase.from("mangas").delete().eq("id", id).then(() => { setMangaDetalhe(null); buscarMangas(); }) }} 
+        />
+      )}
     </main>
   );
 }
