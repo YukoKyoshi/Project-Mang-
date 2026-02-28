@@ -170,7 +170,7 @@ export default function PerfilPage() {
                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Sincronizado
                   </div>
                 ) : (
-                  <button onClick={() => window.location.href = '/api/auth/anilist'} className="w-full bg-[#02a9ff] hover:bg-[#008dff] text-white rounded-xl py-4 text-[10px] font-black uppercase tracking-widest flex justify-center items-center gap-2 transition-transform active:scale-95">
+                  <button onClick={() => window.location.href = `/api/auth/anilist?hunter=${usuarioAtivo}`} className="w-full bg-[#02a9ff] hover:bg-[#008dff] text-white rounded-xl py-4 text-[10px] font-black uppercase tracking-widest flex justify-center items-center gap-2 transition-transform active:scale-95">
                     <img src="https://anilist.co/img/icons/icon.svg" className="w-3 h-3 invert" alt="" /> Conectar AniList
                   </button>
                 )}

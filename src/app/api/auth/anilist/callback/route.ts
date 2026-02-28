@@ -2,72 +2,57 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-// [SESSÃO: CALLBACK DE AUTENTICAÇÃO ANILIST - VERSÃO NEXT.JS 15+]
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
+  
+  const cookieStore = await cookies();
+  const hunterAlvo = cookieStore.get('hunter_auth_target')?.value;
 
-  if (!code) {
-    return NextResponse.redirect(`${origin}/perfil?error=no_code`);
+  // Se não tem código ou não sabemos de qual Hunter é, joga de volta pro início
+  if (!code || !hunterAlvo) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-  try {
-    // 🎯 1. TROCAR O CÓDIGO PELO TOKEN REAL NO ANILIST
-    const res = await fetch('https://anilist.co/api/v2/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'authorization_code',
-        client_id: process.env.ANILIST_CLIENT_ID,
-        client_secret: process.env.ANILIST_CLIENT_SECRET,
-        redirect_uri: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/anilist/callback`,
-        code: code,
-      }),
-    });
+  // 1. Troca o 'code' pelo 'Token de Acesso Real' na API do AniList
+  const anilistResponse = await fetch('https://anilist.co/api/v2/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      client_id: process.env.ANILIST_CLIENT_ID,
+      client_secret: process.env.ANILIST_CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      redirect_uri: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/anilist/callback`,
+      code,
+    }),
+  });
 
-    const authData = await res.json();
-    if (authData.error) throw new Error(authData.error_description || 'Erro ao obter Token');
+  const anilistData = await anilistResponse.json();
 
-    const accessToken = authData.access_token;
-
-    // 🎯 2. CONFIGURAR CLIENTE SUPABASE (Aguardando os Cookies - Next.js 15)
-    // Aqui está a correção para os erros de 'get' e 'set'
-    const cookieStore = await cookies(); 
-    
+  if (anilistData.access_token) {
+    // 2. Abre o cliente do Supabase
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options });
-          },
-          remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value: '', ...options });
-          },
+          get(name: string) { return cookieStore.get(name)?.value },
+          set(name: string, value: string, options: CookieOptions) { cookieStore.set({ name, value, ...options }) },
+          remove(name: string, options: CookieOptions) { cookieStore.set({ name, value: '', ...options }) },
         },
       }
     );
 
-    // 🎯 3. IDENTIFICAR USUÁRIO LOGADO E SALVAR O TOKEN
-    const { data: { user } } = await supabase.auth.getUser();
+    // 3. Salva o Token APENAS no perfil do Hunter que solicitou
+    await supabase
+      .from('perfis')
+      .update({ anilist_token: anilistData.access_token })
+      .eq('nome_original', hunterAlvo);
 
-    if (user) {
-      const { error: dbError } = await supabase
-        .from('perfis')
-        .update({ anilist_token: accessToken })
-        .eq('id', user.id);
-
-      if (dbError) throw dbError;
-    }
-
-    return NextResponse.redirect(`${origin}/perfil?success=connected`);
-
-  } catch (error: any) {
-    console.error('❌ Erro Crítico na Integração:', error.message);
-    return NextResponse.redirect(`${origin}/perfil?error=integration_failed`);
+    // 4. Limpa o crachá temporário por segurança
+    cookieStore.delete('hunter_auth_target');
   }
+
+  // Manda o Hunter de volta para a sua página de perfil para ver o sucesso
+  return NextResponse.redirect(new URL('/perfil', request.url));
 }
