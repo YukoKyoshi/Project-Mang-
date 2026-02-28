@@ -1,71 +1,32 @@
 "use client";
 
-// ==========================================
-// [SESSÃO 1] - IMPORTAÇÕES E COMPONENTES
-// ==========================================
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import ColecaoTrofeus from "../components/ColecaoTrofeus";
-import MuralFavoritos from "../components/MuralFavoritos";
 
+// 🎨 DICIONÁRIO DE AURAS (Para não ficar travado no azul)
 const TEMAS = {
-  verde: { nome: "Verde Néon", bg: "bg-green-500", bgActive: "bg-green-600", text: "text-green-500", border: "border-green-500", focus: "focus:border-green-500 focus:ring-green-500/20", shadow: "shadow-green-500/40" },
-  azul: { nome: "Azul Elétrico", bg: "bg-blue-500", bgActive: "bg-blue-600", text: "text-blue-500", border: "border-blue-500", focus: "focus:border-blue-500 focus:ring-blue-500/20", shadow: "shadow-blue-500/40" },
-  roxo: { nome: "Roxo Carmesim", bg: "bg-purple-500", bgActive: "bg-purple-600", text: "text-purple-500", border: "border-purple-500", focus: "focus:border-purple-500 focus:ring-purple-500/20", shadow: "shadow-purple-500/40" },
-  laranja: { nome: "Laranja Outono", bg: "bg-orange-500", bgActive: "bg-orange-600", text: "text-orange-500", border: "border-orange-500", focus: "focus:border-orange-500 focus:ring-orange-500/20", shadow: "shadow-orange-500/40" },
-  custom: { nome: "Cor Livre", bg: "bg-[var(--aura)]", bgActive: "bg-[var(--aura)] brightness-110", text: "text-[var(--aura)]", border: "border-[var(--aura)]", focus: "focus:border-[var(--aura)] focus:ring-[var(--aura)]", shadow: "shadow-[0_0_15px_var(--aura)]" }
+  verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", shadow: "shadow-[0_0_40px_rgba(34,197,94,0.3)]", button: "bg-green-500 hover:bg-green-600", focus: "focus:border-green-500" },
+  azul: { bg: "bg-blue-500", text: "text-blue-500", border: "border-blue-500", shadow: "shadow-[0_0_40px_rgba(59,130,246,0.3)]", button: "bg-blue-500 hover:bg-blue-600", focus: "focus:border-blue-500" },
+  roxo: { bg: "bg-purple-500", text: "text-purple-500", border: "border-purple-500", shadow: "shadow-[0_0_40px_rgba(168,85,247,0.3)]", button: "bg-purple-500 hover:bg-purple-600", focus: "focus:border-purple-500" },
+  laranja: { bg: "bg-orange-500", text: "text-orange-500", border: "border-orange-500", shadow: "shadow-[0_0_40px_rgba(249,115,22,0.3)]", button: "bg-orange-500 hover:bg-orange-600", focus: "focus:border-orange-500" },
+  custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", shadow: "shadow-[0_0_40px_var(--aura)]", button: "bg-[var(--aura)] brightness-110", focus: "focus:border-[var(--aura)]" }
 };
 
 export default function PerfilPage() {
-  // ==========================================
-  // [SESSÃO 2] - ESTADOS (STATES)
-  // ==========================================
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
-  const [editando, setEditando] = useState(false);
   const [carregando, setCarregando] = useState(true);
   
   const [dadosPerfil, setDadosPerfil] = useState({ 
-    nome: "", avatar: "👤", bio: "", pin: "", tema: "verde", anilist_token: null 
+    nome: "", avatar: "👤", pin: "", tema: "azul", anilist_token: null 
   });
   
-  const [mangasUsuario, setMangasUsuario] = useState<any[]>([]);
-  const [elo, setElo] = useState({ tier: "BRONZE", sub: "IV", cor: "from-orange-800 to-orange-500", moldura: "ring-orange-900 shadow-orange-900/10 ring-1", borda: "border-orange-900" });
+  const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0 });
+  const [elo, setElo] = useState({ tier: "BRONZE", sub: "IV" });
 
-  // ==========================================
-  // [SESSÃO 3] - LÓGICA DE RANKING E TROFÉUS
-  // ==========================================
-  const definirElo = (total: number) => {
-    if (total >= 200) return { tier: "DIVINO", sub: "TOP", cor: "from-white to-yellow-200", moldura: "ring-yellow-200 shadow-yellow-500/50 ring-8", borda: "border-yellow-100" };
-    if (total >= 150) return { tier: "IMORTAL", sub: "I", cor: "from-purple-600 to-pink-500", moldura: "ring-purple-500 shadow-purple-500/40 ring-4", borda: "border-purple-400" };
-    if (total >= 100) return { tier: "MESTRE", sub: "I", cor: "from-red-600 to-orange-600", moldura: "ring-red-600 shadow-red-500/40 ring-4", borda: "border-red-500" };
-    if (total >= 75) return { tier: "DIAMANTE", sub: "II", cor: "from-blue-400 to-indigo-600", moldura: "ring-blue-500 shadow-blue-500/40 ring-4", borda: "border-blue-400" };
-    if (total >= 50) return { tier: "PLATINA", sub: "III", cor: "from-emerald-400 to-cyan-500", moldura: "ring-emerald-500 shadow-emerald-500/30 ring-2", borda: "border-emerald-500" };
-    if (total >= 30) return { tier: "OURO", sub: "I", cor: "from-yellow-400 to-amber-600", moldura: "ring-yellow-500 shadow-yellow-500/20 ring-2", borda: "border-yellow-600" };
-    if (total >= 15) return { tier: "PRATA", sub: "II", cor: "from-zinc-400 to-zinc-100", moldura: "ring-zinc-300 shadow-zinc-500/20 ring-2", borda: "border-zinc-400" };
-    return { tier: "BRONZE", sub: "IV", cor: "from-orange-800 to-orange-500", moldura: "ring-orange-900 shadow-orange-900/10 ring-1", borda: "border-orange-900" };
-  };
-
-  const calcularTrofeus = (mangas: any[], auraAtual: any) => {
-    const total = mangas.length;
-    const concluidos = mangas.filter(m => m.status === "Completos").length;
-    const caps = mangas.reduce((acc, m) => acc + (m.capitulo_atual || 0), 0);
-    const favoritos = mangas.filter(m => m.favorito === true || m.favorito === "true").length;
-    return [
-      { id: 1, nome: "Primeiro Passo", desc: "Adicionou a primeira obra", icone: "🌱", check: total >= 1, cor: auraAtual.text },
-      { id: 2, nome: "Maratonista", desc: "Leu mais de 500 capítulos", icone: "🏃", check: caps >= 500, cor: auraAtual.text },
-      { id: 3, nome: "Finalizador", desc: "Completou 10 séries", icone: "🏆", check: concluidos >= 10, cor: auraAtual.text },
-      { id: 4, nome: "Curador de Elite", desc: "Marcar 5 favoritos manuais", icone: "💎", check: favoritos >= 5, cor: auraAtual.text },
-      { id: 5, nome: "Bibliotecário", desc: "Ter 50 obras na estante", icone: "📚", check: total >= 50, cor: auraAtual.text },
-      { id: 6, nome: "Viciado", desc: "Passar dos 2000 capítulos", icone: "⚡", check: caps >= 2000, cor: auraAtual.text },
-    ];
-  };
-
-  // ==========================================
-  // [SESSÃO 4] - GUARDIÃO E CARREGAMENTO
-  // ==========================================
+  // 🛡️ SEGURANÇA E INICIALIZAÇÃO
   useEffect(() => {
-    const mestre = sessionStorage.getItem("acesso_mestre");
+    const mestre = sessionStorage.getItem("estante_acesso") || sessionStorage.getItem("acesso_mestre");
     const hunter = sessionStorage.getItem("hunter_ativo");
 
     if (mestre !== "true" || !hunter) {
@@ -79,146 +40,154 @@ export default function PerfilPage() {
     if (usuarioAtivo) carregarDados();
   }, [usuarioAtivo]);
 
+  // 🔄 BUSCA DE DADOS
   async function carregarDados() {
-    setCarregando(true);
     const { data: mangas } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
     const { data: perfil } = await supabase.from("perfis").select("*").eq("nome_original", usuarioAtivo).single();
 
     if (mangas) {
-      setElo(definirElo(mangas.length));
-      setMangasUsuario(mangas);
+      const totalObras = mangas.length;
+      setStats({
+        obras: totalObras,
+        caps: mangas.reduce((acc, m) => acc + (m.capitulo_atual || 0), 0),
+        finais: mangas.filter(m => m.status === "Completos").length
+      });
+      
+      // Cálculo de Rank sincronizado (100 = Diamante)
+      if (totalObras >= 250) setElo({ tier: "DIVINO", sub: "TOP" });
+      else if (totalObras >= 200) setElo({ tier: "IMORTAL", sub: "I" });
+      else if (totalObras >= 150) setElo({ tier: "MESTRE", sub: "I" });
+      else if (totalObras >= 100) setElo({ tier: "DIAMANTE", sub: "II" });
+      else if (totalObras >= 70) setElo({ tier: "PLATINA", sub: "III" });
+      else if (totalObras >= 40) setElo({ tier: "OURO", sub: "I" });
+      else if (totalObras >= 20) setElo({ tier: "PRATA", sub: "II" });
+      else setElo({ tier: "BRONZE", sub: "IV" });
     }
+
     if (perfil) {
-      setDadosPerfil({ 
-        nome: perfil.nome_exibicao || usuarioAtivo!, 
-        avatar: perfil.avatar || "👤", 
-        bio: perfil.bio || "Sem bio ainda.", 
+      setDadosPerfil({
+        nome: perfil.nome_exibicao || usuarioAtivo!,
+        avatar: perfil.avatar || "👤",
         pin: perfil.pin || "",
-        tema: perfil.cor_tema || "verde",
+        tema: perfil.cor_tema || "azul",
         anilist_token: perfil.anilist_token || null
       });
     }
     setCarregando(false);
   }
 
-  async function salvarEdicao() {
-    const { error } = await supabase.from("perfis").upsert({ 
-      nome_original: usuarioAtivo, 
-      nome_exibicao: dadosPerfil.nome, 
-      avatar: dadosPerfil.avatar, 
-      bio: dadosPerfil.bio, 
-      pin: dadosPerfil.pin,
-      cor_tema: dadosPerfil.tema 
-    }, { onConflict: 'nome_original' });
-    
-    if (!error) { setEditando(false); carregarDados(); } else alert("❌ Erro ao guardar.");
+  // 💾 SALVAR PIN
+  async function salvarPin() {
+    const { error } = await supabase.from("perfis").update({ pin: dadosPerfil.pin }).eq("nome_original", usuarioAtivo);
+    if (!error) alert("PIN atualizado com sucesso!");
+    else alert("Erro ao salvar PIN.");
   }
 
-  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic uppercase tracking-widest animate-pulse">Sincronizando Dados Hunter...</div>;
+  function fazerLogout() {
+    sessionStorage.removeItem('hunter_ativo');
+    window.location.href = '/';
+  }
+
+  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic animate-pulse">CARREGANDO HUNTER...</div>;
 
   const isCustom = dadosPerfil.tema?.startsWith('#');
-  const aura = isCustom ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.verde);
-  const trofeusAtivos = calcularTrofeus(mangasUsuario, aura);
+  const aura = isCustom ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
 
-  // ==========================================
-  // [SESSÃO 7] - RENDERIZAÇÃO DA INTERFACE (UI MODERNA)
-  // ==========================================
   return (
     <main 
-      className={`min-h-screen bg-[#040405] text-[#e5e5e5] p-6 md:p-20 font-sans`}
-      style={isCustom ? { '--aura': dadosPerfil.tema } as React.CSSProperties : {}} 
+      className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 font-sans relative"
+      style={isCustom ? { '--aura': dadosPerfil.tema } as React.CSSProperties : {}}
     >
       
-      {/* Navegação Superior */}
-      <nav className="max-w-6xl mx-auto mb-16 flex justify-between items-center relative z-50">
-        <Link href="/" className={`px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:${aura.border} transition-all text-zinc-500 hover:text-white`}>
-          ← Voltar para Estante
-        </Link>
-      </nav>
+      {/* BOTÃO VOLTAR (FORA DO CARD) */}
+      <Link href="/" className="absolute top-10 left-10 text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors">
+        ← Voltar para Estante
+      </Link>
 
-      {/* --- CABEÇALHO MODERNO (AVATAR + INFO + TIER) --- */}
-      <section className={`max-w-6xl mx-auto grid md:grid-cols-[auto_1fr_auto] gap-12 items-center mb-20 bg-[#0e0e11] p-10 md:p-14 rounded-[4rem] border border-white/5 relative ${aura.shadow} transition-shadow duration-700`}>
-        <div className="relative">
-          <div className={`w-56 h-56 bg-zinc-950 rounded-[4rem] flex items-center justify-center text-8xl shadow-2xl transition-all duration-700 ring-offset-8 ring-offset-[#0e0e11] ${elo.moldura} ${elo.borda} border-4`}>{dadosPerfil.avatar}</div>
-          {editando && ( <div className="absolute inset-0 bg-black/60 rounded-[4rem] flex items-center justify-center z-10 backdrop-blur-sm"><input className="w-full bg-transparent text-center text-4xl outline-none border-b-2 border-dashed border-white/30 focus:border-white transition-colors" value={dadosPerfil.avatar} onChange={(e) => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} /></div> )}
+      {/* 💳 CARTÃO DE CAÇADOR (Exatamente igual ao Modal) */}
+      <div className={`w-full max-w-[460px] bg-[#0e0e11] rounded-[3rem] p-10 border border-white/5 ${aura.shadow} flex flex-col items-center relative transition-shadow duration-700`}>
+        
+        {/* AVATAR */}
+        <div className={`w-20 h-20 bg-zinc-950 rounded-[1.2rem] flex items-center justify-center text-4xl border-2 ${aura.border} shadow-lg mb-4`}>
+          {dadosPerfil.avatar}
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            {editando ? ( <input className={`bg-zinc-950 border border-white/10 ${aura.focus} rounded-2xl px-5 py-2 text-4xl font-black outline-none w-full text-white transition-colors`} value={dadosPerfil.nome} onChange={(e) => setDadosPerfil({...dadosPerfil, nome: e.target.value})} /> ) : ( <h1 className="text-6xl font-black tracking-tighter uppercase italic text-white drop-shadow-lg">{dadosPerfil.nome}</h1> )}
-          </div>
-          {editando ? (
-             <div className="flex flex-col gap-4">
-                <textarea className={`w-full bg-zinc-950 border border-zinc-800 ${aura.focus} rounded-2xl p-4 text-sm text-zinc-400 outline-none h-20 resize-none transition-colors`} value={dadosPerfil.bio} onChange={(e) => setDadosPerfil({...dadosPerfil, bio: e.target.value})} />
-                <div className="flex flex-col xl:flex-row gap-4">
-                  <div className="flex items-center gap-4 bg-red-950/30 border border-red-900/50 p-4 rounded-2xl w-fit">
-                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">🔒 PIN:</p>
-                    <input type="password" maxLength={4} placeholder="0000" className="bg-zinc-950 border border-red-500 rounded-xl px-4 py-2 text-lg font-black outline-none w-24 text-center tracking-[0.3em] text-white focus:ring-2 focus:ring-red-500" value={dadosPerfil.pin} onChange={(e) => setDadosPerfil({...dadosPerfil, pin: e.target.value.replace(/\D/g, '')})} />
-                  </div>
-                </div>
-             </div>
-          ) : ( <p className="text-zinc-500 text-base max-w-lg font-medium italic opacity-70">"{dadosPerfil.bio}"</p> )}
-          
-          <button onClick={() => editando ? salvarEdicao() : setEditando(true)} className={`px-6 py-2 bg-zinc-800/50 hover:bg-zinc-700 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border border-white/5 transition-all mt-2`}>
-            {editando ? "💾 Aplicar Mudanças" : "✏️ Customizar Info"}
-          </button>
+        {/* INFO PRINCIPAL */}
+        <h1 className="text-2xl font-black text-white uppercase tracking-wider mb-1">{dadosPerfil.nome}</h1>
+        <p className={`text-[11px] font-black ${aura.text} uppercase tracking-[0.3em] mb-1`}>RANK: {elo.tier}</p>
+        <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-8">PODER DE LEITURA: {stats.caps} CAPÍTULOS</p>
+
+        {/* ABAS (Visualmente fiéis ao print) */}
+        <div className="flex gap-8 border-b border-zinc-800/50 w-full justify-center pb-4 mb-8">
+          <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${aura.text}`}>HUNTER STATUS</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600">ACHIEVEMENTS</span>
         </div>
 
-        <div className="flex flex-col items-center justify-center p-10 bg-black/40 rounded-[3.5rem] border border-white/5 min-w-[220px] shadow-inner relative group">
-           <div className={`absolute -inset-2 bg-gradient-to-t ${elo.cor} opacity-5 blur-2xl`}></div>
-           <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] mb-4">Hunter Tier</p>
-           <span className={`text-5xl font-black italic tracking-tighter bg-gradient-to-br ${elo.cor} bg-clip-text text-transparent`}>{elo.tier}</span>
-           <span className="text-zinc-500 font-black text-xl mt-2 tracking-[0.4em] opacity-50">{elo.sub}</span>
+        {/* GRID DE ESTATÍSTICAS MENOR */}
+        <div className="grid grid-cols-3 gap-3 w-full mb-8">
+          {[
+            { label: "OBRAS", val: stats.obras },
+            { label: "CAPÍTULOS", val: stats.caps },
+            { label: "FINAIS", val: stats.finais }
+          ].map(s => (
+            <div key={s.label} className="bg-black/50 border border-zinc-800/50 rounded-2xl py-5 flex flex-col items-center justify-center">
+              <span className="text-2xl font-black text-white italic tracking-tighter leading-none">{s.val}</span>
+              <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest mt-2">{s.label}</span>
+            </div>
+          ))}
         </div>
-      </section>
 
-      {/* --- GRID DE ESTATÍSTICAS MODERNA --- */}
-      <section className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 mb-24">
-        {[
-          { label: "Obras", val: mangasUsuario.length, color: "text-white" },
-          { label: "Capítulos", val: mangasUsuario.reduce((a, b) => a + (b.capitulo_atual || 0), 0), color: "text-white" },
-          { label: "Concluidos", val: mangasUsuario.filter(m => m.status === "Completos").length, color: aura.text },
-          { label: "Favoritos", val: mangasUsuario.filter(m => m.favorito === true || m.favorito === "true").length, color: "text-yellow-500" }
-        ].map(s => (
-          <div key={s.label} className={`bg-[#0e0e11] p-12 rounded-[3.5rem] border border-white/5 text-center shadow-2xl hover:${aura.shadow} transition-shadow duration-500`}>
-            <p className="text-[11px] font-black text-zinc-600 uppercase mb-4 tracking-widest">{s.label}</p>
-            <span className={`text-6xl font-black ${s.color} tracking-tighter italic transition-colors`}>{s.val}</span>
-          </div>
-        ))}
-      </section>
-
-      {/* --- INTEGRAÇÃO ANILIST MODERNA --- */}
-      <section className="max-w-6xl mx-auto mb-24">
-        <div className="bg-[#0e0e11] p-12 rounded-[4rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden group">
-          <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <div className="flex flex-col relative z-10">
-            <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Integração AniList</h3>
-            <p className="text-zinc-500 text-sm font-medium">Sincronize seu progresso de leitura automaticamente.</p>
-          </div>
-          
+        {/* INTEGRAÇÃO ANILIST */}
+        <div className="w-full mb-6">
+          <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-2 ml-1">Integração Externa</p>
           {dadosPerfil.anilist_token ? (
-            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/30 px-8 py-4 rounded-2xl relative z-10">
-              <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-green-500 font-black text-[12px] uppercase tracking-widest">Sincronização Ativa</span>
+            <div className={`w-full border border-green-500/30 bg-green-500/10 rounded-xl py-4 flex justify-center items-center gap-2`}>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">AniList Sincronizado</span>
             </div>
           ) : (
             <button 
               onClick={() => window.location.href = '/api/auth/anilist'}
-              className="bg-[#02a9ff] hover:bg-[#008dff] text-white font-black uppercase tracking-widest text-[11px] px-10 py-5 rounded-2xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-3 relative z-10"
+              className="w-full bg-[#02a9ff] hover:bg-[#008dff] text-white rounded-xl py-4 flex justify-center items-center gap-2 transition-all active:scale-95"
             >
-              <img src="https://anilist.co/img/icons/icon.svg" className="w-5 h-5 invert" alt="" />
-              Conectar com AniList
+              <img src="https://anilist.co/img/icons/icon.svg" className="w-3 h-3 invert" alt="" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Conectar AniList</span>
             </button>
           )}
         </div>
-      </section>
 
-      {/* --- COMPONENTES EXTRAS (TROFÉUS E MURAL) --- */}
-      <ColecaoTrofeus trofeusAtivos={trofeusAtivos} aura={aura} />
-      <div className="mt-24">
-        <MuralFavoritos mangasUsuario={mangasUsuario} aura={aura} />
+        {/* CONFIGURAÇÃO DE PIN */}
+        <div className="w-full mb-8">
+          <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-2 ml-1">PIN DE ACESSO</p>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input 
+                type="password" 
+                maxLength={4}
+                value={dadosPerfil.pin}
+                onChange={(e) => setDadosPerfil({...dadosPerfil, pin: e.target.value.replace(/\D/g, '')})}
+                className={`w-full bg-black border border-zinc-800 rounded-xl py-4 text-center text-white font-black tracking-[0.5em] outline-none ${aura.focus} transition-colors`}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 text-xs">🛡️</span>
+            </div>
+            <button 
+              onClick={salvarPin}
+              className={`px-8 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all active:scale-95 ${aura.button}`}
+            >
+              SALVAR
+            </button>
+          </div>
+        </div>
+
+        {/* BOTÃO SAIR DO PERFIL */}
+        <button 
+          onClick={fazerLogout}
+          className="w-full py-4 rounded-xl border border-zinc-800/50 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-white hover:border-zinc-600 transition-all"
+        >
+          SAIR DO PERFIL
+        </button>
+
       </div>
-
     </main>
   );
 }
