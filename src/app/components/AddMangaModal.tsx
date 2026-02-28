@@ -78,7 +78,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           return [];
         };
 
-        // 🎯 1º PASSO: I.A. OTIMIZADORA (O Cérebro age primeiro)
+// 🎯 1º PASSO: I.A. OTIMIZADORA (O Cérebro age primeiro)
         console.log("🧠 Perguntando para a I.A. o nome real de:", termoAnilist);
         
         const resIA = await fetch('/api/tradutor-ia', {
@@ -87,16 +87,24 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           body: JSON.stringify({ termo: termoAnilist })
         });
         
+        // --- COLE O CÓDIGO AQUI (Substituindo o antigo if resIA.ok) ---
         if (resIA.ok) {
           const jsonIA = await resIA.json();
-          // Se a I.A. devolveu algo válido, substituímos o termo de busca
-          if (jsonIA.resultado && jsonIA.resultado.trim() !== "") {
+          // 🛡️ TRAVA DE SEGURANÇA: Só prossegue se o resultado NÃO for uma mensagem de erro
+          if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
             termoInteligente = jsonIA.resultado;
             console.log(`🤖 A I.A. definiu que a melhor busca é: "${termoInteligente}"`);
+          } else if (jsonIA.resultado?.includes('⚠️')) {
+            console.warn("Filtro de I.A.: Erro ou Cota excedida, usando termo original.");
+            // Aqui ele manterá o termoInteligente como o termoAnilist original
           }
         } else {
           console.warn("⚠️ Servidor da I.A. não respondeu, usando texto original.");
         }
+        // --- FIM DA COLA ---
+
+        // 🎯 2º PASSO: AniList (Agora armado com o nome perfeito ou original)
+        resultados = await buscarAnilist(termoInteligente);
 
         // 🎯 2º PASSO: AniList (Agora armado com o nome perfeito)
         resultados = await buscarAnilist(termoInteligente);
