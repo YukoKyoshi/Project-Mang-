@@ -123,6 +123,58 @@ async function buscarPerfis() {
   if (data) setPerfis(data);
 }
 
+// --- [NOVO] SINCRONIZAÇÃO COM ANILIST EM SEGUNDO PLANO ---
+async function sincronizarComAniList(titulo: string, capitulo: number, token: string) {
+  try {
+    // 1. Busca o ID oficial do Mangá no AniList usando o título que você cadastrou
+    const queryBusca = `
+      query ($search: String) {
+        Media (search: $search, type: MANGA) {
+          id
+        }
+      }
+    `;
+    
+    const resBusca = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query: queryBusca, variables: { search: titulo } })
+    });
+    
+    const dataBusca = await resBusca.json();
+    const mediaId = dataBusca.data?.Media?.id;
+
+    if (!mediaId) {
+      console.warn(`⚠️ Mangá "${titulo}" não encontrado no banco do AniList.`);
+      return;
+    }
+
+    // 2. Com o ID em mãos, envia o novo capítulo para a sua conta
+    const mutationUpdate = `
+      mutation ($mediaId: Int, $progress: Int) {
+        SaveMediaListEntry (mediaId: $mediaId, progress: $progress) {
+          id
+          progress
+        }
+      }
+    `;
+
+    await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ query: mutationUpdate, variables: { mediaId, progress: capitulo } })
+    });
+    
+    console.log(`✅ ${titulo} sincronizado no AniList para o cap ${capitulo}!`);
+  } catch (error) {
+    console.error("❌ Erro ao sincronizar com AniList:", error);
+  }
+}
+
 // --- LÓGICA OTIMISTA (INSTANTÂNEA) ---
 async function atualizarCapitulo(manga: Manga, novo: number) {
   if (novo < 0) return;
@@ -146,10 +198,16 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
     ultima_leitura: agora 
   }).eq("id", manga.id);
   
-  // 3. REVERSÃO DE EMERGÊNCIA (Caso falhe a internet)
   if (error) {
     alert("❌ Erro de conexão. Revertendo o capítulo...");
     buscarMangas(); 
+  }
+
+  // ✅ [NOVO] 3. MANDA PARA O ANILIST SE O HUNTER ESTIVER SINCRONIZADO
+  const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+  if (perfilAtivo && perfilAtivo.anilist_token) {
+    // Roda de forma invisível para não travar o seu site
+    sincronizarComAniList(manga.titulo, novo, perfilAtivo.anilist_token);
   }
 }
 
@@ -312,7 +370,7 @@ async function deletarPerfil(perfil: any) {
       setMestreAutorizado(true);
     }} />
   );
-  
+
   // ------------------------------------------
   // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL (COMPONENTIZADO)
   // ------------------------------------------
