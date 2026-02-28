@@ -9,13 +9,10 @@ export async function POST(request: Request) {
     const API_KEY = process.env.GEMINI_API_KEY;
     if (!API_KEY) return NextResponse.json({ resultado: '⚠️ ERRO_LOCAL: Chave da API ausente no Vercel' });
 
-    // O PROMPT BLINDADO: Direto ao ponto, sem margem para ela "conversar"
-    const prompt = `Traduza ou corrija o termo de busca de mangá abaixo para o nome oficial em Romaji ou Inglês.
-    Exemplos:
-    Entrada: "caderno da morte" | Saída: Death Note
-    Entrada: "menino que estica" | Saída: One Piece
-    
-    Entrada: "${termo}" | Saída:`;
+    // O PROMPT MILITAR: Ordem estrita para não falar além do nome
+    const prompt = `Responda APENAS com o nome oficial da obra de mangá/anime em inglês ou romaji. Não adicione nenhuma explicação, introdução ou pontuação.
+    Busca: "${termo}"
+    Nome:`;
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
       method: 'POST',
@@ -28,7 +25,8 @@ export async function POST(request: Request) {
           { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }
         ],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 20 }
+        // Aumentamos os tokens para 100, garantindo que ela consiga terminar de falar nomes longos
+        generationConfig: { temperature: 0.1, maxOutputTokens: 100 } 
       })
     });
 
