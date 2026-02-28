@@ -76,18 +76,34 @@ export default function PerfilPage() {
   // ==========================================
 
   useEffect(() => {
+// 🛡️ SUBTÍTULO: VALIDAÇÃO DE ACESSO MESTRE
+    // Se o usuário não passou pelo portão principal, ele é expulso para a Home
+    const acessoPermitido = sessionStorage.getItem('estante_acesso'); 
+    
+    if (acessoPermitido !== 'true') {
+      window.location.href = '/'; 
+      return;
+    }
+
     const usuarioSalvo = sessionStorage.getItem('hunter_ativo');
     if (usuarioSalvo) setUsuarioAtivo(usuarioSalvo);
   }, []);
 
   async function carregarDados() {
-    const { data: mangas } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
-    const { data: perfil } = await supabase.from("perfis").select("*").eq("nome_original", usuarioAtivo).single();
-    const { data: todos } = await supabase.from("perfis").select("*");
+    // Buscamos apenas os mangás do usuário que está logado na sessão
+    const { data: mangas } = await supabase
+      .from("mangas")
+      .select("*")
+      .eq("usuario", usuarioAtivo); // Aqui está a mágica: ele lê seus mangás salvos!
 
-    if (todos) setTodosPerfis(todos);
+    const { data: perfil } = await supabase
+      .from("perfis")
+      .select("*")
+      .eq("nome_original", usuarioAtivo)
+      .single();
+
     if (mangas) {
-      setElo(definirElo(mangas.length));
+      setElo(definirElo(mangas.length)); // Atualiza o Tier Bronze/Diamante/etc
       setMangasUsuario(mangas);
     }
     if (perfil) {
@@ -277,22 +293,25 @@ export default function PerfilPage() {
         ))}
       </section>
 
-{/* ==========================================
-          [TESTE] - SUBSEÇÃO: INTEGRAÇÕES (FORÇADO)
-          ========================================== */}
-      <section className="max-w-6xl mx-auto mb-20">
-        <div className="bg-[#0e0e11] p-10 rounded-[3.5rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
-          <div className="flex flex-col">
-            <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Integração AniList</h3>
-            <p className="text-zinc-500 text-sm font-medium">Sincronize seu progresso de leitura automaticamente com a sua conta externa.</p>
+
+{/* 🧩 BLOCO DE INTEGRAÇÃO ANILIST (O Coração da Sincronização) */}
+      <section className="max-w-6xl mx-auto mb-20 px-4 md:px-0">
+        <div className="bg-[#0e0e11] p-10 rounded-[3.5rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden group">
+          {/* Efeito visual de aura ao fundo */}
+          <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          
+          <div className="flex flex-col relative z-10">
+            <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic flex items-center gap-2">
+              <span className="text-[#02a9ff]">●</span> Integração AniList
+            </h3>
+            <p className="text-zinc-500 text-sm font-medium">Sincronize seu progresso de leitura automaticamente.</p>
           </div>
           
-          {/* Botão Forçado para Teste */}
           <button 
             onClick={() => window.location.href = '/api/auth/anilist'}
-            className="bg-[#02a9ff] hover:bg-[#008dff] text-white font-black uppercase tracking-widest text-[10px] px-8 py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2"
+            className="bg-[#02a9ff] hover:bg-[#008dff] text-white font-black uppercase tracking-widest text-[10px] px-8 py-5 rounded-2xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-3 relative z-10"
           >
-            <img src="https://anilist.co/img/icons/icon.svg" className="w-4 h-4 invert" alt="" />
+            <img src="https://anilist.co/img/icons/icon.svg" className="w-5 h-5 invert" alt="" />
             Conectar com AniList
           </button>
         </div>
