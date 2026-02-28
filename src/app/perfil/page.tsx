@@ -1,7 +1,7 @@
 "use client";
 
 // ==========================================
-// [SESSÃO 1] - IMPORTAÇÕES E CONFIGURAÇÕES
+// [SESSÃO 1] - IMPORTAÇÕES E COMPONENTES
 // ==========================================
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
@@ -22,18 +22,18 @@ export default function PerfilPage() {
   // [SESSÃO 2] - ESTADOS (STATES)
   // ==========================================
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
-  const [carregando, setCarregando] = useState(true);
   const [editando, setEditando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   
   const [dadosPerfil, setDadosPerfil] = useState({ 
     nome: "", avatar: "👤", bio: "", pin: "", tema: "verde", anilist_token: null 
   });
   
   const [mangasUsuario, setMangasUsuario] = useState<any[]>([]);
-  const [elo, setElo] = useState({ tier: "Bronze", sub: "IV", cor: "from-orange-700 to-orange-400", moldura: "ring-orange-900 shadow-orange-900/10 ring-1", borda: "border-orange-900" });
+  const [elo, setElo] = useState({ tier: "BRONZE", sub: "IV", cor: "from-orange-800 to-orange-500", moldura: "ring-orange-900 shadow-orange-900/10 ring-1", borda: "border-orange-900" });
 
   // ==========================================
-  // [SESSÃO 3] - LÓGICA DE RANKING
+  // [SESSÃO 3] - LÓGICA DE RANKING E TROFÉUS
   // ==========================================
   const definirElo = (total: number) => {
     if (total >= 200) return { tier: "DIVINO", sub: "TOP", cor: "from-white to-yellow-200", moldura: "ring-yellow-200 shadow-yellow-500/50 ring-8", borda: "border-yellow-100" };
@@ -46,21 +46,33 @@ export default function PerfilPage() {
     return { tier: "BRONZE", sub: "IV", cor: "from-orange-800 to-orange-500", moldura: "ring-orange-900 shadow-orange-900/10 ring-1", borda: "border-orange-900" };
   };
 
+  const calcularTrofeus = (mangas: any[], auraAtual: any) => {
+    const total = mangas.length;
+    const concluidos = mangas.filter(m => m.status === "Completos").length;
+    const caps = mangas.reduce((acc, m) => acc + (m.capitulo_atual || 0), 0);
+    const favoritos = mangas.filter(m => m.favorito === true || m.favorito === "true").length;
+    return [
+      { id: 1, nome: "Primeiro Passo", desc: "Adicionou a primeira obra", icone: "🌱", check: total >= 1, cor: auraAtual.text },
+      { id: 2, nome: "Maratonista", desc: "Leu mais de 500 capítulos", icone: "🏃", check: caps >= 500, cor: auraAtual.text },
+      { id: 3, nome: "Finalizador", desc: "Completou 10 séries", icone: "🏆", check: concluidos >= 10, cor: auraAtual.text },
+      { id: 4, nome: "Curador de Elite", desc: "Marcar 5 favoritos manuais", icone: "💎", check: favoritos >= 5, cor: auraAtual.text },
+      { id: 5, nome: "Bibliotecário", desc: "Ter 50 obras na estante", icone: "📚", check: total >= 50, cor: auraAtual.text },
+      { id: 6, nome: "Viciado", desc: "Passar dos 2000 capítulos", icone: "⚡", check: caps >= 2000, cor: auraAtual.text },
+    ];
+  };
+
   // ==========================================
-  // [SESSÃO 4] - GUARDIÃO DE SEGURANÇA E CARREGAMENTO
+  // [SESSÃO 4] - GUARDIÃO E CARREGAMENTO
   // ==========================================
   useEffect(() => {
-    // 🛡️ SUBTÍTULO: VERIFICAÇÃO DE ACESSO
-    const acessoMestre = sessionStorage.getItem('estante_acesso');
-    const hunterLogado = sessionStorage.getItem('hunter_ativo');
+    const mestre = sessionStorage.getItem("acesso_mestre");
+    const hunter = sessionStorage.getItem("hunter_ativo");
 
-    // Se não houver senha mestre OU não houver um perfil escolhido, volta para o início
-    if (acessoMestre !== 'true' || !hunterLogado) {
+    if (mestre !== "true" || !hunter) {
       window.location.href = '/';
       return;
     }
-
-    setUsuarioAtivo(hunterLogado);
+    setUsuarioAtivo(hunter);
   }, []);
 
   useEffect(() => {
@@ -69,33 +81,26 @@ export default function PerfilPage() {
 
   async function carregarDados() {
     setCarregando(true);
-    try {
-      // 🎯 Busca real dos mangás do usuário logado
-      const { data: mangas } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
-      const { data: perfil } = await supabase.from("perfis").select("*").eq("nome_original", usuarioAtivo).single();
+    const { data: mangas } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
+    const { data: perfil } = await supabase.from("perfis").select("*").eq("nome_original", usuarioAtivo).single();
 
-      if (mangas) {
-        setElo(definirElo(mangas.length));
-        setMangasUsuario(mangas);
-      }
-      if (perfil) {
-        setDadosPerfil({ 
-          nome: perfil.nome_exibicao || usuarioAtivo!, 
-          avatar: perfil.avatar || "👤", 
-          bio: perfil.bio || "Sem bio ainda.", 
-          pin: perfil.pin || "",
-          tema: perfil.cor_tema || "verde",
-          anilist_token: perfil.anilist_token || null
-        });
-      }
-    } finally {
-      setCarregando(false);
+    if (mangas) {
+      setElo(definirElo(mangas.length));
+      setMangasUsuario(mangas);
     }
+    if (perfil) {
+      setDadosPerfil({ 
+        nome: perfil.nome_exibicao || usuarioAtivo!, 
+        avatar: perfil.avatar || "👤", 
+        bio: perfil.bio || "Sem bio ainda.", 
+        pin: perfil.pin || "",
+        tema: perfil.cor_tema || "verde",
+        anilist_token: perfil.anilist_token || null
+      });
+    }
+    setCarregando(false);
   }
 
-  // ==========================================
-  // [SESSÃO 5] - AÇÕES DO PERFIL
-  // ==========================================
   async function salvarEdicao() {
     const { error } = await supabase.from("perfis").upsert({ 
       nome_original: usuarioAtivo, 
@@ -113,20 +118,25 @@ export default function PerfilPage() {
 
   const isCustom = dadosPerfil.tema?.startsWith('#');
   const aura = isCustom ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.verde);
+  const trofeusAtivos = calcularTrofeus(mangasUsuario, aura);
 
+  // ==========================================
+  // [SESSÃO 7] - RENDERIZAÇÃO DA INTERFACE (UI MODERNA)
+  // ==========================================
   return (
     <main 
-      className="min-h-screen bg-[#040405] text-[#e5e5e5] p-6 md:p-20 font-sans"
+      className={`min-h-screen bg-[#040405] text-[#e5e5e5] p-6 md:p-20 font-sans`}
       style={isCustom ? { '--aura': dadosPerfil.tema } as React.CSSProperties : {}} 
     >
-      {/* --- Navegação Superior --- */}
-      <nav className="max-w-6xl mx-auto mb-16 flex justify-start relative z-50">
-        <Link href="/" className={`px-8 py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:${aura.border} transition-all text-zinc-500 hover:text-white flex items-center gap-2`}>
+      
+      {/* Navegação Superior */}
+      <nav className="max-w-6xl mx-auto mb-16 flex justify-between items-center relative z-50">
+        <Link href="/" className={`px-6 py-2 bg-zinc-900 border border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:${aura.border} transition-all text-zinc-500 hover:text-white`}>
           ← Voltar para Estante
         </Link>
       </nav>
 
-      {/* --- Cabeçalho de Perfil (Unificado) --- */}
+      {/* --- CABEÇALHO MODERNO (AVATAR + INFO + TIER) --- */}
       <section className={`max-w-6xl mx-auto grid md:grid-cols-[auto_1fr_auto] gap-12 items-center mb-20 bg-[#0e0e11] p-10 md:p-14 rounded-[4rem] border border-white/5 relative ${aura.shadow} transition-shadow duration-700`}>
         <div className="relative">
           <div className={`w-56 h-56 bg-zinc-950 rounded-[4rem] flex items-center justify-center text-8xl shadow-2xl transition-all duration-700 ring-offset-8 ring-offset-[#0e0e11] ${elo.moldura} ${elo.borda} border-4`}>{dadosPerfil.avatar}</div>
@@ -154,7 +164,7 @@ export default function PerfilPage() {
           </button>
         </div>
 
-        <div className="flex flex-col items-center justify-center p-10 bg-black/40 rounded-[3.5rem] border border-white/5 min-w-[220px] shadow-inner relative">
+        <div className="flex flex-col items-center justify-center p-10 bg-black/40 rounded-[3.5rem] border border-white/5 min-w-[220px] shadow-inner relative group">
            <div className={`absolute -inset-2 bg-gradient-to-t ${elo.cor} opacity-5 blur-2xl`}></div>
            <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] mb-4">Hunter Tier</p>
            <span className={`text-5xl font-black italic tracking-tighter bg-gradient-to-br ${elo.cor} bg-clip-text text-transparent`}>{elo.tier}</span>
@@ -162,8 +172,8 @@ export default function PerfilPage() {
         </div>
       </section>
 
-      {/* --- Grid de Estatísticas (Lendo dados reais do Supabase) --- */}
-      <section className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
+      {/* --- GRID DE ESTATÍSTICAS MODERNA --- */}
+      <section className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 mb-24">
         {[
           { label: "Obras", val: mangasUsuario.length, color: "text-white" },
           { label: "Capítulos", val: mangasUsuario.reduce((a, b) => a + (b.capitulo_atual || 0), 0), color: "text-white" },
@@ -172,34 +182,43 @@ export default function PerfilPage() {
         ].map(s => (
           <div key={s.label} className={`bg-[#0e0e11] p-12 rounded-[3.5rem] border border-white/5 text-center shadow-2xl hover:${aura.shadow} transition-shadow duration-500`}>
             <p className="text-[11px] font-black text-zinc-600 uppercase mb-4 tracking-widest">{s.label}</p>
-            <span className={`text-6xl font-black ${s.color} tracking-tighter italic`}>{s.val}</span>
+            <span className={`text-6xl font-black ${s.color} tracking-tighter italic transition-colors`}>{s.val}</span>
           </div>
         ))}
       </section>
 
-      {/* --- Integração AniList --- */}
-      <section className="max-w-6xl mx-auto mb-20">
-        <div className="bg-[#0e0e11] p-10 rounded-[3.5rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
-          <div className="flex flex-col">
-            <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic">Integração AniList</h3>
+      {/* --- INTEGRAÇÃO ANILIST MODERNA --- */}
+      <section className="max-w-6xl mx-auto mb-24">
+        <div className="bg-[#0e0e11] p-12 rounded-[4rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden group">
+          <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="flex flex-col relative z-10">
+            <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Integração AniList</h3>
             <p className="text-zinc-500 text-sm font-medium">Sincronize seu progresso de leitura automaticamente.</p>
           </div>
           
           {dadosPerfil.anilist_token ? (
-            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/30 px-6 py-3 rounded-2xl">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-green-500 font-black text-[10px] uppercase tracking-widest">Sincronização Ativa</span>
+            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/30 px-8 py-4 rounded-2xl relative z-10">
+              <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-green-500 font-black text-[12px] uppercase tracking-widest">Sincronização Ativa</span>
             </div>
           ) : (
-            <button onClick={() => window.location.href = '/api/auth/anilist'} className="bg-[#02a9ff] hover:bg-[#008dff] text-white font-black uppercase tracking-widest text-[10px] px-8 py-4 rounded-2xl transition-all shadow-lg flex items-center gap-2">
-              <img src="https://anilist.co/img/icons/icon.svg" className="w-4 h-4 invert" alt="" />
+            <button 
+              onClick={() => window.location.href = '/api/auth/anilist'}
+              className="bg-[#02a9ff] hover:bg-[#008dff] text-white font-black uppercase tracking-widest text-[11px] px-10 py-5 rounded-2xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-3 relative z-10"
+            >
+              <img src="https://anilist.co/img/icons/icon.svg" className="w-5 h-5 invert" alt="" />
               Conectar com AniList
             </button>
           )}
         </div>
       </section>
 
-      <MuralFavoritos mangasUsuario={mangasUsuario} aura={aura} />
+      {/* --- COMPONENTES EXTRAS (TROFÉUS E MURAL) --- */}
+      <ColecaoTrofeus trofeusAtivos={trofeusAtivos} aura={aura} />
+      <div className="mt-24">
+        <MuralFavoritos mangasUsuario={mangasUsuario} aura={aura} />
+      </div>
+
     </main>
   );
 }
