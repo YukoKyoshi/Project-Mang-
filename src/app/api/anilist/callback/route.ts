@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+// Note que NÃO EXISTE mais menção ao '@supabase/auth-helpers-nextjs' aqui.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code'); // O código temporário do AniList
@@ -26,15 +27,24 @@ export async function GET(request: Request) {
     const accessToken = data.access_token;
 
     // 2. SALVAR NO SUPABASE (Vinculando ao usuário logado)
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user } } = await supabase.auth.getUser();
+    // ✅ O NOVO NOME É: createServerClient
+const cookieStore = await cookies(); // Aguarda os cookies (Next.js 15+)
 
-    if (user) {
-      await supabase
-        .from('perfis')
-        .update({ anilist_token: accessToken })
-        .eq('id', user.id);
-    }
+const supabase = createServerClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    cookies: {
+      get(name: string) { return cookieStore.get(name)?.value },
+      set(name: string, value: string, options: CookieOptions) {
+        cookieStore.set({ name, value, ...options })
+      },
+      remove(name: string, options: CookieOptions) {
+        cookieStore.set({ name, value: '', ...options })
+      },
+    },
+  }
+);
 
     // 3. MANDAR O USUÁRIO DE VOLTA PARA O PERFIL
     return NextResponse.redirect(new URL('/perfil', request.url));
