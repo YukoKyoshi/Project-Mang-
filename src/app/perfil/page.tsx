@@ -58,7 +58,6 @@ export default function PerfilPage() {
         finais: mangas.filter(m => m.status === "Completos").length
       });
       
-      // Definição de Cores do Elo
       if (total >= 100) setElo({ tier: "DIAMANTE", cor: "from-blue-400 to-indigo-600", glow: "shadow-blue-500/50 ring-blue-500/30" });
       else if (total >= 70) setElo({ tier: "PLATINA", cor: "from-emerald-400 to-cyan-500", glow: "shadow-emerald-500/40 ring-emerald-500/20" });
       else if (total >= 40) setElo({ tier: "OURO", cor: "from-yellow-400 to-amber-600", glow: "shadow-yellow-500/30 ring-yellow-500/20" });
@@ -105,9 +104,9 @@ export default function PerfilPage() {
   // [SESSÃO 5] - INTERFACE
   // ==========================================
   return (
-    <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500">
+    <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500 overflow-hidden relative">
       
-      {/* ✅ CORREÇÃO 3: Controles Fixos e com Z-Index Alto */}
+      {/* Controles Superiores Fixos no Topo */}
       <div className="fixed top-0 left-0 w-full p-6 md:p-10 flex justify-between items-center z-[100] pointer-events-none">
         <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md">
           ← Voltar
@@ -133,8 +132,8 @@ export default function PerfilPage() {
         <h1 className="text-3xl font-black text-white uppercase tracking-wider mb-1">{dadosPerfil.nome}</h1>
         <p className={`text-[12px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.3em] mb-8`}>RANK: {elo.tier}</p>
 
-        {/* ✅ CORREÇÃO 1: Tradução das Abas */}
-        <div className="flex gap-12 border-b border-zinc-800/50 w-full justify-center pb-4 mb-10">
+        {/* Abas */}
+        <div className="flex gap-12 border-b border-zinc-800/50 w-full justify-center pb-4 mb-8 relative z-20">
           <button onClick={() => setAbaAtiva("STATUS")} className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === "STATUS" ? aura.text : 'text-zinc-600'}`}>
             HUNTER STATUS
           </button>
@@ -143,44 +142,51 @@ export default function PerfilPage() {
           </button>
         </div>
 
-        {/* Conteúdo das Abas */}
-        {abaAtiva === "STATUS" ? (
-          <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-2">
-             <div className="grid grid-cols-3 gap-4">
-                {[{ label: "OBRAS", val: stats.obras }, { label: "CAPS", val: stats.caps }, { label: "FINAIS", val: stats.finais }].map(s => (
-                  <div key={s.label} className="bg-black/40 border border-white/5 rounded-2xl py-6 flex flex-col items-center">
-                    <span className="text-2xl font-black text-white italic">{s.val}</span>
-                    <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest mt-2">{s.label}</span>
-                  </div>
-                ))}
-             </div>
+        {/* Área de Conteúdo Dinâmico com Animação Fluida (CSS Grid Trick) */}
+        <div className="w-full grid" style={{ gridTemplateAreas: "'conteudo'" }}>
+          
+          {/* Aba: STATUS */}
+          {abaAtiva === "STATUS" && (
+            <div className="w-full space-y-8 animate-in fade-in slide-in-from-left-4 duration-500" style={{ gridArea: "conteudo" }}>
+               <div className="grid grid-cols-3 gap-4">
+                  {[{ label: "OBRAS", val: stats.obras }, { label: "CAPS", val: stats.caps }, { label: "FINAIS", val: stats.finais }].map(s => (
+                    <div key={s.label} className="bg-black/40 border border-white/5 rounded-2xl py-6 flex flex-col items-center">
+                      <span className="text-2xl font-black text-white italic">{s.val}</span>
+                      <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest mt-2">{s.label}</span>
+                    </div>
+                  ))}
+               </div>
 
-             {/* AniList */}
-             <div className="w-full">
-                {dadosPerfil.anilist_token ? (
-                  <div className="bg-green-500/5 border border-green-500/20 rounded-xl py-4 flex justify-center items-center gap-2 text-green-500 text-[9px] font-black uppercase tracking-widest">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Sincronizado
-                  </div>
-                ) : (
-                  <button onClick={() => window.location.href = '/api/auth/anilist'} className="w-full bg-[#02a9ff] hover:bg-[#008dff] text-white rounded-xl py-4 text-[10px] font-black uppercase tracking-widest flex justify-center items-center gap-2">
-                    <img src="https://anilist.co/img/icons/icon.svg" className="w-3 h-3 invert" alt="" /> Conectar AniList
-                  </button>
-                )}
-             </div>
-          </div>
-        ) : (
-          /* ✅ CORREÇÃO 2: Container anti-esmagamento (Rolagem Horizontal) */
-          <div className="w-full animate-in fade-in zoom-in-95 overflow-x-auto pb-4 custom-scrollbar">
-            <div className="min-w-[500px] md:min-w-full px-2">
-              <ColecaoTrofeus trofeusAtivos={listaTrofeus} aura={aura} />
+               <div className="w-full pb-2">
+                  {dadosPerfil.anilist_token ? (
+                    <div className="bg-green-500/5 border border-green-500/20 rounded-xl py-4 flex justify-center items-center gap-2 text-green-500 text-[9px] font-black uppercase tracking-widest">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Sincronizado
+                    </div>
+                  ) : (
+                    <button onClick={() => window.location.href = '/api/auth/anilist'} className="w-full bg-[#02a9ff] hover:bg-[#008dff] text-white rounded-xl py-4 text-[10px] font-black uppercase tracking-widest flex justify-center items-center gap-2">
+                      <img src="https://anilist.co/img/icons/icon.svg" className="w-3 h-3 invert" alt="" /> Conectar AniList
+                    </button>
+                  )}
+               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Aba: TROFÉUS */}
+          {abaAtiva === "TROFÉUS" && (
+            <div className="w-full animate-in fade-in slide-in-from-right-4 duration-500 overflow-x-auto pb-6 custom-scrollbar" style={{ gridArea: "conteudo" }}>
+              {/* O 'w-max' salva os troféus de serem esmagados */}
+              <div className="w-max min-w-full px-2 flex justify-center">
+                <ColecaoTrofeus trofeusAtivos={listaTrofeus} aura={aura} />
+              </div>
+            </div>
+          )}
+
+        </div>
 
         {/* Logout */}
         <button 
           onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }}
-          className="w-full py-4 mt-8 rounded-xl border border-red-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:bg-red-500 hover:text-white transition-all"
+          className="w-full py-4 mt-8 rounded-xl border border-red-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:bg-red-500 hover:text-white transition-all relative z-20"
         >
           SAIR DO PERFIL
         </button>
