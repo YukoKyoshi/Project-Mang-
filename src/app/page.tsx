@@ -156,7 +156,7 @@ async function sincronizarComAniList(titulo: string, capitulo: number, statusLoc
   }
 }
 
-// --- [NOVO] PUXAR DADOS DO ANILIST PARA A ESTANTE ---
+// --- [NOVO] PUXAR E IMPORTAR DADOS DO ANILIST ---
 async function puxarProgressoDoAniList() {
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
   if (!perfilAtivo || !perfilAtivo.anilist_token) {
@@ -164,7 +164,7 @@ async function puxarProgressoDoAniList() {
     return;
   }
 
-  mostrarToast("📡 Buscando dados no AniList...", "sucesso");
+  mostrarToast("📡 Buscando e importando do AniList...", "sucesso");
   
   try {
     const res = await fetch('/api/anilist/sync', {
@@ -177,37 +177,56 @@ async function puxarProgressoDoAniList() {
     
     if (anilistData.success) {
        let atualizacoes = 0;
+       let importacoes = 0;
        const mapaStatusInverso: Record<string, string> = { "CURRENT": "Lendo", "COMPLETED": "Completos", "PLANNING": "Planejo Ler", "DROPPED": "Dropados", "PAUSED": "Dropados" };
        
-       // Juntar todos os mangás que vieram do AniList
        const mangasDoAnilist: any[] = [];
        anilistData.data.forEach((lista: any) => lista.entries.forEach((entry: any) => mangasDoAnilist.push(entry)));
 
-       // Cruzar os dados com a nossa estante local
-       for (const manga of mangas) {
-         const tituloLocal = manga.titulo.toLowerCase();
-         const match = mangasDoAnilist.find((a: any) => 
-           (a.media.title.romaji && a.media.title.romaji.toLowerCase().includes(tituloLocal)) ||
-           (a.media.title.english && a.media.title.english.toLowerCase().includes(tituloLocal)) ||
-           (a.media.title.romaji && tituloLocal.includes(a.media.title.romaji.toLowerCase()))
-         );
+       // ✅ AGORA O LAÇO GIRA NOS MANGÁS DO ANILIST (Para achar os que você não tem)
+       for (const entry of mangasDoAnilist) {
+         const tituloRomaji = entry.media.title.romaji?.toLowerCase() || "";
+         const tituloEnglish = entry.media.title.english?.toLowerCase() || "";
+         
+         // 1. Tenta achar esse mangá na sua estante local
+         const mangaLocal = mangas.find(m => {
+           const tLocal = m.titulo.toLowerCase();
+           return (tituloRomaji && tLocal.includes(tituloRomaji)) || 
+                  (tituloEnglish && tLocal.includes(tituloEnglish)) || 
+                  (tituloRomaji && tituloRomaji.includes(tLocal));
+         });
 
-         if (match) {
-           const novoCapitulo = match.progress;
-           const novoStatus = mapaStatusInverso[match.status] || manga.status;
-           
-           if (novoCapitulo !== manga.capitulo_atual || novoStatus !== manga.status) {
-             await supabase.from("mangas").update({ capitulo_atual: novoCapitulo, status: novoStatus }).eq("id", manga.id);
+         const novoCapitulo = entry.progress;
+         const novoStatus = mapaStatusInverso[entry.status] || "Lendo";
+
+         if (mangaLocal) {
+           // 🔄 JÁ EXISTE: Só atualiza
+           if (novoCapitulo !== mangaLocal.capitulo_atual || novoStatus !== mangaLocal.status) {
+             await supabase.from("mangas").update({ capitulo_atual: novoCapitulo, status: novoStatus }).eq("id", mangaLocal.id);
              atualizacoes++;
            }
+         } else {
+           // ➕ NÃO EXISTE: Importa como Obra Nova!
+           const tituloFinal = entry.media.title.romaji || entry.media.title.english || "Desconhecido";
+           await supabase.from("mangas").insert([{
+             titulo: tituloFinal,
+             capa: entry.media.coverImage?.large || "https://via.placeholder.com/400x600.png?text=Sem+Capa",
+             capitulo_atual: novoCapitulo,
+             total_capitulos: entry.media.chapters || 0,
+             status: novoStatus,
+             sinopse: entry.media.description || "Importado do AniList",
+             usuario: usuarioAtual,
+             ultima_leitura: new Date().toISOString()
+           }]);
+           importacoes++;
          }
        }
        
-       if (atualizacoes > 0) {
-         buscarMangas(); // Recarrega a tela com os novos números
-         mostrarToast(`Sincronização concluída! ${atualizacoes} obras atualizadas.`, "sucesso");
+       if (atualizacoes > 0 || importacoes > 0) {
+         buscarMangas(); // Recarrega a tela com as obras novas
+         mostrarToast(`Sincronização: ${importacoes} importados, ${atualizacoes} atualizados!`, "sucesso");
        } else {
-         mostrarToast("Sua estante já estava 100% atualizada!", "sucesso");
+         mostrarToast("Sua estante já estava 100% igual ao AniList!", "sucesso");
        }
     }
   } catch (e) {

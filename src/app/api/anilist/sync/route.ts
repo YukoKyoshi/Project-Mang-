@@ -8,13 +8,12 @@ export async function POST(request: Request) {
     // 🔄 LÓGICA DE PUXAR (AniList -> Estante)
     // ==========================================
     if (acao === "PUXAR") {
-      // 1. Descobre o ID do usuário conectado
       const resViewer = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `query { Viewer { id } }` }) });
       const viewerId = (await resViewer.json()).data?.Viewer?.id;
       if (!viewerId) return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
 
-      // 2. Puxa toda a biblioteca do usuário
-      const queryList = `query ($userId: Int) { MediaListCollection(userId: $userId, type: MANGA) { lists { entries { progress status media { title { romaji english } } } } } }`;
+      // ✅ NOVO: Agora a Query busca coverImage, chapters e description para podermos criar a obra na estante!
+      const queryList = `query ($userId: Int) { MediaListCollection(userId: $userId, type: MANGA) { lists { entries { progress status media { title { romaji english } coverImage { large } chapters description } } } } }`;
       const resList = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryList, variables: { userId: viewerId } }) });
       return NextResponse.json({ success: true, data: (await resList.json()).data?.MediaListCollection?.lists || [] });
     }
@@ -30,7 +29,6 @@ export async function POST(request: Request) {
     // 🗑️ LÓGICA DE EXCLUSÃO (Estante -> AniList)
     // ==========================================
     if (acao === "DELETAR") {
-      // ✅ NOVO: Pega o ID do Viewer primeiro para o AniList permitir a busca na lista
       const resViewer = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `query { Viewer { id } }` }) });
       const userId = (await resViewer.json()).data?.Viewer?.id;
 
