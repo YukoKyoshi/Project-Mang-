@@ -124,17 +124,10 @@ async function buscarPerfis() {
 }
 
 // --- [NOVO] SINCRONIZAÇÃO COM ANILIST EM SEGUNDO PLANO ---
-async function sincronizarComAniList(titulo: string, capitulo: number, token: string) {
+async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string) {
   try {
-    // 1. Busca o ID oficial do Mangá no AniList usando o título que você cadastrou
-    const queryBusca = `
-      query ($search: String) {
-        Media (search: $search, type: MANGA) {
-          id
-        }
-      }
-    `;
-    
+    // 1. Busca o ID oficial
+    const queryBusca = `query ($search: String) { Media (search: $search, type: MANGA) { id } }`;
     const resBusca = await fetch('https://graphql.anilist.co', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -144,16 +137,23 @@ async function sincronizarComAniList(titulo: string, capitulo: number, token: st
     const dataBusca = await resBusca.json();
     const mediaId = dataBusca.data?.Media?.id;
 
-    if (!mediaId) {
-      console.warn(`⚠️ Mangá "${titulo}" não encontrado no banco do AniList.`);
-      return;
-    }
+    if (!mediaId) return console.warn(`⚠️ "${titulo}" não encontrado no AniList.`);
 
-    // 2. Com o ID em mãos, envia o novo capítulo para a sua conta
+    // 2. TRADUTOR DE STATUS (Português do seu site -> Inglês do AniList)
+    const mapaStatus: Record<string, string> = {
+      "Lendo": "CURRENT",
+      "Completos": "COMPLETED",
+      "Planejo Ler": "PLANNING",
+      "Dropados": "DROPPED"
+    };
+    const statusAniList = mapaStatus[statusLocal] || "CURRENT";
+
+    // 3. Mutation atualizada exigindo a criação/atualização do Status e Progresso
     const mutationUpdate = `
-      mutation ($mediaId: Int, $progress: Int) {
-        SaveMediaListEntry (mediaId: $mediaId, progress: $progress) {
+      mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
+        SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
           id
+          status
           progress
         }
       }
@@ -161,17 +161,13 @@ async function sincronizarComAniList(titulo: string, capitulo: number, token: st
 
     await fetch('https://graphql.anilist.co', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ query: mutationUpdate, variables: { mediaId, progress: capitulo } })
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query: mutationUpdate, variables: { mediaId, progress: capitulo, status: statusAniList } })
     });
     
-    console.log(`✅ ${titulo} sincronizado no AniList para o cap ${capitulo}!`);
+    console.log(`✅ ${titulo} adicionado/atualizado no AniList como ${statusAniList}!`);
   } catch (error) {
-    console.error("❌ Erro ao sincronizar com AniList:", error);
+    console.error("❌ Erro AniList:", error);
   }
 }
 
@@ -203,11 +199,11 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
     buscarMangas(); 
   }
 
-  // ✅ [NOVO] 3. MANDA PARA O ANILIST SE O HUNTER ESTIVER SINCRONIZADO
+// ✅ [NOVO] 3. MANDA PARA O ANILIST SE O HUNTER ESTIVER SINCRONIZADO
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
   if (perfilAtivo && perfilAtivo.anilist_token) {
-    // Roda de forma invisível para não travar o seu site
-    sincronizarComAniList(manga.titulo, novo, perfilAtivo.anilist_token);
+    // Passamos o 'novoStatus' para forçar a criação na lista correta
+    sincronizarComAniList(manga.titulo, novo, novoStatus, perfilAtivo.anilist_token);
   }
 }
 
@@ -222,10 +218,19 @@ async function atualizarDados(id: number, campos: any) {
   // 2. SALVA NO BANCO DE DADOS EM SEGUNDO PLANO
   const { error } = await supabase.from("mangas").update(campos).eq("id", id);
   
-  // 3. REVERSÃO DE EMERGÊNCIA
+// 3. REVERSÃO DE EMERGÊNCIA
   if (error) {
     alert("❌ Erro de conexão. Revertendo alteração...");
     buscarMangas();
+  }
+
+  // ✅ [NOVO] 4. SINCRONIZAÇÃO DE STATUS MANUAL
+  if (campos.status) {
+    const mangaAlterado = mangas.find(m => m.id === id);
+    const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+    if (mangaAlterado && perfilAtivo && perfilAtivo.anilist_token) {
+      sincronizarComAniList(mangaAlterado.titulo, mangaAlterado.capitulo_atual, campos.status, perfilAtivo.anilist_token);
+    }
   }
 }
 
