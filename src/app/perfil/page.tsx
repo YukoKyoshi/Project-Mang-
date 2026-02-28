@@ -1,19 +1,18 @@
 "use client";
 
 // ==========================================
-// [SESSÃO 1] - IMPORTAÇÕES
+// [SESSÃO 1] - IMPORTAÇÕES E TEMAS
 // ==========================================
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import ColecaoTrofeus from "../components/ColecaoTrofeus";
 
 const TEMAS = {
-  verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", button: "bg-green-500 hover:bg-green-600", focus: "focus:border-green-500" },
-  azul: { bg: "bg-blue-500", text: "text-blue-500", border: "border-blue-500", button: "bg-blue-500 hover:bg-blue-600", focus: "focus:border-blue-500" },
-  roxo: { bg: "bg-purple-500", text: "text-purple-500", border: "border-purple-500", button: "bg-purple-500 hover:bg-purple-600", focus: "focus:border-purple-500" },
-  laranja: { bg: "bg-orange-500", text: "text-orange-500", border: "border-orange-500", button: "bg-orange-500 hover:bg-orange-600", focus: "focus:border-orange-500" },
-  custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", button: "bg-[var(--aura)] brightness-110", focus: "focus:border-[var(--aura)]" }
+  verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", button: "bg-green-500 hover:bg-green-600", focus: "focus:border-green-500", shadow: "shadow-[0_0_20px_rgba(34,197,94,0.4)]" },
+  azul: { bg: "bg-blue-500", text: "text-blue-500", border: "border-blue-500", button: "bg-blue-500 hover:bg-blue-600", focus: "focus:border-blue-500", shadow: "shadow-[0_0_20px_rgba(59,130,246,0.4)]" },
+  roxo: { bg: "bg-purple-500", text: "text-purple-500", border: "border-purple-500", button: "bg-purple-500 hover:bg-purple-600", focus: "focus:border-purple-500", shadow: "shadow-[0_0_20px_rgba(168,85,247,0.4)]" },
+  laranja: { bg: "bg-orange-500", text: "text-orange-500", border: "border-orange-500", button: "bg-orange-500 hover:bg-orange-600", focus: "focus:border-orange-500", shadow: "shadow-[0_0_20px_rgba(249,115,22,0.4)]" },
+  custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", button: "bg-[var(--aura)] brightness-110", focus: "focus:border-[var(--aura)]", shadow: "shadow-[0_0_15px_var(--aura)]" }
 };
 
 export default function PerfilPage() {
@@ -79,7 +78,7 @@ export default function PerfilPage() {
   }
 
   // ==========================================
-  // [SESSÃO 4] - LÓGICA DE TROFÉUS
+  // [SESSÃO 4] - LÓGICA DE TROFÉUS APRIMORADA
   // ==========================================
   const isCustom = dadosPerfil.tema?.startsWith('#');
   const aura = isCustom ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
@@ -91,17 +90,24 @@ export default function PerfilPage() {
     favoritos: mangasUsuario.filter(m => m.favorito === true || m.favorito === "true").length
   };
 
+  // ✅ Lista expandida para demonstrar a rolagem vertical
   const listaTrofeus = [
-    { id: 1, nome: "Primeiro Passo", desc: "Adicionou a primeira obra", icone: "🌱", check: trofeusProps.total >= 1, cor: aura.text },
-    { id: 2, nome: "Maratonista", desc: "Leu mais de 500 capítulos", icone: "🏃", check: trofeusProps.caps >= 500, cor: aura.text },
-    { id: 3, nome: "Finalizador", desc: "Completou 10 séries", icone: "🏆", check: trofeusProps.concluidos >= 10, cor: aura.text },
-    { id: 4, nome: "Curador de Elite", desc: "Marcar 5 favoritos", icone: "💎", check: trofeusProps.favoritos >= 5, cor: aura.text },
+    { id: 1, nome: "Primeiro Passo", desc: "Adicionou a primeira obra", icone: "🌱", check: trofeusProps.total >= 1 },
+    { id: 2, nome: "Maratonista", desc: "Leu mais de 500 capítulos", icone: "🏃", check: trofeusProps.caps >= 500 },
+    { id: 3, nome: "Finalizador", desc: "Completou 10 séries", icone: "🏆", check: trofeusProps.concluidos >= 10 },
+    { id: 4, nome: "Curador", desc: "Marcar 5 favoritos", icone: "💎", check: trofeusProps.favoritos >= 5 },
+    { id: 5, nome: "Colecionador", desc: "Ter 50 obras", icone: "📚", check: trofeusProps.total >= 50 },
+    { id: 6, nome: "Viciado", desc: "Ler 2000 capítulos", icone: "⚡", check: trofeusProps.caps >= 2000 },
+    { id: 7, nome: "Mestre", desc: "Completou 50 séries", icone: "👑", check: trofeusProps.concluidos >= 50 },
+    { id: 8, nome: "Lendário", desc: "Ter 100 favoritos", icone: "🌟", check: trofeusProps.favoritos >= 100 },
+    { id: 9, nome: "Ascensão", desc: "10.000 capítulos", icone: "🌌", check: trofeusProps.caps >= 10000 },
+    { id: 10, nome: "Caçador Nato", desc: "Criou o Perfil", icone: "🔥", check: true },
   ];
 
-  if (carregando) return <div className="min-h-screen bg-black flex items-center justify-center text-white font-black italic">CARREGANDO...</div>;
+  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic">CARREGANDO...</div>;
 
   // ==========================================
-  // [SESSÃO 5] - INTERFACE
+  // [SESSÃO 5] - INTERFACE (ANIMAÇÃO E GRID)
   // ==========================================
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500 overflow-hidden relative">
@@ -134,52 +140,69 @@ export default function PerfilPage() {
 
         {/* Abas */}
         <div className="flex gap-12 border-b border-zinc-800/50 w-full justify-center pb-4 mb-8 relative z-20">
-          <button onClick={() => setAbaAtiva("STATUS")} className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === "STATUS" ? aura.text : 'text-zinc-600'}`}>
+          <button onClick={() => setAbaAtiva("STATUS")} className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === "STATUS" ? aura.text : 'text-zinc-600 hover:text-white'}`}>
             HUNTER STATUS
           </button>
-          <button onClick={() => setAbaAtiva("TROFÉUS")} className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === "TROFÉUS" ? aura.text : 'text-zinc-600'}`}>
+          <button onClick={() => setAbaAtiva("TROFÉUS")} className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === "TROFÉUS" ? aura.text : 'text-zinc-600 hover:text-white'}`}>
             TROFÉUS
           </button>
         </div>
 
-        {/* Área de Conteúdo Dinâmico com Animação Fluida (CSS Grid Trick) */}
-        <div className="w-full grid" style={{ gridTemplateAreas: "'conteudo'" }}>
+        {/* ✅ ÁREA DE CONTEÚDO COM ALTURA FIXA E TRANSIÇÃO DESLIZANTE */}
+        <div className="w-full h-[210px] relative overflow-hidden">
           
           {/* Aba: STATUS */}
-          {abaAtiva === "STATUS" && (
-            <div className="w-full space-y-8 animate-in fade-in slide-in-from-left-4 duration-500" style={{ gridArea: "conteudo" }}>
-               <div className="grid grid-cols-3 gap-4">
-                  {[{ label: "OBRAS", val: stats.obras }, { label: "CAPS", val: stats.caps }, { label: "FINAIS", val: stats.finais }].map(s => (
-                    <div key={s.label} className="bg-black/40 border border-white/5 rounded-2xl py-6 flex flex-col items-center">
-                      <span className="text-2xl font-black text-white italic">{s.val}</span>
-                      <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest mt-2">{s.label}</span>
-                    </div>
-                  ))}
-               </div>
+          <div className={`absolute inset-0 w-full flex flex-col justify-between transition-all duration-500 ease-out
+            ${abaAtiva === "STATUS" ? "opacity-100 translate-x-0 pointer-events-auto" : "opacity-0 -translate-x-10 pointer-events-none"}`}
+          >
+             <div className="grid grid-cols-3 gap-4">
+                {[{ label: "OBRAS", val: stats.obras }, { label: "CAPS", val: stats.caps }, { label: "FINAIS", val: stats.finais }].map(s => (
+                  <div key={s.label} className="bg-black/40 border border-white/5 rounded-2xl py-6 flex flex-col items-center">
+                    <span className="text-2xl font-black text-white italic">{s.val}</span>
+                    <span className="text-[7px] font-black text-zinc-600 uppercase tracking-widest mt-2">{s.label}</span>
+                  </div>
+                ))}
+             </div>
 
-               <div className="w-full pb-2">
-                  {dadosPerfil.anilist_token ? (
-                    <div className="bg-green-500/5 border border-green-500/20 rounded-xl py-4 flex justify-center items-center gap-2 text-green-500 text-[9px] font-black uppercase tracking-widest">
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Sincronizado
-                    </div>
-                  ) : (
-                    <button onClick={() => window.location.href = '/api/auth/anilist'} className="w-full bg-[#02a9ff] hover:bg-[#008dff] text-white rounded-xl py-4 text-[10px] font-black uppercase tracking-widest flex justify-center items-center gap-2">
-                      <img src="https://anilist.co/img/icons/icon.svg" className="w-3 h-3 invert" alt="" /> Conectar AniList
-                    </button>
-                  )}
-               </div>
-            </div>
-          )}
+             <div className="w-full">
+                {dadosPerfil.anilist_token ? (
+                  <div className="bg-green-500/5 border border-green-500/20 rounded-xl py-4 flex justify-center items-center gap-2 text-green-500 text-[9px] font-black uppercase tracking-widest">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Sincronizado
+                  </div>
+                ) : (
+                  <button onClick={() => window.location.href = '/api/auth/anilist'} className="w-full bg-[#02a9ff] hover:bg-[#008dff] text-white rounded-xl py-4 text-[10px] font-black uppercase tracking-widest flex justify-center items-center gap-2 transition-transform active:scale-95">
+                    <img src="https://anilist.co/img/icons/icon.svg" className="w-3 h-3 invert" alt="" /> Conectar AniList
+                  </button>
+                )}
+             </div>
+          </div>
 
-          {/* Aba: TROFÉUS */}
-          {abaAtiva === "TROFÉUS" && (
-            <div className="w-full animate-in fade-in slide-in-from-right-4 duration-500 overflow-x-auto pb-6 custom-scrollbar" style={{ gridArea: "conteudo" }}>
-              {/* O 'w-max' salva os troféus de serem esmagados */}
-              <div className="w-max min-w-full px-2 flex justify-center">
-                <ColecaoTrofeus trofeusAtivos={listaTrofeus} aura={aura} />
-              </div>
+          {/* ✅ Aba: TROFÉUS (GRID VERTICAL DE 5 EM 5) */}
+          <div className={`absolute inset-0 w-full transition-all duration-500 ease-out overflow-y-auto custom-scrollbar pr-2
+            ${abaAtiva === "TROFÉUS" ? "opacity-100 translate-x-0 pointer-events-auto" : "opacity-0 translate-x-10 pointer-events-none"}`}
+          >
+            {/* Grid forçando 5 colunas por linha */}
+            <div className="grid grid-cols-5 gap-y-6 gap-x-2 justify-items-center">
+              {listaTrofeus.map(t => (
+                <div key={t.id} className="flex flex-col items-center group relative cursor-help">
+                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-2xl border-2 transition-all duration-500 
+                    ${t.check ? aura.border + ' ' + aura.shadow + ' bg-black/40' : 'border-zinc-800/50 bg-black/20 opacity-40 grayscale'}`}
+                  >
+                    {t.icone}
+                  </div>
+                  {/* Nome do troféu abreviado se for grande */}
+                  <span className="text-[6px] md:text-[7px] font-black text-zinc-500 uppercase mt-2 text-center leading-tight w-full truncate px-1">
+                    {t.nome}
+                  </span>
+                  
+                  {/* Tooltip com descrição completa no Hover */}
+                  <div className="absolute -top-10 bg-zinc-950 border border-zinc-800 text-white text-[8px] font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-xl">
+                    {t.desc}
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
 
         </div>
 
