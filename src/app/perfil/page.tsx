@@ -293,6 +293,9 @@ export default function PerfilPage() {
               <span className="text-green-500 font-black text-[10px] uppercase tracking-widest">Sincronização Ativa</span>
             </div>
           ) : (
+
+            /* Force o botão a aparecer removendo o 'if/else' por um momento */
+
             <button 
               onClick={() => window.location.href = '/api/auth/anilist'}
               className="bg-[#02a9ff] hover:bg-[#008dff] text-white font-black uppercase tracking-widest text-[10px] px-8 py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2"
