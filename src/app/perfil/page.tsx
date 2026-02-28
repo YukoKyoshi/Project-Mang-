@@ -277,8 +277,8 @@ export default function PerfilPage() {
         ))}
       </section>
 
-      {/* ==========================================
-          [NOVO] - SUBSEÇÃO: INTEGRAÇÕES (ANILIST)
+{/* ==========================================
+          [TESTE] - SUBSEÇÃO: INTEGRAÇÕES (FORÇADO)
           ========================================== */}
       <section className="max-w-6xl mx-auto mb-20">
         <div className="bg-[#0e0e11] p-10 rounded-[3.5rem] border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
@@ -287,23 +287,14 @@ export default function PerfilPage() {
             <p className="text-zinc-500 text-sm font-medium">Sincronize seu progresso de leitura automaticamente com a sua conta externa.</p>
           </div>
           
-          {dadosPerfil.anilist_token ? (
-            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/30 px-6 py-3 rounded-2xl">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-green-500 font-black text-[10px] uppercase tracking-widest">Sincronização Ativa</span>
-            </div>
-          ) : (
-
-            /* Force o botão a aparecer removendo o 'if/else' por um momento */
-
-            <button 
-              onClick={() => window.location.href = '/api/auth/anilist'}
-              className="bg-[#02a9ff] hover:bg-[#008dff] text-white font-black uppercase tracking-widest text-[10px] px-8 py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2"
-            >
-              <img src="https://anilist.co/img/icons/icon.svg" className="w-4 h-4 invert" alt="" />
-              Conectar com AniList
-            </button>
-          )}
+          {/* Botão Forçado para Teste */}
+          <button 
+            onClick={() => window.location.href = '/api/auth/anilist'}
+            className="bg-[#02a9ff] hover:bg-[#008dff] text-white font-black uppercase tracking-widest text-[10px] px-8 py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2"
+          >
+            <img src="https://anilist.co/img/icons/icon.svg" className="w-4 h-4 invert" alt="" />
+            Conectar com AniList
+          </button>
         </div>
       </section>
 
