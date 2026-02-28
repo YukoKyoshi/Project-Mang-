@@ -133,23 +133,21 @@ async function buscarPerfis() {
 }
 
 // --- [NOVO] SINCRONIZAÇÃO COM ANILIST VIA SERVIDOR (ANTI-CORS) ---
-async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string) {
+async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR") {
   try {
     const res = await fetch('/api/anilist/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titulo, capitulo, statusLocal, token })
+      body: JSON.stringify({ titulo, capitulo, statusLocal, token, acao })
     });
     
     const data = await res.json();
     
     if (data.success) {
-       console.log(`✅ [Anti-CORS] "${titulo}" sincronizado como ${data.status}!`);
-       // Chama a notificação verde de sucesso!
-       mostrarToast(`"${titulo}" salvo no AniList!`, "sucesso");
+       console.log(`✅ [Anti-CORS] "${titulo}" -> ${data.status}!`);
+       mostrarToast(`"${titulo}" ${acao === "DELETAR" ? "removido do" : "salvo no"} AniList!`, "sucesso");
     } else {
        console.warn(`⚠️ Falha na sincronização do AniList:`, data.error);
-       // Chama a notificação vermelha de erro!
        mostrarToast(`Falha no AniList: ${data.error}`, "erro");
     }
   } catch (error) {
@@ -211,16 +209,38 @@ async function atualizarDados(id: number, campos: any) {
     buscarMangas();
   }
 
-  // ✅ [NOVO] 4. SINCRONIZAÇÃO DE STATUS MANUAL
-  if (campos.status) {
+// ✅ [NOVO] 4. SINCRONIZAÇÃO DE STATUS OU CAPÍTULO MANUAL
+  if (campos.status || campos.capitulo_atual !== undefined) {
     const mangaAlterado = mangas.find(m => m.id === id);
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+    
     if (mangaAlterado && perfilAtivo && perfilAtivo.anilist_token) {
-      sincronizarComAniList(mangaAlterado.titulo, mangaAlterado.capitulo_atual, campos.status, perfilAtivo.anilist_token);
+      // Pega o dado novo se existir, ou mantém o que já estava
+      const capituloEnvio = campos.capitulo_atual !== undefined ? campos.capitulo_atual : mangaAlterado.capitulo_atual;
+      const statusEnvio = campos.status || mangaAlterado.status;
+      
+      sincronizarComAniList(mangaAlterado.titulo, capituloEnvio, statusEnvio, perfilAtivo.anilist_token, "SALVAR");
     }
   }
 }
 
+// --- SUB-SESSÃO: EXCLUSÃO DE MANGÁS COM SINCRONIZAÇÃO ---
+async function deletarMangaDaEstante(id: number) {
+  const manga = mangas.find(m => m.id === id);
+  if (!manga) return;
+
+  if(confirm(`Tem certeza que deseja remover "${manga.titulo}" da sua estante?`)) {
+    // 1. Deleta Localmente
+    await supabase.from("mangas").delete().eq("id", id);
+    buscarMangas();
+
+    // 2. Avisa o AniList para deletar lá também
+    const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+    if (perfilAtivo && perfilAtivo.anilist_token) {
+      sincronizarComAniList(manga.titulo, manga.capitulo_atual, manga.status, perfilAtivo.anilist_token, "DELETAR");
+    }
+  }
+}
 // --- criar perfis ---
 
 async function salvarHunter() {
@@ -516,7 +536,7 @@ async function deletarPerfil(perfil: any) {
               manga={m} 
               aura={aura}
               atualizarCapitulo={atualizarCapitulo} 
-              deletarManga={(id) => { if(confirm("Remover esta obra da sua estante?")) supabase.from("mangas").delete().eq("id", id).then(buscarMangas) }} 
+              deletarManga={(id) => deletarMangaDaEstante(id)}
               mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} 
               abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} 
             />
@@ -545,7 +565,7 @@ async function deletarPerfil(perfil: any) {
           aoFechar={() => setMangaDetalhe(null)} 
           aoAtualizarCapitulo={atualizarCapitulo} 
           aoAtualizarDados={atualizarDados} 
-          aoDeletar={(id) => { if(confirm("Excluir definitivamente?")) supabase.from("mangas").delete().eq("id", id).then(() => { setMangaDetalhe(null); buscarMangas(); }) }} 
+          aoDeletar={(id) => { setMangaDetalhe(null); deletarMangaDaEstante(id); }}
         />
       )}
 
