@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     // ==========================================
     // 💾 LÓGICA DE SALVAR/ATUALIZAR
     // ==========================================
-    const mapaStatus: Record<string, string> = { "Lendo": "CURRENT", "Completos": "COMPLETED", "Planejo Ler": "PLANNING", "Dropados": "DROPPED" };
+    const mapaStatus: Record<string, string> = { "Lendo": "CURRENT", "Completos": "COMPLETED", "Planejo Ler": "PLANNING", "Dropados": "DROPPED", "Pausados": "PAUSED" };
     const statusAniList = mapaStatus[statusLocal] || "CURRENT";
 
     const anilistRes = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) { SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) { id status progress } }`, variables: { mediaId, progress: capitulo, status: statusAniList } }) });

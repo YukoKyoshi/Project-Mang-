@@ -114,6 +114,7 @@ export default function MangaDetailsModal({ manga, aoFechar, aoAtualizarCapitulo
                 <option value="Lendo">📖 Lendo</option>
                 <option value="Planejo Ler">⏳ Planejo Ler</option>
                 <option value="Completos">✅ Completos</option>
+                <option value="Pausados">⏸️ Pausados</option>
                 <option value="Dropados">❌ Dropados</option>
               </select>
             </div>

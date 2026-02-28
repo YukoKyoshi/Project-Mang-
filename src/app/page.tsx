@@ -178,7 +178,7 @@ async function puxarProgressoDoAniList() {
     if (anilistData.success) {
        let atualizacoes = 0;
        let importacoes = 0;
-       const mapaStatusInverso: Record<string, string> = { "CURRENT": "Lendo", "COMPLETED": "Completos", "PLANNING": "Planejo Ler", "DROPPED": "Dropados", "PAUSED": "Dropados" };
+       const mapaStatusInverso: Record<string, string> = { "CURRENT": "Lendo", "COMPLETED": "Completos", "PLANNING": "Planejo Ler", "DROPPED": "Dropados", "PAUSED": "Pausados" };
        
        const mangasDoAnilist: any[] = [];
        anilistData.data.forEach((lista: any) => lista.entries.forEach((entry: any) => mangasDoAnilist.push(entry)));
@@ -595,7 +595,7 @@ async function deletarPerfil(perfil: any) {
       {config.mostrar_busca && (
         <section className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
           <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800 w-full md:w-auto overflow-x-auto">
-            {["Todos", "Lendo", "Completos", "Planejo Ler", "Dropados"].map(f => (
+            {["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"].map(f => (
               <button
                 key={f}
                 onClick={() => setFiltroAtivo(f)}
