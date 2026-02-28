@@ -73,19 +73,25 @@ export default function Home() {
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
   // --- Adicionando um pin administrativo --- //
 
-  // ==========================================
+// ==========================================
   // 🔄 5. LÓGICA DE INICIALIZAÇÃO
   // ==========================================
   useEffect(() => { 
     // 1. Checa o Portão Mestre
     const mestre = sessionStorage.getItem("acesso_mestre");
-    if (mestre === "true") setMestreAutorizado(true);
+    if (mestre === "true") {
+      setMestreAutorizado(true);
+      // ✅ NOVO: Garante a compatibilidade com a página /perfil
+      sessionStorage.setItem('estante_acesso', 'true');
+    }
 
-    // 2. Reset de segurança no F5
-    sessionStorage.removeItem('hunter_ativo');
-    setUsuarioAtual(null);
+    // 2. Tenta recuperar o Hunter que já estava logado
+    const hunterSalvo = sessionStorage.getItem("hunter_ativo");
+    if (hunterSalvo) {
+      setUsuarioAtual(hunterSalvo);
+    }
     
-    // 3. [NOVO] Busca as configurações de visibilidade do Admin
+    // 3. Busca as configurações de visibilidade do Admin
     const buscarConfigs = async () => {
       const { data } = await supabase.from("site_config").select("*").eq("id", 1).maybeSingle();
       if (data) setConfig(data);
@@ -261,13 +267,28 @@ async function deletarPerfil(perfil: any) {
   }
 }
 
-  // ==========================================
+// ==========================================
   // 🔑 7. LÓGICA DE PERFIS E PIN
   // ==========================================
+  function confirmarPin() {
+    const info = perfis.find(p => p.nome_original === perfilAlvoParaBloqueio);
+    if (info && info.pin === pinDigitado) {
+      // ✅ NOVO: Salva no navegador quem é o Hunter ativo
+      sessionStorage.setItem('hunter_ativo', perfilAlvoParaBloqueio!);
+      
+      setUsuarioAtual(perfilAlvoParaBloqueio);
+      setPerfilAlvoParaBloqueio(null);
+    } else {
+      alert("PIN Incorreto!");
+    }
+  }
+
+  // Ajuste também a função de mudar perfil sem PIN
   function tentarMudarPerfil(nome: string) {
     if (nome === "Admin") {
-      setIsAdmin(true); // Força o estado de Admin imediatamente
+      setIsAdmin(true);
       setUsuarioAtual("Admin");
+      sessionStorage.setItem('hunter_ativo', 'Admin'); // ✅ Salva Admin também
       return;
     }
 
@@ -276,27 +297,22 @@ async function deletarPerfil(perfil: any) {
       setPerfilAlvoParaBloqueio(nome);
       setPinDigitado("");
     } else {
-      setIsAdmin(false); // Garante que não é admin
+      setIsAdmin(false);
       setUsuarioAtual(nome);
+      sessionStorage.setItem('hunter_ativo', nome); // ✅ Salva o nome se não tiver PIN
     }
   }
-
-  function confirmarPin() {
-    const info = perfis.find(p => p.nome_original === perfilAlvoParaBloqueio);
-    if (info && info.pin === pinDigitado) {
-      setUsuarioAtual(perfilAlvoParaBloqueio);
-      setPerfilAlvoParaBloqueio(null);
-    } else {
-      alert("PIN Incorreto!");
-    }
-  }
-
   // ==========================================
   // 🖥️ 8. RENDERING: ACESSO MESTRE
   // ==========================================
-  if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
-  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-zinc-500 font-bold uppercase">Carregando...</div>;
-
+  if (!mestreAutorizado) return (
+    <AcessoMestre aoAutorizar={() => {
+      sessionStorage.setItem("acesso_mestre", "true");
+      sessionStorage.setItem("estante_acesso", "true"); // ✅ Chave para o /perfil
+      setMestreAutorizado(true);
+    }} />
+  );
+  
   // ------------------------------------------
   // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL (COMPONENTIZADO)
   // ------------------------------------------
