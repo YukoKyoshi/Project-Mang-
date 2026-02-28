@@ -72,8 +72,17 @@ export default function Home() {
   const [mostrandoPerfil, setMostrandoPerfil] = useState(false);
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
   // --- Adicionando um pin administrativo --- //
+  // --- SUB-SESSÃO 4.C: NOTIFICAÇÕES (TOAST) --- //
+  const [toast, setToast] = useState({ visivel: false, mensagem: "", tipo: "sucesso" });
 
-// ==========================================
+  function mostrarToast(mensagem: string, tipo: "sucesso" | "erro" = "sucesso") {
+    setToast({ visivel: true, mensagem, tipo });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, visivel: false }));
+    }, 4000); // Some sozinho após 4 segundos
+  }
+
+  // ==========================================
   // 🔄 5. LÓGICA DE INICIALIZAÇÃO
   // ==========================================
   useEffect(() => { 
@@ -123,51 +132,29 @@ async function buscarPerfis() {
   if (data) setPerfis(data);
 }
 
-// --- [NOVO] SINCRONIZAÇÃO COM ANILIST EM SEGUNDO PLANO ---
+// --- [NOVO] SINCRONIZAÇÃO COM ANILIST VIA SERVIDOR (ANTI-CORS) ---
 async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string) {
   try {
-    // 1. Busca o ID oficial
-    const queryBusca = `query ($search: String) { Media (search: $search, type: MANGA) { id } }`;
-    const resBusca = await fetch('https://graphql.anilist.co', {
+    const res = await fetch('/api/anilist/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ query: queryBusca, variables: { search: titulo } })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titulo, capitulo, statusLocal, token })
     });
     
-    const dataBusca = await resBusca.json();
-    const mediaId = dataBusca.data?.Media?.id;
-
-    if (!mediaId) return console.warn(`⚠️ "${titulo}" não encontrado no AniList.`);
-
-    // 2. TRADUTOR DE STATUS (Português do seu site -> Inglês do AniList)
-    const mapaStatus: Record<string, string> = {
-      "Lendo": "CURRENT",
-      "Completos": "COMPLETED",
-      "Planejo Ler": "PLANNING",
-      "Dropados": "DROPPED"
-    };
-    const statusAniList = mapaStatus[statusLocal] || "CURRENT";
-
-    // 3. Mutation atualizada exigindo a criação/atualização do Status e Progresso
-    const mutationUpdate = `
-      mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
-        SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
-          id
-          status
-          progress
-        }
-      }
-    `;
-
-    await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ query: mutationUpdate, variables: { mediaId, progress: capitulo, status: statusAniList } })
-    });
+    const data = await res.json();
     
-    console.log(`✅ ${titulo} adicionado/atualizado no AniList como ${statusAniList}!`);
+    if (data.success) {
+       console.log(`✅ [Anti-CORS] "${titulo}" sincronizado como ${data.status}!`);
+       // Chama a notificação verde de sucesso!
+       mostrarToast(`"${titulo}" salvo no AniList!`, "sucesso");
+    } else {
+       console.warn(`⚠️ Falha na sincronização do AniList:`, data.error);
+       // Chama a notificação vermelha de erro!
+       mostrarToast(`Falha no AniList: ${data.error}`, "erro");
+    }
   } catch (error) {
-    console.error("❌ Erro AniList:", error);
+    console.error("❌ Erro de comunicação com o túnel do servidor:", error);
+    mostrarToast("Erro de conexão com o servidor.", "erro");
   }
 }
 
@@ -199,7 +186,7 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
     buscarMangas(); 
   }
 
-// ✅ [NOVO] 3. MANDA PARA O ANILIST SE O HUNTER ESTIVER SINCRONIZADO
+  // ✅ [NOVO] 3. MANDA PARA O ANILIST SE O HUNTER ESTIVER SINCRONIZADO
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
   if (perfilAtivo && perfilAtivo.anilist_token) {
     // Passamos o 'novoStatus' para forçar a criação na lista correta
@@ -218,7 +205,7 @@ async function atualizarDados(id: number, campos: any) {
   // 2. SALVA NO BANCO DE DADOS EM SEGUNDO PLANO
   const { error } = await supabase.from("mangas").update(campos).eq("id", id);
   
-// 3. REVERSÃO DE EMERGÊNCIA
+  // 3. REVERSÃO DE EMERGÊNCIA
   if (error) {
     alert("❌ Erro de conexão. Revertendo alteração...");
     buscarMangas();
@@ -330,7 +317,7 @@ async function deletarPerfil(perfil: any) {
   }
 }
 
-// ==========================================
+  // ==========================================
   // 🔑 7. LÓGICA DE PERFIS E PIN
   // ==========================================
   function confirmarPin() {
@@ -575,6 +562,26 @@ async function deletarPerfil(perfil: any) {
         />
       )}
       
+    {/* 🌟 NOTIFICAÇÃO FLUTUANTE (TOAST) */}
+      <div 
+        className={`fixed bottom-10 right-10 z-[300] transition-all duration-500 transform ${
+          toast.visivel ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl ${
+          toast.tipo === 'sucesso' 
+            ? 'bg-green-500/10 border-green-500/50 text-green-400 shadow-green-500/20' 
+            : 'bg-red-500/10 border-red-500/50 text-red-400 shadow-red-500/20'
+        }`}>
+          <div className="text-2xl animate-bounce">
+            {toast.tipo === 'sucesso' ? '✅' : '❌'}
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest mt-1">
+            {toast.mensagem}
+          </span>
+        </div>
+      </div>
+
 
     </main> // <--- Esta é a última tag </main> do seu page.tsx
   );
