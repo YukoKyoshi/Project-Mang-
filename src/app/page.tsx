@@ -404,7 +404,7 @@ async function deletarPerfil(perfil: any) {
 
           {/* ACESSAR PERFIL (VOLTOU PARA O SEU LUGAR) */}
           <div 
-            onClick={() => setMostrandoPerfil(true)} 
+            onClick={() => window.location.href = '/perfil'}
             className="group cursor-pointer flex flex-col items-center gap-2"
             title="Configurações do Hunter"
           >
