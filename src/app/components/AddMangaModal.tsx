@@ -87,19 +87,19 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           body: JSON.stringify({ termo: termoAnilist })
         });
         
-        // --- COLE O CÓDIGO AQUI (Substituindo o antigo if resIA.ok) ---
         if (resIA.ok) {
           const jsonIA = await resIA.json();
-          // 🛡️ TRAVA DE SEGURANÇA: Só prossegue se o resultado NÃO for uma mensagem de erro
+          
+          // 🛡️ REDE DE SEGURANÇA:
+          // Se o resultado for um nome limpo (sem o emoji de erro ⚠️), usamos a sugestão da IA.
+          // Se o resultado contiver o erro de cota (⚠️), mantemos o 'termoInteligente' como o 'termoAnilist' original.
           if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
             termoInteligente = jsonIA.resultado;
-            console.log(`🤖 A I.A. definiu que a melhor busca é: "${termoInteligente}"`);
-          } else if (jsonIA.resultado?.includes('⚠️')) {
-            console.warn("Filtro de I.A.: Erro ou Cota excedida, usando termo original.");
-            // Aqui ele manterá o termoInteligente como o termoAnilist original
+            console.log(`🤖 IA Sugeriu: "${termoInteligente}"`);
+          } else {
+            console.warn("⚠️ Cota da IA excedida ou erro. Usando termo original para não travar a busca.");
+            termoInteligente = termoAnilist; // Força o uso do que você digitou
           }
-        } else {
-          console.warn("⚠️ Servidor da I.A. não respondeu, usando texto original.");
         }
         // --- FIM DA COLA ---
 
