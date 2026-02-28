@@ -58,7 +58,7 @@ export default function PerfilPage() {
         finais: mangas.filter(m => m.status === "Completos").length
       });
       
-      // ✅ Correção da lógica de Elos e Geração da Aura
+      // Definição de Cores do Elo
       if (total >= 100) setElo({ tier: "DIAMANTE", cor: "from-blue-400 to-indigo-600", glow: "shadow-blue-500/50 ring-blue-500/30" });
       else if (total >= 70) setElo({ tier: "PLATINA", cor: "from-emerald-400 to-cyan-500", glow: "shadow-emerald-500/40 ring-emerald-500/20" });
       else if (total >= 40) setElo({ tier: "OURO", cor: "from-yellow-400 to-amber-600", glow: "shadow-yellow-500/30 ring-yellow-500/20" });
@@ -80,12 +80,11 @@ export default function PerfilPage() {
   }
 
   // ==========================================
-  // [SESSÃO 4] - LÓGICA DE ACHIEVEMENT
+  // [SESSÃO 4] - LÓGICA DE TROFÉUS
   // ==========================================
   const isCustom = dadosPerfil.tema?.startsWith('#');
   const aura = isCustom ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
   
-  // Prepara os troféus para o componente
   const trofeusProps = {
     total: mangasUsuario.length,
     concluidos: mangasUsuario.filter(m => m.status === "Completos").length,
@@ -108,20 +107,22 @@ export default function PerfilPage() {
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500">
       
-      {/* Controles Superiores */}
-      <div className="absolute top-10 w-full px-10 flex justify-between items-center">
-        <Link href="/" className="text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors">← Voltar</Link>
+      {/* ✅ CORREÇÃO 3: Controles Fixos e com Z-Index Alto */}
+      <div className="fixed top-0 left-0 w-full p-6 md:p-10 flex justify-between items-center z-[100] pointer-events-none">
+        <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md">
+          ← Voltar
+        </Link>
         <button 
           onClick={() => setTelaCheia(!telaCheia)}
-          className="text-[10px] font-black uppercase tracking-widest bg-zinc-900 px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all"
+          className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl"
         >
           {telaCheia ? "⊙ Vista Central" : "⛶ Tela Cheia"}
         </button>
       </div>
 
-      {/* 💳 CARD DO PERFIL COM AURA DO ELO TOTAL */}
+      {/* 💳 CARD DO PERFIL */}
       <div 
-        className={`bg-[#0e0e11] rounded-[3rem] p-10 border border-white/5 transition-all duration-700 relative flex flex-col items-center shadow-2xl ${elo.glow} ring-2
+        className={`bg-[#0e0e11] rounded-[3rem] p-10 mt-12 md:mt-0 border border-white/5 transition-all duration-700 relative flex flex-col items-center shadow-2xl ${elo.glow} ring-2
           ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[520px]'}`}
       >
         
@@ -132,17 +133,17 @@ export default function PerfilPage() {
         <h1 className="text-3xl font-black text-white uppercase tracking-wider mb-1">{dadosPerfil.nome}</h1>
         <p className={`text-[12px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.3em] mb-8`}>RANK: {elo.tier}</p>
 
-        {/* Abas */}
+        {/* ✅ CORREÇÃO 1: Tradução das Abas */}
         <div className="flex gap-12 border-b border-zinc-800/50 w-full justify-center pb-4 mb-10">
           <button onClick={() => setAbaAtiva("STATUS")} className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === "STATUS" ? aura.text : 'text-zinc-600'}`}>
             HUNTER STATUS
           </button>
-          <button onClick={() => setAbaAtiva("ACHIEVEMENTS")} className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === "ACHIEVEMENTS" ? aura.text : 'text-zinc-600'}`}>
-            ACHIEVEMENTS
+          <button onClick={() => setAbaAtiva("TROFÉUS")} className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === "TROFÉUS" ? aura.text : 'text-zinc-600'}`}>
+            TROFÉUS
           </button>
         </div>
 
-        {/* Conteúdo Aba Status */}
+        {/* Conteúdo das Abas */}
         {abaAtiva === "STATUS" ? (
           <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-2">
              <div className="grid grid-cols-3 gap-4">
@@ -168,13 +169,15 @@ export default function PerfilPage() {
              </div>
           </div>
         ) : (
-          <div className="w-full animate-in fade-in zoom-in-95">
-            {/* ✅ Chamada correta dos Troféus agora que o visual voltou */}
-            <ColecaoTrofeus trofeusAtivos={listaTrofeus} aura={aura} />
+          /* ✅ CORREÇÃO 2: Container anti-esmagamento (Rolagem Horizontal) */
+          <div className="w-full animate-in fade-in zoom-in-95 overflow-x-auto pb-4 custom-scrollbar">
+            <div className="min-w-[500px] md:min-w-full px-2">
+              <ColecaoTrofeus trofeusAtivos={listaTrofeus} aura={aura} />
+            </div>
           </div>
         )}
 
-        {/* Logout (Vermelho) */}
+        {/* Logout */}
         <button 
           onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }}
           className="w-full py-4 mt-8 rounded-xl border border-red-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-red-500 hover:bg-red-500 hover:text-white transition-all"
