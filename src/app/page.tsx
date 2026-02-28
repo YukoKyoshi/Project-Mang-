@@ -156,6 +156,65 @@ async function sincronizarComAniList(titulo: string, capitulo: number, statusLoc
   }
 }
 
+// --- [NOVO] PUXAR DADOS DO ANILIST PARA A ESTANTE ---
+async function puxarProgressoDoAniList() {
+  const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+  if (!perfilAtivo || !perfilAtivo.anilist_token) {
+    mostrarToast("Você precisa conectar o AniList primeiro.", "erro");
+    return;
+  }
+
+  mostrarToast("📡 Buscando dados no AniList...", "sucesso");
+  
+  try {
+    const res = await fetch('/api/anilist/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acao: "PUXAR", token: perfilAtivo.anilist_token })
+    });
+    
+    const anilistData = await res.json();
+    
+    if (anilistData.success) {
+       let atualizacoes = 0;
+       const mapaStatusInverso: Record<string, string> = { "CURRENT": "Lendo", "COMPLETED": "Completos", "PLANNING": "Planejo Ler", "DROPPED": "Dropados", "PAUSED": "Dropados" };
+       
+       // Juntar todos os mangás que vieram do AniList
+       const mangasDoAnilist: any[] = [];
+       anilistData.data.forEach((lista: any) => lista.entries.forEach((entry: any) => mangasDoAnilist.push(entry)));
+
+       // Cruzar os dados com a nossa estante local
+       for (const manga of mangas) {
+         const tituloLocal = manga.titulo.toLowerCase();
+         const match = mangasDoAnilist.find((a: any) => 
+           (a.media.title.romaji && a.media.title.romaji.toLowerCase().includes(tituloLocal)) ||
+           (a.media.title.english && a.media.title.english.toLowerCase().includes(tituloLocal)) ||
+           (a.media.title.romaji && tituloLocal.includes(a.media.title.romaji.toLowerCase()))
+         );
+
+         if (match) {
+           const novoCapitulo = match.progress;
+           const novoStatus = mapaStatusInverso[match.status] || manga.status;
+           
+           if (novoCapitulo !== manga.capitulo_atual || novoStatus !== manga.status) {
+             await supabase.from("mangas").update({ capitulo_atual: novoCapitulo, status: novoStatus }).eq("id", manga.id);
+             atualizacoes++;
+           }
+         }
+       }
+       
+       if (atualizacoes > 0) {
+         buscarMangas(); // Recarrega a tela com os novos números
+         mostrarToast(`Sincronização concluída! ${atualizacoes} obras atualizadas.`, "sucesso");
+       } else {
+         mostrarToast("Sua estante já estava 100% atualizada!", "sucesso");
+       }
+    }
+  } catch (e) {
+    mostrarToast("Erro ao puxar dados do AniList.", "erro");
+  }
+}
+
 // --- LÓGICA OTIMISTA (INSTANTÂNEA) ---
 async function atualizarCapitulo(manga: Manga, novo: number) {
   if (novo < 0) return;
@@ -478,7 +537,18 @@ async function deletarPerfil(perfil: any) {
           <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-500 mt-2">Sincronizado como: {perfilAtivo.nome_exibicao}</p>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 md:gap-6">
+
+          {/* ✅ NOVO: BOTÃO PUXAR DO ANILIST */}
+          {perfilAtivo.anilist_token && (
+            <button 
+              onClick={puxarProgressoDoAniList}
+              title="Puxar progresso do AniList"
+              className={`w-14 h-14 bg-zinc-900 border border-blue-500/30 rounded-[1.2rem] flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-500/10 text-blue-500`}
+            >
+              🔄
+            </button>
+          )}
 
           {/* BOTÃO ADICIONAR OBRA */}
           <button 
@@ -488,7 +558,7 @@ async function deletarPerfil(perfil: any) {
             + Adicionar Obra
           </button>
 
-          {/* ACESSAR PERFIL (VOLTOU PARA O SEU LUGAR) */}
+          {/* ACESSAR PERFIL */}
           <div 
             onClick={() => window.location.href = '/perfil'}
             className="group cursor-pointer flex flex-col items-center gap-2"

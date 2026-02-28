@@ -14,6 +14,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
   const [resultadosAnilist, setResultadosAnilist] = useState<any[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [traduzindo, setTraduzindo] = useState(false);
+  const [salvando, setSalvando] = useState(false); // ✅ NOVO: Estado para travar o botão durante o envio
   const [novoManga, setNovoManga] = useState({ 
     titulo: "", 
     capa: "", 
@@ -28,10 +29,11 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
       setTermoAnilist("");
       setResultadosAnilist([]);
       setNovoManga({ titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "" });
+      setSalvando(false);
     }
   }, [estaAberto]);
 
-// ==========================================
+  // ==========================================
   // [SISTEMA DE BUSCA S+] - I.A. na Linha de Frente -> AniList -> MAL
   // ==========================================
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           return [];
         };
 
-// 🎯 1º PASSO: I.A. OTIMIZADORA (O Cérebro age primeiro)
+        // 🎯 1º PASSO: I.A. OTIMIZADORA (O Cérebro age primeiro)
         console.log("🧠 Perguntando para a I.A. o nome real de:", termoAnilist);
         
         const resIA = await fetch('/api/tradutor-ia', {
@@ -91,20 +93,14 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
           const jsonIA = await resIA.json();
           
           // 🛡️ REDE DE SEGURANÇA:
-          // Se o resultado for um nome limpo (sem o emoji de erro ⚠️), usamos a sugestão da IA.
-          // Se o resultado contiver o erro de cota (⚠️), mantemos o 'termoInteligente' como o 'termoAnilist' original.
           if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
             termoInteligente = jsonIA.resultado;
             console.log(`🤖 IA Sugeriu: "${termoInteligente}"`);
           } else {
             console.warn("⚠️ Cota da IA excedida ou erro. Usando termo original para não travar a busca.");
-            termoInteligente = termoAnilist; // Força o uso do que você digitou
+            termoInteligente = termoAnilist; 
           }
         }
-        // --- FIM DA COLA ---
-
-        // 🎯 2º PASSO: AniList (Agora armado com o nome perfeito ou original)
-        resultados = await buscarAnilist(termoInteligente);
 
         // 🎯 2º PASSO: AniList (Agora armado com o nome perfeito)
         resultados = await buscarAnilist(termoInteligente);
@@ -137,14 +133,9 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
     
     setTraduzindo(true);
     try {
-      // 1. Remove as tags de HTML (<b>, <br>) que vêm sujas do AniList
       const textoLimpo = novoManga.sinopse.replace(/<[^>]*>?/gm, '');
-
-      // 2. Chama a API do Google Translate (Sem limites de 500 caracteres)
       const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t&q=${encodeURIComponent(textoLimpo)}`);
       const json = await res.json();
-      
-      // 3. O Google retorna os dados "fatiados", então precisamos juntar as frases
       const textoTraduzido = json[0].map((item: any) => item[0]).join('');
 
       if (textoTraduzido) {
@@ -158,6 +149,64 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
     } finally {
       setTraduzindo(false);
     }
+  }
+
+  // ==========================================
+  // ✅ [NOVO] LÓGICA DE SALVAR + SINCRONIZAR
+  // ==========================================
+  async function salvarObraFinal() {
+    if (!usuarioAtual) return alert("Erro: Hunter não identificado!");
+    setSalvando(true);
+
+    const dadosManga = {
+      titulo: novoManga.titulo,
+      capa: novoManga.capa,
+      capitulo_atual: novoManga.capitulo_atual,
+      total_capitulos: novoManga.total_capitulos,
+      status: novoManga.status,
+      sinopse: novoManga.sinopse,
+      usuario: usuarioAtual,
+      ultima_leitura: new Date().toISOString()
+    };
+
+    // 1. Salva na Estante Local (Supabase)
+    const { error } = await supabase.from("mangas").insert([dadosManga]);
+
+    if (error) {
+      alert("Erro ao salvar: " + error.message);
+      setSalvando(false);
+      return;
+    }
+
+    // 2. Sincroniza com o AniList em background
+    try {
+      const { data: perfil } = await supabase
+        .from("perfis")
+        .select("anilist_token")
+        .eq("nome_original", usuarioAtual)
+        .single();
+
+      if (perfil && perfil.anilist_token) {
+        await fetch('/api/anilist/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            titulo: novoManga.titulo,
+            capitulo: novoManga.capitulo_atual,
+            statusLocal: novoManga.status,
+            token: perfil.anilist_token,
+            acao: "SALVAR"
+          })
+        });
+      }
+    } catch (err) {
+      console.error("Falha ao sincronizar com AniList no momento do cadastro.", err);
+    }
+
+    // 3. Conclui e fecha
+    setSalvando(false);
+    aoSalvar(novoManga);
+    fechar();
   }
 
   if (!estaAberto) return null;
@@ -230,43 +279,21 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, aoSalv
             </div>
 
             {/* BOTÕES DE AÇÃO */}
-
             <div className="flex gap-4">
               <button 
                 onClick={() => setNovoManga({titulo:"", capa:"", capitulo_atual:0, total_capitulos:0, status:"Planejo Ler", sinopse:""})} 
-                className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold hover:bg-zinc-700 transition-colors uppercase text-xs tracking-widest"
+                disabled={salvando}
+                className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold hover:bg-zinc-700 transition-colors uppercase text-xs tracking-widest disabled:opacity-50"
               >
                 Voltar
               </button>
               
               <button 
-                onClick={async () => {
-
-                  // LÓGICA DE SALVAMENTO REAL
-
-                  if (!usuarioAtual) return alert("Erro: Hunter não identificado!");
-
-                  const { error } = await supabase.from("mangas").insert([{
-                    titulo: novoManga.titulo,
-                    capa: novoManga.capa,
-                    capitulo_atual: novoManga.capitulo_atual,
-                    total_capitulos: novoManga.total_capitulos,
-                    status: novoManga.status,
-                    sinopse: novoManga.sinopse,
-                    usuario: usuarioAtual, // Vincula ao Hunter logado
-                    ultima_leitura: new Date().toISOString()
-                  }]);
-
-                  if (error) {
-                    alert("Erro ao salvar: " + error.message);
-                  } else {
-                    aoSalvar(novoManga); // Avisa o page.tsx para atualizar a lista
-                    fechar(); // Fecha o modal
-                  }
-                }} 
-                className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-500 shadow-lg shadow-green-900/30 transition-all uppercase text-xs tracking-widest"
+                onClick={salvarObraFinal} 
+                disabled={salvando}
+                className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-500 shadow-lg shadow-green-900/30 transition-all uppercase text-xs tracking-widest disabled:opacity-50 disabled:cursor-wait"
               >
-                Salvar na Estante
+                {salvando ? "Sincronizando..." : "Salvar na Estante"}
               </button>
             </div>
           </div>

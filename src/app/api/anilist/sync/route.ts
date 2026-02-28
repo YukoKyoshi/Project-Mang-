@@ -2,63 +2,61 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { titulo, capitulo, statusLocal, token } = await request.json();
+    const { titulo, capitulo, statusLocal, token, acao = "SALVAR" } = await request.json();
 
-    // 1. Busca o ID oficial do mangá no AniList
-    const queryBusca = `query ($search: String) { Media (search: $search, type: MANGA) { id } }`;
-    const resBusca = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ query: queryBusca, variables: { search: titulo } })
-    });
-    
-    const dataBusca = await resBusca.json();
-    const mediaId = dataBusca.data?.Media?.id;
+    // ==========================================
+    // 🔄 LÓGICA DE PUXAR (AniList -> Estante)
+    // ==========================================
+    if (acao === "PUXAR") {
+      // 1. Descobre o ID do usuário conectado
+      const resViewer = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `query { Viewer { id } }` }) });
+      const viewerId = (await resViewer.json()).data?.Viewer?.id;
+      if (!viewerId) return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
 
-    if (!mediaId) {
-      return NextResponse.json({ error: `Mangá "${titulo}" não encontrado no AniList.` }, { status: 404 });
+      // 2. Puxa toda a biblioteca do usuário
+      const queryList = `query ($userId: Int) { MediaListCollection(userId: $userId, type: MANGA) { lists { entries { progress status media { title { romaji english } } } } } }`;
+      const resList = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryList, variables: { userId: viewerId } }) });
+      return NextResponse.json({ success: true, data: (await resList.json()).data?.MediaListCollection?.lists || [] });
     }
 
-    // 2. Tradutor de Status
-    const mapaStatus: Record<string, string> = {
-      "Lendo": "CURRENT",
-      "Completos": "COMPLETED",
-      "Planejo Ler": "PLANNING",
-      "Dropados": "DROPPED"
-    };
-    const statusAniList = mapaStatus[statusLocal] || "CURRENT";
+    // ==========================================
+    // 🔍 BUSCA O ID DA OBRA NO ANILIST
+    // ==========================================
+    const resBusca = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `query ($search: String) { Media (search: $search, type: MANGA) { id } }`, variables: { search: titulo } }) });
+    const mediaId = (await resBusca.json()).data?.Media?.id;
+    if (!mediaId) return NextResponse.json({ error: `Mangá "${titulo}" não encontrado.` }, { status: 404 });
 
-    // 3. Atualiza na conta do AniList (Sem regras de CORS porque estamos no backend!)
-    const mutationUpdate = `
-      mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) {
-        SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) {
-          id
-          status
-          progress
+    // ==========================================
+    // 🗑️ LÓGICA DE EXCLUSÃO (Estante -> AniList)
+    // ==========================================
+    if (acao === "DELETAR") {
+      // ✅ NOVO: Pega o ID do Viewer primeiro para o AniList permitir a busca na lista
+      const resViewer = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `query { Viewer { id } }` }) });
+      const userId = (await resViewer.json()).data?.Viewer?.id;
+
+      if (userId) {
+        const resEntry = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `query ($mediaId: Int, $userId: Int) { MediaList (mediaId: $mediaId, userId: $userId) { id } }`, variables: { mediaId, userId } }) });
+        const listEntryId = (await resEntry.json()).data?.MediaList?.id;
+
+        if (listEntryId) {
+          await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `mutation ($id: Int) { DeleteMediaListEntry (id: $id) { deleted } }`, variables: { id: listEntryId } }) });
+          return NextResponse.json({ success: true, status: "EXCLUÍDO DA LISTA" });
         }
       }
-    `;
-
-    const anilistRes = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${token}`, 
-        'Content-Type': 'application/json', 
-        'Accept': 'application/json' 
-      },
-      body: JSON.stringify({ query: mutationUpdate, variables: { mediaId, progress: capitulo, status: statusAniList } })
-    });
-
-    const anilistData = await anilistRes.json();
-
-    if (anilistData.errors) {
-        console.error("Erro da API do AniList:", anilistData.errors);
-        return NextResponse.json({ error: "O AniList recusou a atualização." }, { status: 400 });
+      return NextResponse.json({ success: true, status: "JÁ ESTAVA FORA DA LISTA" });
     }
+
+    // ==========================================
+    // 💾 LÓGICA DE SALVAR/ATUALIZAR
+    // ==========================================
+    const mapaStatus: Record<string, string> = { "Lendo": "CURRENT", "Completos": "COMPLETED", "Planejo Ler": "PLANNING", "Dropados": "DROPPED" };
+    const statusAniList = mapaStatus[statusLocal] || "CURRENT";
+
+    const anilistRes = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `mutation ($mediaId: Int, $progress: Int, $status: MediaListStatus) { SaveMediaListEntry (mediaId: $mediaId, progress: $progress, status: $status) { id status progress } }`, variables: { mediaId, progress: capitulo, status: statusAniList } }) });
+    if ((await anilistRes.json()).errors) return NextResponse.json({ error: "Recusado pelo AniList." }, { status: 400 });
 
     return NextResponse.json({ success: true, status: statusAniList });
   } catch (error) {
-    console.error("Erro fatal no servidor:", error);
-    return NextResponse.json({ error: "Erro interno na ponte com o AniList." }, { status: 500 });
+    return NextResponse.json({ error: "Erro interno no servidor." }, { status: 500 });
   }
 }
