@@ -539,6 +539,7 @@ async function deletarPerfil(perfil: any) {
               key={m.id} 
               manga={m} 
               aura={aura}
+              abaPrincipal={abaPrincipal}
               atualizarCapitulo={atualizarCapitulo} 
               deletarManga={deletarMangaDaEstante} 
               mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} 
