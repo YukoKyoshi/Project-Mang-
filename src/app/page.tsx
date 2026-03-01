@@ -376,40 +376,106 @@ async function deletarPerfil(perfil: any) {
 }
 
   // ==========================================
-  // 🔑 7. LÓGICA DE PERFIS E PIN
+  // 🔑 7. LÓGICA DE LOGIN E VALIDAÇÃO DE PIN
   // ==========================================
-  function confirmarPin() {
-    const info = perfis.find(p => p.nome_original === perfilAlvoParaBloqueio);
-    if (info && info.pin === pinDigitado) {
-      sessionStorage.setItem('hunter_ativo', perfilAlvoParaBloqueio!);
-      setUsuarioAtual(perfilAlvoParaBloqueio);
-      setPerfilAlvoParaBloqueio(null);
-    } else alert("PIN Incorreto!");
-  }
+  
+  // Função para validar o acesso do Hunter
+  async function confirmarPin() {
+    if (!perfilAlvoParaBloqueio) return;
 
-  function tentarMudarPerfil(nome: string) {
-    if (nome === "Admin") {
-      setIsAdmin(true); setUsuarioAtual("Admin"); sessionStorage.setItem('hunter_ativo', 'Admin'); return;
+    try {
+      // 1. Busca o perfil atualizado no banco para validar o PIN
+      const { data: perfil, error } = await supabase
+        .from("perfis")
+        .select("pin, nome_exibicao, avatar")
+        .eq("nome_original", perfilAlvoParaBloqueio)
+        .single();
+
+      if (error || !perfil) {
+        mostrarToast("Erro ao localizar caçador.", "erro");
+        return;
+      }
+
+      // 2. Compara o PIN digitado com o PIN do banco de dados
+      if (perfil.pin === pinDigitado) {
+        sessionStorage.setItem("hunter_ativo", perfilAlvoParaBloqueio);
+        sessionStorage.setItem("acesso_mestre", "true");
+        sessionStorage.setItem("estante_acesso", "true");
+
+        setUsuarioAtual(perfilAlvoParaBloqueio);
+        setPerfilAlvoParaBloqueio(null);
+        setPinDigitado("");
+        mostrarToast(`Bem-vindo de volta, ${perfil.nome_exibicao}!`, "sucesso");
+      } else {
+        mostrarToast("PIN Incorreto. Acesso negado.", "erro");
+        setPinDigitado("");
+      }
+    } catch (err) {
+      console.error("Erro no login:", err);
     }
-    const info = perfis.find(p => p.nome_original === nome);
-    if (info?.pin) { setPerfilAlvoParaBloqueio(nome); setPinDigitado(""); } 
-    else { setIsAdmin(false); setUsuarioAtual(nome); sessionStorage.setItem('hunter_ativo', nome); }
+  }
+
+  // Acionada quando clica em um card de perfil
+  function tentarMudarPerfil(nomeOriginal: string) {
+    if (nomeOriginal === "Admin") {
+      setPinAdminAberto(true);
+      return;
+    }
+    
+    // Verifica se o perfil tem PIN para abrir o modal de senha
+    const info = perfis.find(p => p.nome_original === nomeOriginal);
+    if (info?.pin) { 
+      setPerfilAlvoParaBloqueio(nomeOriginal); 
+      setPinDigitado(""); 
+    } else { 
+      // Login direto se não houver PIN (Perfil público)
+      setIsAdmin(false); 
+      setUsuarioAtual(nomeOriginal); 
+      sessionStorage.setItem('hunter_ativo', nomeOriginal); 
+    }
   }
 
   // ==========================================
-  // 🖥️ 8. RENDERING: ACESSO MESTRE E ADMIN
+  // 🖥️ 8. INTERFACE DE SELEÇÃO (JSX)
   // ==========================================
   if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => { sessionStorage.setItem("acesso_mestre", "true"); sessionStorage.setItem("estante_acesso", "true"); setMestreAutorizado(true); }} />;
 
   if (!usuarioAtual) {
     return (
       <>
-        <ProfileSelection perfis={perfis} temas={TEMAS} tentarMudarPerfil={tentarMudarPerfil} perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} pinDigitado={pinDigitado} setPinDigitado={setPinDigitado} confirmarPin={confirmarPin} setPinAdminAberto={setPinAdminAberto} pinAdminAberto={pinAdminAberto} />
+        {/* Renderiza a tela de seleção de perfis (Hunters) */}
+        <ProfileSelection 
+          perfis={perfis} // ✅ Vem do banco de dados (Sessão 6)
+          temas={TEMAS} 
+          tentarMudarPerfil={tentarMudarPerfil} 
+          perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} 
+          pinDigitado={pinDigitado} 
+          setPinDigitado={setPinDigitado} 
+          confirmarPin={confirmarPin} 
+          setPinAdminAberto={setPinAdminAberto} 
+          pinAdminAberto={pinAdminAberto} 
+        />
+
+        {/* Modal de PIN para Administrador (Mestre) */}
         {pinAdminAberto && (
           <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/98 backdrop-blur-2xl animate-in zoom-in-95 duration-300">
             <div className="bg-zinc-900 p-12 rounded-[3rem] border border-zinc-800 text-center space-y-8 shadow-[0_0_100px_rgba(0,0,0,1)] max-w-sm w-full">
               <h2 className="text-white font-black uppercase tracking-tighter text-2xl italic text-yellow-500">Admin Login</h2>
-              <input type="password" maxLength={4} autoFocus className="w-full bg-black border border-zinc-700 p-5 rounded-2xl text-center text-4xl font-bold text-white outline-none focus:border-yellow-500 transition-all font-mono" onChange={(e) => { if (e.target.value === "5236") { setIsAdmin(true); setUsuarioAtual("Admin"); setPinAdminAberto(false); } }} />
+              <input 
+                type="password" 
+                maxLength={4} 
+                autoFocus 
+                placeholder="PIN"
+                className="w-full bg-black border border-zinc-700 p-5 rounded-2xl text-center text-4xl font-bold text-white outline-none focus:border-yellow-500 transition-all font-mono" 
+                onChange={(e) => { 
+                  if (e.target.value === "5236") { 
+                    setIsAdmin(true); 
+                    setUsuarioAtual("Admin"); 
+                    sessionStorage.setItem('hunter_ativo', 'Admin');
+                    setPinAdminAberto(false); 
+                  } 
+                }} 
+              />
               <button onClick={() => setPinAdminAberto(false)} className="text-[10px] text-zinc-600 hover:text-white uppercase font-black tracking-widest mt-4">Retornar</button>
             </div>
           </div>
@@ -417,7 +483,6 @@ async function deletarPerfil(perfil: any) {
       </>
     );
   }
-
   if (isAdmin) return <AdminPanel perfis={perfis} config={config} mostrandoFormHunter={mostrandoFormHunter} setMostrandoFormHunter={setMostrandoFormHunter} novoHunter={novoHunter} setNovoHunter={setNovoHunter} deletarPerfil={deletarPerfil} setUsuarioAtual={setUsuarioAtual} atualizarConfig={atualizarConfig} salvarHunter={salvarHunter} prepararEdicao={prepararEdicao} editandoNomeOriginal={editandoNomeOriginal} fecharFormularioHunter={fecharFormularioHunter} />;
 
   // ==========================================
