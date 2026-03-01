@@ -537,13 +537,21 @@ async function deletarPerfil(perfil: any) {
             </button>
           )}
 
-          {/* BOTÃO ADICIONAR OBRA */}
-          <button 
-            onClick={() => setEstaAbertoAdd(true)} 
-            className={`${aura.bg} ${aura.shadow} px-8 py-4 rounded-2xl font-black uppercase text-xs hover:scale-105 active:scale-95 transition-all text-black`}
-          >
-            + Adicionar {abaPrincipal === "MANGA" ? "Mangá" : "Anime"}
-          </button>
+          {/* --- [BOTÃO ADICIONAR OBRA - FIX DE VISIBILIDADE] --- */}
+<button 
+  onClick={() => setEstaAbertoAdd(true)} 
+  className={`
+    relative z-10 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest
+    transition-all duration-300 hover:scale-105 active:scale-95
+    bg-zinc-900 border-2 ${aura.border} ${aura.shadow} 
+    text-white hover:${aura.text}
+  `}
+>
+  <span className="relative z-20">+ Adicionar {abaPrincipal === "MANGA" ? "Mangá" : "Anime"}</span>
+  
+  {/* Efeito de brilho interno para nunca sumir no escuro */}
+  <div className={`absolute inset-0 rounded-2xl bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity`} />
+</button>
 
           {/* --- [AVATAR NO HEADER DA ESTANTE] --- */}
 <div onClick={() => window.location.href = '/perfil'} className="group cursor-pointer flex flex-col items-center gap-2" title="Configurações do Hunter">
