@@ -18,26 +18,26 @@ export async function POST(request: Request) {
         messages: [
           { 
             role: "system", 
-            content: `Você é um tradutor de elite de cultura pop. Sua única tarefa é converter termos de busca de animes/mangás do português para o nome oficial em Inglês ou Romaji. 
-
-            Siga EXATAMENTE este modelo:
+            content: `Traduza ou corrija o termo de busca de mangá/anime abaixo para o nome oficial em Romaji ou Inglês. Responda APENAS com o nome da obra.
+            
+            Exemplos de sucesso aprovados:
             Entrada: "caderno da morte" | Saída: Death Note
             Entrada: "menino que estica" | Saída: One Piece
             Entrada: "tales of demons" | Saída: Tales of Demons and Gods
             Entrada: "${termo}" | Saída:` 
           }
         ],
-        temperature: 0.1, // Precisão máxima
-        max_tokens: 50 // Resposta curta
+        temperature: 0.1
       })
     });
 
     const data = await response.json();
-    // Limpamos qualquer resíduo de texto extra que o Llama possa tentar colocar
-    const resultado = data.choices?.[0]?.message?.content?.split('|')[0]?.replace('Saída:', '')?.trim() || termo;
+    // Limpeza para garantir que venha apenas o nome
+    const resultado = data.choices?.[0]?.message?.content?.split('|').pop()?.replace('Saída:', '').trim() || termo;
     
     return NextResponse.json({ resultado });
   } catch (error) {
+    console.error("Erro na API de Tradução:", error);
     return NextResponse.json({ resultado: "Erro" }, { status: 200 });
   }
 }
