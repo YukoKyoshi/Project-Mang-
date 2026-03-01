@@ -25,8 +25,14 @@ export default function PerfilPage() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
+  // ✅ Como deve estar na Sessão 2
   const [dadosPerfil, setDadosPerfil] = useState({ 
-    nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6" 
+    nome: "", 
+    avatar: "", 
+    bio: "", 
+    tema: "azul", 
+    custom_color: "#3b82f6",
+    pin: "" // 🔑 Garante que o PIN comece vazio, mas exista no contrato
   });
   
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
@@ -84,7 +90,8 @@ export default function PerfilPage() {
         avatar: perfil.avatar || "https://i.imgur.com/8Km9t4S.png",
         bio: perfil.bio || "",
         tema: perfil.cor_tema || "azul",
-        custom_color: perfil.custom_color || "#3b82f6"
+        custom_color: perfil.custom_color || "#3b82f6",
+        pin: perfil.pin || "" // ✅ ADICIONE ESTA LINHA para resolver o erro 2345
       });
     }
     setCarregando(false);
@@ -93,20 +100,28 @@ export default function PerfilPage() {
   // ✅ CORREÇÃO 2: SALVAMENTO PERSISTENTE
   async function atualizarPerfil() {
     setSalvando(true);
-    const { error } = await supabase.from("perfis").update({
-      nome_exibicao: dadosPerfil.nome,
-      avatar: dadosPerfil.avatar,
-      cor_tema: dadosPerfil.tema,
-      custom_color: dadosPerfil.custom_color
-    }).eq("nome_original", usuarioAtivo);
-    
-    if (!error) {
-      alert("✨ Perfil Sincronizado com o Banco de Dados!");
-      window.location.reload(); // Recarrega para aplicar em todo o site
-    }
-    setSalvando(false);
-  }
+    try {
+      // 💾 Salvando no Supabase (Isso garante que apareça na escolha de perfil e estantes)
+      const { error } = await supabase.from("perfis").update({
+        nome_exibicao: dadosPerfil.nome,
+        avatar: dadosPerfil.avatar,
+        cor_tema: dadosPerfil.tema,
+        custom_color: dadosPerfil.custom_color,
+        pin: dadosPerfil.pin // ✅ PIN agora é persistente
+      }).eq("nome_original", usuarioAtivo);
+      
+      if (error) throw error;
 
+      alert("✨ Hunter Sincronizado! As mudanças agora são globais.");
+      
+      // Força o recarregamento para que o tema e nome atualizem no cabeçalho e estantes
+      window.location.reload(); 
+    } catch (err: any) {
+      alert("❌ Erro ao sincronizar: " + err.message);
+    } finally {
+      setSalvando(false);
+    }
+  }
   // ✅ CORREÇÃO 5: BACKUP (EXPORT/IMPORT)
   async function exportarBiblioteca() {
     try {
@@ -262,15 +277,38 @@ export default function PerfilPage() {
 
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 animate-in fade-in zoom-in-95">
-              <input type="text" placeholder="Nome de Caçador" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
-              <input type="text" placeholder="URL do Avatar" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
+              {/* Nome e Avatar */}
+              <div className="grid grid-cols-1 gap-4">
+                <input type="text" placeholder="Nome de Caçador" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none focus:border-white/20" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
+                <input type="text" placeholder="URL do Avatar" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-white/20" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
+              </div>
+
+              {/* ✅ NOVO: Alteração de PIN */}
+              <div>
+                <label className="text-[8px] font-black text-zinc-500 uppercase mb-2 block tracking-widest">Código PIN de Acesso</label>
+                <input 
+                  type="password" 
+                  maxLength={4}
+                  placeholder="Ex: 1234" 
+                  className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center outline-none focus:border-white/20" 
+                  value={dadosPerfil.pin} 
+                  onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} 
+                />
+              </div>
+
+              {/* Temas e Cores */}
               <div className="grid grid-cols-2 gap-4">
                 <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
-                  <option value="azul">Azul Neon</option> <option value="verde">Verde Hacker</option> <option value="roxo">Roxo Galático</option> <option value="laranja">Laranja Fogo</option> <option value="custom">Personalizada</option>
+                  <option value="azul">Azul Neon</option>
+                  <option value="verde">Verde Hacker</option>
+                  <option value="roxo">Roxo Galático</option>
+                  <option value="laranja">Laranja Fogo</option>
+                  <option value="custom">Personalizada</option>
                 </select>
                 {dadosPerfil.tema === "custom" && <input type="color" className="w-full h-12 bg-black border border-white/5 rounded-xl cursor-pointer" value={dadosPerfil.custom_color} onChange={e => setDadosPerfil({...dadosPerfil, custom_color: e.target.value})} />}
               </div>
-              <button onClick={atualizarPerfil} disabled={salvando} className="w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-black hover:scale-[1.02] transition-all">
+
+              <button onClick={atualizarPerfil} disabled={salvando} className="w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-black hover:scale-[1.02] transition-all shadow-xl">
                 {salvando ? "Sincronizando..." : "Sincronizar Hunter"}
               </button>
             </div>
