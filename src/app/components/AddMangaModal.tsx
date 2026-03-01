@@ -39,65 +39,74 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
 
   // --- MOTOR DE BUSCA S+ (CACHE -> GROQ -> ANILIST) ---
   useEffect(() => {
-    if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
-    
-    const t = setTimeout(async () => {
-      setBuscando(true);
-      try {
-        let termoFinal = termoAnilist;
+if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
+  
+  const t = setTimeout(async () => {
+    setBuscando(true);
+    try {
+      let termoFinal = termoAnilist;
 
-        // 🔍 CAMADA 1: CONSULTA O CACHE NO SUPABASE
-        const { data: cacheHit } = await supabase
-          .from('search_cache')
-          .select('resultado_ia')
-          .ilike('termo_original', termoAnilist)
-          .maybeSingle();
+      // 🔍 CAMADA 1: CACHE NO SUPABASE
+      const { data: cacheHit } = await supabase
+        .from('search_cache')
+        .select('resultado_ia')
+        .ilike('termo_original', termoAnilist)
+        .maybeSingle();
 
-        if (cacheHit) {
-          termoFinal = cacheHit.resultado_ia;
-        } else {
-          // 🧠 CAMADA 2: CHAMA O MOTOR GROQ
-          const resIA = await fetch('/api/tradutor-ia', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ termo: termoAnilist })
-          });
-          
-          if (resIA.ok) {
-            const jsonIA = await resIA.json();
-            if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
-              termoFinal = jsonIA.resultado;
-              // 💾 SALVA NO CACHE PARA ECONOMIZAR COTA
-              await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
-            }
-          }
-        }
-
-        // 🎯 CAMADA 3: BUSCA NO ANILIST
-        const res = await fetch("https://graphql.anilist.co", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
-            variables: { search: termoFinal, type: abaPrincipal }
-          })
+      if (cacheHit) {
+        termoFinal = cacheHit.resultado_ia;
+      } else {
+        // 🧠 CAMADA 2: MOTOR GROQ (Substituindo Gemini)
+        const resIA = await fetch('/api/tradutor-ia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ termo: termoAnilist })
         });
-        const json = await res.json();
         
-        const formatados = json.data?.Page?.media.map((m: any) => ({
-          id: m.id,
-          titulo: m.title.romaji || m.title.english,
-          capa: m.coverImage.large,
-          total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-          sinopse: m.description || ""
-        })) || [];
+        const jsonIA = await resIA.json();
+        
+        // ⚠️ CAMADA DE ERRO: Se a Groq responder com erro, avisamos o Hunter
+        if (jsonIA.resultado.includes('⚠️')) {
+           console.error(jsonIA.resultado);
+           // Opcional: Mostrar o erro na tela temporariamente
+           setTermoAnilist(prev => prev + " (Erro na IA)"); 
+        } else {
+          termoFinal = jsonIA.resultado;
+          // 💾 SALVA NO CACHE
+          await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
+        }
+      }
 
-        setResultadosAnilist(formatados);
+      // 🎯 CAMADA 3: ANILIST (Onde a busca final acontece)
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
+          variables: { search: termoFinal, type: abaPrincipal }
+        })
+      });
+      const json = await res.json();
+      
+      const formatados = json.data?.Page?.media.map((m: any) => ({
+        id: m.id,
+        titulo: m.title.romaji || m.title.english,
+        capa: m.coverImage.large,
+        total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+        sinopse: m.description || ""
+      })) || [];
 
-      } catch (err) { console.error("Erro no Motor S+:", err); } finally { setBuscando(false); }
-    }, 1200); 
-    return () => clearTimeout(t);
-  }, [termoAnilist, abaPrincipal]);
+      setResultadosAnilist(formatados);
+
+    } catch (err: any) { 
+      console.error("Erro Crítico:", err); 
+      alert("Erro no Motor S+: " + err.message);
+    } finally { 
+      setBuscando(false); 
+    }
+  }, 1200); 
+  return () => clearTimeout(t);
+}, [termoAnilist, abaPrincipal]);
   
   // (As funções traduzirSinopse e salvarObraFinal permanecem as mesmas que você enviou)
   async function traduzirSinopse() {
