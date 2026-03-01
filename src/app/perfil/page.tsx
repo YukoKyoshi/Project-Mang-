@@ -199,10 +199,35 @@ export default function PerfilPage() {
 
       <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-12 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ${elo.glow} ring-1 ring-white/10 ${elo.efeito} ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
         
-        {/* Identidade */}
-        <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${aura.border} ${elo.glow}`}>
-          <img src={dadosPerfil.avatar} className="w-full h-full object-cover" alt="" />
-        </div>
+        O Gemini disse
+Hunter, o que está acontecendo é que o código está tratando o link como se fosse um texto comum (como os emojis que usávamos antes). Quando você cola https://..., o React simplesmente escreve essas letras na tela, o que "estoura" o layout e cria esse bug visual.
+
+Para resolver isso, precisamos ensinar o site a diferenciar: "Se começar com 'http', use uma tag de imagem; se não, mostre como texto".
+
+Vou te passar as correções para os dois arquivos onde o avatar aparece.
+
+🛠️ 1. Ajuste no Perfil: src/app/perfil/page.tsx
+Sessão: Identidade Visual (Dentro do card de perfil)
+
+Substitua o bloco que renderiza o avatar (por volta da linha 170) por este código inteligente:
+
+TypeScript
+{/* --- [IDENTIDADE VISUAL - AVATAR INTELIGENTE] --- */}
+<div className={`w-24 h-24 bg-zinc-950 rounded-[1.5rem] flex items-center justify-center overflow-hidden border-2 ${aura.border} shadow-lg mb-4`}>
+  {dadosPerfil.avatar.startsWith('http') ? (
+    <img 
+      src={dadosPerfil.avatar} 
+      className="w-full h-full object-cover" 
+      alt="Avatar do Hunter"
+      onError={(e) => {
+        // Caso o link quebre, ele volta para um emoji padrão
+        (e.target as HTMLImageElement).src = "https://i.imgur.com/8Km9t4S.png";
+      }}
+    />
+  ) : (
+    <span className="text-5xl">{dadosPerfil.avatar || "👤"}</span>
+  )}
+</div>
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic">{dadosPerfil.nome}</h1>
         <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
 

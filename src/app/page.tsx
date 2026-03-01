@@ -545,13 +545,17 @@ async function deletarPerfil(perfil: any) {
             + Adicionar {abaPrincipal === "MANGA" ? "Mangá" : "Anime"}
           </button>
 
-          {/* ACESSAR PERFIL */}
-          <div onClick={() => window.location.href = '/perfil'} className="group cursor-pointer flex flex-col items-center gap-2" title="Configurações do Hunter">
-            <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-3xl border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg`}>
-              {perfilAtivo.avatar}
-            </div>
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter group-hover:text-white transition-colors">Configurações</span>
-          </div>
+          {/* --- [AVATAR NO HEADER DA ESTANTE] --- */}
+<div onClick={() => window.location.href = '/perfil'} className="group cursor-pointer flex flex-col items-center gap-2" title="Configurações do Hunter">
+  <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center overflow-hidden border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg`}>
+    {perfilAtivo.avatar?.startsWith('http') ? (
+      <img src={perfilAtivo.avatar} className="w-full h-full object-cover" alt="" />
+    ) : (
+      <span className="text-3xl">{perfilAtivo.avatar || "👤"}</span>
+    )}
+  </div>
+  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-tighter group-hover:text-white transition-colors">Configurações</span>
+</div>
         </div>
       </header>
 
