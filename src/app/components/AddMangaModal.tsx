@@ -109,7 +109,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
 
     if (!error) {
       try {
-        const { data: perfil } = await supabase.from("perfis").select("anilist_token").eq("name_original", usuarioAtual).single();
+        const { data: perfil } = await supabase.from("perfis").select("anilist_token").eq("nome_original", usuarioAtual).single();
         if (perfil?.anilist_token) {
           await fetch('/api/anilist/sync', {
             method: 'POST',
