@@ -33,7 +33,7 @@ export default function ProfileSelection({
 }: ProfileSelectionProps) {
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-700">
-      <h1 className="text-4xl font-black mb-16 uppercase tracking-tighter text-white">Escolha seu Perfil</h1>
+      <h1 className="text-4xl font-black mb-16 uppercase tracking-tighter text-white italic">Escolha seu Perfil</h1>
       
       <div className="flex flex-wrap justify-center gap-10">
         {perfis.map(p => {
@@ -46,9 +46,23 @@ export default function ProfileSelection({
               className="flex flex-col items-center gap-4 cursor-pointer group"
               style={p.cor_tema?.startsWith('#') ? { '--aura': p.cor_tema } as React.CSSProperties : {}}
             >
-              <div className={`w-40 h-40 bg-zinc-900 rounded-[3rem] flex items-center justify-center text-7xl border-4 border-zinc-800 group-hover:${auraP.border} transition-all duration-500 shadow-2xl`}>
-                {p.avatar}
+              {/* ✅ CORREÇÃO: AVATAR INTELIGENTE (LINK OU EMOJI) */}
+              <div className={`w-40 h-40 bg-zinc-900 rounded-[3rem] flex items-center justify-center overflow-hidden border-4 border-zinc-800 transition-all duration-500 shadow-2xl group-hover:scale-105 group-hover:${auraP.border}`}>
+                {p.avatar?.startsWith('http') ? (
+                  <img 
+                    src={p.avatar} 
+                    className="w-full h-full object-cover" 
+                    alt={p.nome_exibicao}
+                    onError={(e) => {
+                      // Fallback caso a imagem quebre
+                      (e.target as HTMLImageElement).src = "https://i.imgur.com/8Km9t4S.png";
+                    }}
+                  />
+                ) : (
+                  <span className="text-7xl">{p.avatar || "👤"}</span>
+                )}
               </div>
+
               <span className="font-bold uppercase text-zinc-500 group-hover:text-white tracking-widest transition-colors">
                 {p.nome_exibicao}
               </span>
@@ -58,10 +72,10 @@ export default function ProfileSelection({
 
         {/* PERFIL ADMINISTRADOR */}
         <div onClick={() => setPinAdminAberto(true)} className="flex flex-col items-center gap-4 cursor-pointer group">
-          <div className="w-40 h-40 bg-zinc-900 border-4 border-dashed border-zinc-700 rounded-[3rem] flex items-center justify-center text-7xl group-hover:border-yellow-500 group-hover:bg-yellow-500/5 transition-all duration-500">
+          <div className="w-40 h-40 bg-zinc-900 border-4 border-dashed border-zinc-700 rounded-[3rem] flex items-center justify-center text-7xl group-hover:border-yellow-500 group-hover:bg-yellow-500/5 transition-all duration-500 group-hover:scale-105">
             ⚙️
           </div>
-          <span className="font-bold uppercase text-zinc-700 group-hover:text-yellow-500 text-xs tracking-tighter transition-colors">
+          <span className="font-bold uppercase text-zinc-700 group-hover:text-yellow-500 text-[10px] tracking-widest transition-colors">
             Administrador
           </span>
         </div>
@@ -76,16 +90,22 @@ export default function ProfileSelection({
               autoFocus 
               type="password" 
               maxLength={4} 
-              className="bg-black border border-zinc-700 rounded-2xl w-full py-5 text-center text-4xl text-white outline-none mb-6 focus:border-white transition-all font-mono" 
+              className="bg-black border border-zinc-700 rounded-2xl w-full py-5 text-center text-4xl text-white outline-none mb-6 focus:border-white transition-all font-mono tracking-[0.5em]" 
               value={pinDigitado} 
               onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} 
               onKeyDown={(e) => e.key === 'Enter' && confirmarPin()} 
             />
             <button 
               onClick={confirmarPin} 
-              className="w-full py-4 bg-white text-black rounded-xl font-black uppercase hover:bg-zinc-200 transition-all active:scale-95"
+              className="w-full py-4 bg-white text-black rounded-xl font-black uppercase hover:bg-zinc-200 transition-all active:scale-95 text-xs tracking-widest"
             >
               Aceder Perfil
+            </button>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-6 text-[9px] text-zinc-600 hover:text-white uppercase font-black tracking-widest"
+            >
+              Cancelar
             </button>
           </div>
         </div>
