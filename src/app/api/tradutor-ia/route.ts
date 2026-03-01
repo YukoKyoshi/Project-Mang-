@@ -3,12 +3,18 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const { termo } = await request.json();
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
+
+    // 1. Verifica se a chave existe
+    if (!apiKey) {
+      console.error("❌ ERRO: GROQ_API_KEY não configurada no servidor.");
+      return NextResponse.json({ resultado: termo }); // Retorna o termo original para não travar a busca
+    }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -16,18 +22,29 @@ export async function POST(request: Request) {
         messages: [
           { 
             role: "system", 
-            content: "Você é um tradutor especializado em cultura pop. Converta termos de busca de animes/mangás em português para seus nomes oficiais em inglês ou romaji. Responda APENAS o nome oficial. Exemplo: 'Caderno da morte' -> 'Death Note'." 
+            content: "Você é um tradutor. Converta nomes de animes/mangás do português para o nome oficial em inglês/romaji. Responda APENAS o nome. Ex: 'Caderno da morte' -> 'Death Note'." 
           },
           { role: "user", content: termo }
         ],
-        temperature: 0.1
+        temperature: 0.2
       })
     });
 
     const data = await response.json();
-    const resultado = data.choices[0]?.message?.content?.trim();
-    return NextResponse.json({ resultado });
+
+    // 2. Verifica se a resposta do Groq é válida
+    if (data.choices && data.choices[0]?.message?.content) {
+      const resultado = data.choices[0].message.content.trim();
+      return NextResponse.json({ resultado });
+    } else {
+      console.error("⚠️ Groq retornou um formato inesperado ou erro:", data);
+      return NextResponse.json({ resultado: termo }); // Fallback para o termo original
+    }
+
   } catch (error) {
-    return NextResponse.json({ error: "Erro no Groq" }, { status: 500 });
+    console.error("🚨 Erro crítico na Rota de IA:", error);
+    // Em caso de erro total, retornamos o termo original para a busca do AniList tentar a sorte
+    const { termo } = await request.json().catch(() => ({ termo: "" }));
+    return NextResponse.json({ resultado: termo });
   }
 }
