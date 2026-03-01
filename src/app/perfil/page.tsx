@@ -102,6 +102,42 @@ export default function PerfilPage() {
       window.URL.revokeObjectURL(url);
     } catch (err) { alert("Falha ao gerar backup."); }
   }
+    // --- [SESSÃO: IMPORTAR BACKUP] ---
+  async function importarBiblioteca(event: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = event.target.files?.[0];
+    if (!arquivo || !usuarioAtivo) return;
+
+    const confirmar = confirm("⚠️ Isso irá adicionar as obras do backup à sua estante atual. Deseja prosseguir?");
+    if (!confirmar) return;
+
+    const leitor = new FileReader();
+    leitor.onload = async (e) => {
+      try {
+        const conteudo = JSON.parse(e.target?.result as string);
+        const { mangas, animes } = conteudo.biblioteca;
+
+        // Preparamos os dados garantindo que o ID seja novo e o usuário seja o atual
+        const formatarObra = (obra: any) => {
+          const { id, ...resto } = obra; // Removemos o ID antigo para não dar conflito
+          return { ...resto, usuario: usuarioAtivo };
+        };
+
+        if (mangas?.length > 0) {
+          await supabase.from("mangas").insert(mangas.map(formatarObra));
+        }
+        
+        if (animes?.length > 0) {
+          await supabase.from("animes").insert(animes.map(formatarObra));
+        }
+
+        alert("✨ Sincronização concluída! Sua estante foi restaurada.");
+        carregarDados(); // Recarrega os números na tela
+      } catch (err) {
+        alert("❌ Erro ao ler o arquivo de backup. Verifique se o formato está correto.");
+      }
+    };
+    leitor.readAsText(arquivo);
+  }
 
   // ==========================================
   // [SESSÃO 4] - LÓGICA DE TROFÉUS
@@ -197,19 +233,30 @@ export default function PerfilPage() {
           </div>
         </div>
 
-        {/* ✅ BOTÕES DE GERENCIAMENTO */}
-        <div className="w-full grid grid-cols-2 gap-4 mt-8">
-          <button 
-            onClick={exportarBiblioteca}
-            className={`py-4 rounded-xl border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-all flex items-center justify-center gap-2 group hover:border-white/20 hover:text-white`}
-          >
-            <span className="text-sm group-hover:scale-125 transition-transform">💾</span>
-            Backup .JSON
-          </button>
+        {/* ✅ BOTÕES DE GERENCIAMENTO (SISTEMA DE BACKUP COMPLETO) */}
+        <div className="w-full flex flex-col gap-3 mt-8">
+          <div className="grid grid-cols-2 gap-3">
+            {/* Exportar */}
+            <button 
+              onClick={exportarBiblioteca}
+              className="py-4 rounded-xl border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-all flex items-center justify-center gap-2 group hover:border-white/20 hover:text-white"
+            >
+              <span className="text-sm group-hover:scale-125 transition-transform">💾</span>
+              Exportar
+            </button>
 
+            {/* Importar (Botão com Input Escondido) */}
+            <label className="py-4 rounded-xl border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-all flex items-center justify-center gap-2 group hover:border-white/20 hover:text-white cursor-pointer">
+              <span className="text-sm group-hover:scale-125 transition-transform">📥</span>
+              Importar
+              <input type="file" accept=".json" onChange={importarBiblioteca} className="hidden" />
+            </label>
+          </div>
+
+          {/* Sair do Perfil */}
           <button 
             onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }}
-            className="py-4 rounded-xl border border-red-500/20 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500 hover:text-white transition-all"
+            className="w-full py-4 rounded-xl border border-red-500/20 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500 hover:text-white transition-all"
           >
             SAIR DO PERFIL
           </button>
