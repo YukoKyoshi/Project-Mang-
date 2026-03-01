@@ -226,6 +226,33 @@ export default function PerfilPage() {
                  </div>
                  <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
               </div>
+
+              {/* ✅ FIX: BOTÃO DO ANILIST RESTAURADO EMBAIXO DAS STATS */}
+              <div className="col-span-2 mt-2">
+                {dadosPerfil.anilist_token ? (
+                  <div className="bg-blue-500/10 border border-blue-500/30 p-5 rounded-3xl flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <span className="text-2xl">🌐</span>
+                      <div>
+                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">AniList Conectado</p>
+                        <p className="text-[8px] text-zinc-500 uppercase mt-1">Sincronização Ativa na Estante</p>
+                      </div>
+                    </div>
+                    <span className="text-blue-500 text-xl font-black">✅</span>
+                  </div>
+                ) : (
+                  <a 
+                    /* ⚠️ IMPORTANTE: Troque o SEU_CLIENT_ID_AQUI pelo ID do seu App no AniList, se usar OAuth direto */
+                    href="https://anilist.co/api/v2/oauth/authorize?client_id=SEU_CLIENT_ID_AQUI&response_type=token" 
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full bg-blue-600 text-white p-5 rounded-3xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-blue-600/20"
+                  >
+                    <span className="text-2xl">🔗</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Logar e Sincronizar com AniList</span>
+                  </a>
+                )}
+              </div>
             </div>
           )}
 
