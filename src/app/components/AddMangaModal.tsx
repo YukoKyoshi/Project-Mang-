@@ -39,24 +39,18 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
 
   // --- MOTOR DE BUSCA S+ (CACHE -> GROQ -> ANILIST) ---
   useEffect(() => {
-if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
-  
-  const t = setTimeout(async () => {
-    setBuscando(true);
-    try {
-      let termoFinal = termoAnilist;
+// Só pesquisa se tiver mais de 3 letras
+    if (termoAnilist.trim().length < 3) { 
+      setResultadosAnilist([]); 
+      return; 
+    }
+    
+    const t = setTimeout(async () => {
+      setBuscando(true);
+      try {
+        let termoFinal = termoAnilist;
 
-      // 🔍 CAMADA 1: CACHE NO SUPABASE
-      const { data: cacheHit } = await supabase
-        .from('search_cache')
-        .select('resultado_ia')
-        .ilike('termo_original', termoAnilist)
-        .maybeSingle();
-
-      if (cacheHit) {
-        termoFinal = cacheHit.resultado_ia;
-      } else {
-        // 🧠 CAMADA 2: MOTOR GROQ (Substituindo Gemini)
+        // 🧠 1. Tradução via Groq
         const resIA = await fetch('/api/tradutor-ia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -65,48 +59,52 @@ if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
         
         const jsonIA = await resIA.json();
         
-        // ⚠️ CAMADA DE ERRO: Se a Groq responder com erro, avisamos o Hunter
-        if (jsonIA.resultado.includes('⚠️')) {
-           console.error(jsonIA.resultado);
-           // Opcional: Mostrar o erro na tela temporariamente
-           setTermoAnilist(prev => prev + " (Erro na IA)"); 
-        } else {
+        if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
           termoFinal = jsonIA.resultado;
-          // 💾 SALVA NO CACHE
-          await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
         }
+
+        // 🎯 2. Busca no AniList (GraphQL)
+        const res = await fetch("https://graphql.anilist.co", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          body: JSON.stringify({ 
+            query: `query ($search: String, $type: MediaType) { 
+              Page(perPage: 5) { 
+                media(search: $search, type: $type) { 
+                  id 
+                  title { romaji english } 
+                  coverImage { large } 
+                  chapters 
+                  episodes 
+                  description 
+                } 
+              } 
+            }`,
+            variables: { search: termoFinal, type: abaPrincipal }
+          })
+        });
+
+        // Se o AniList barrar por excesso de requests (429)
+        if (res.status === 429) {
+          console.error("AniList Rate Limit atingido.");
+          return;
+        }
+
+        const json = await res.json();
+        setResultadosAnilist(json.data?.Page?.media || []);
+
+      } catch (err) { 
+        console.error("Erro Crítico na busca:", err); 
+      } finally { 
+        setBuscando(false); 
       }
-
-      // 🎯 CAMADA 3: ANILIST (Onde a busca final acontece)
-      const res = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
-          variables: { search: termoFinal, type: abaPrincipal }
-        })
-      });
-      const json = await res.json();
-      
-      const formatados = json.data?.Page?.media.map((m: any) => ({
-        id: m.id,
-        titulo: m.title.romaji || m.title.english,
-        capa: m.coverImage.large,
-        total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-        sinopse: m.description || ""
-      })) || [];
-
-      setResultadosAnilist(formatados);
-
-    } catch (err: any) { 
-      console.error("Erro Crítico:", err); 
-      alert("Erro no Motor S+: " + err.message);
-    } finally { 
-      setBuscando(false); 
-    }
-  }, 1200); 
-  return () => clearTimeout(t);
-}, [termoAnilist, abaPrincipal]);
+    }, 1000); // Aguarda 1 segundo após parar de digitar para não sobrecarregar
+    
+    return () => clearTimeout(t);
+  }, [termoAnilist, abaPrincipal]);
   
   // (As funções traduzirSinopse e salvarObraFinal permanecem as mesmas que você enviou)
   async function traduzirSinopse() {
