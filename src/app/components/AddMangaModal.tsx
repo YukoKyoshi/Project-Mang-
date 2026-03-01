@@ -31,28 +31,20 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   // --- MOTOR DE BUSCA S+ (I.A. + ANILIST) ---
   useEffect(() => {
     if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
-    
     const t = setTimeout(async () => {
       setBuscando(true);
       try {
         let termoFinal = termoAnilist;
-
-        // ✅ 1. CONSULTA A I.A. PARA TRADUÇÃO/OTIMIZAÇÃO (Ex: "Caderno da morte" -> "Death Note")
         const resIA = await fetch('/api/tradutor-ia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ termo: termoAnilist })
         });
-        
         if (resIA.ok) {
           const jsonIA = await resIA.json();
-          // Se a IA retornar algo válido, usamos como busca principal
-          if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
-            termoFinal = jsonIA.resultado;
-          }
+          console.log(`🧠 Motor S+: "${termoAnilist}" -> "${jsonIA.resultado}"`);
+          if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) termoFinal = jsonIA.resultado;
         }
-
-        // 2. BUSCA NO ANILIST COM O TERMO OTIMIZADO
         const res = await fetch("https://graphql.anilist.co", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -63,12 +55,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         });
         const json = await res.json();
         setResultadosAnilist(json.data?.Page?.media || []);
-
-      } catch (err) { 
-        console.error("Erro no Motor S+:", err); 
-      } finally { 
-        setBuscando(false); 
-      }
+      } catch (err) { console.error(err); } finally { setBuscando(false); }
     }, 1200); 
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
@@ -86,24 +73,12 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     } catch { alert("Erro na tradução."); } finally { setTraduzindo(false); }
   }
 
-  // --- SALVAR NA ESTANTE ---
   async function salvarObraFinal() {
     if (!usuarioAtual) return;
     setSalvando(true);
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
-
-    const { error } = await supabase.from(tabelaDb).insert([{
-      ...novoManga,
-      usuario: usuarioAtual,
-      ultima_leitura: new Date().toISOString()
-    }]);
-
-    if (!error) {
-      aoSalvar(novoManga);
-      fechar();
-    } else {
-      alert("Erro ao salvar no banco de dados.");
-    }
+    const { error } = await supabase.from(tabelaDb).insert([{ ...novoManga, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() }]);
+    if (!error) { aoSalvar(novoManga); fechar(); }
     setSalvando(false);
   }
 
@@ -144,7 +119,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
           </div>
         ) : (
           <div className="space-y-8 animate-in slide-in-from-bottom-6 duration-500">
-            {/* ✅ BOX DE OBRA SELECIONADA (VISUAL APROVADO) */}
             <div className="flex gap-6 p-6 bg-zinc-900/50 rounded-3xl border border-zinc-800">
               <img src={novoManga.capa} className="w-28 h-40 object-cover rounded-2xl shadow-2xl" alt="" />
               <div className="flex-1">
@@ -160,7 +134,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               </div>
             </div>
 
-            {/* ✅ RETORNO DOS CAMPOS PERDIDOS (CONFORME SOLICITADO) */}
+            {/* ✅ CAMPOS DE PROGRESSO E STATUS RESTAURADOS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">
