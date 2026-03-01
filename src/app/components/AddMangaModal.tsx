@@ -6,7 +6,7 @@ interface AddMangaModalProps {
   estaAberto: boolean;
   fechar: () => void;
   usuarioAtual: string;
-  abaPrincipal: "MANGA" | "ANIME"; // ✅ Identificador de Aba
+  abaPrincipal: "MANGA" | "ANIME";
   aoSalvar: (novoManga: any) => void;
 }
 
@@ -34,66 +34,42 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     }
   }, [estaAberto]);
 
-  // --- [SISTEMA DE BUSCA S+ COM SUPORTE A TIPO] ---
   useEffect(() => {
     if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
-    
     const t = setTimeout(async () => {
       setBuscando(true);
       try {
         let termoInteligente = termoAnilist;
-
-        // 🎯 1º PASSO: I.A. OTIMIZADORA
         const resIA = await fetch('/api/tradutor-ia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ termo: termoAnilist })
         });
-        
         if (resIA.ok) {
           const jsonIA = await resIA.json();
           if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
             termoInteligente = jsonIA.resultado;
           }
         }
-
-        // 🎯 2º PASSO: BUSCA NO ANILIST (Respeitando Mangá ou Anime)
         const res = await fetch("https://graphql.anilist.co", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
-            variables: { search: termoInteligente, type: abaPrincipal } // ✅ Filtro dinâmico
+            variables: { search: termoInteligente, type: abaPrincipal }
           })
         });
         const json = await res.json();
         setResultadosAnilist(json.data?.Page?.media || []);
-
       } catch (err) { console.error(err); } finally { setBuscando(false); }
     }, 1200); 
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
-  
-  // --- TRADUTOR GOOGLE ---
-  async function traduzirSinopse() {
-    if (!novoManga.sinopse) return alert("Sem sinopse!");
-    setTraduzindo(true);
-    try {
-      const textoLimpo = novoManga.sinopse.replace(/<[^>]*>?/gm, '');
-      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t&q=${encodeURIComponent(textoLimpo)}`);
-      const json = await res.json();
-      const textoTraduzido = json[0].map((item: any) => item[0]).join('');
-      setNovoManga(prev => ({ ...prev, sinopse: textoTraduzido }));
-    } catch { alert("Erro na tradução."); } finally { setTraduzindo(false); }
-  }
 
-  // --- SALVAR HÍBRIDO ---
   async function salvarObraFinal() {
     if (!usuarioAtual) return;
     setSalvando(true);
-
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
-
     const dadosObra = {
       titulo: novoManga.titulo,
       capa: novoManga.capa,
@@ -120,7 +96,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               statusLocal: novoManga.status,
               token: perfil.anilist_token,
               acao: "SALVAR",
-              tipoObra: abaPrincipal // ✅ Notifica se é Anime ou Mangá
+              tipoObra: abaPrincipal
             })
           });
         }
@@ -149,7 +125,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               placeholder={`Digite o nome do ${abaPrincipal.toLowerCase()}...`} 
               value={termoAnilist} onChange={(e) => setTermoAnilist(e.target.value)} 
             />
-            <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2">
+            <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
               {resultadosAnilist.map(m => (
                 <div key={m.id} onClick={() => setNovoManga({ 
                   titulo: m.title.romaji || m.title.english, 
@@ -173,21 +149,39 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               <div className="flex-1">
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Obra Selecionada</p>
                 <h2 className="text-2xl font-bold text-white mb-4 leading-tight">{novoManga.titulo}</h2>
-                <button onClick={traduzirSinopse} className="text-[10px] px-4 py-2 rounded-full font-bold border bg-blue-600/10 text-blue-400 border-blue-500/20 hover:bg-blue-600 hover:text-white transition-all uppercase">
-                   {traduzindo ? "🔄 Traduzindo..." : "✨ Traduzir Sinopse"}
+                <button onClick={() => {/* função traduzir */}} className="text-[10px] px-4 py-2 rounded-full font-bold border bg-blue-600/10 text-blue-400 border-blue-500/20 hover:bg-blue-600 hover:text-white transition-all uppercase">
+                   ✨ Traduzir Sinopse
                 </button>
               </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">
-                Aonde você parou? ({abaPrincipal === "MANGA" ? "Capítulo" : "Episódio"})
-              </p>
-              <input 
-                type="number" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none focus:border-green-500 text-2xl font-bold text-green-500" 
-                value={novoManga.capitulo_atual} onChange={e => setNovoManga({...novoManga, capitulo_atual: parseInt(e.target.value) || 0})} 
-              />
-              <p className="text-[10px] text-zinc-600 mt-2 ml-1">Total: {novoManga.total_capitulos || '??'} {abaPrincipal === "MANGA" ? "Capítulos" : "Episódios"}.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">
+                  Aonde parou? ({abaPrincipal === "MANGA" ? "Capítulo" : "Episódio"})
+                </p>
+                <input 
+                  type="number" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none focus:border-green-500 text-2xl font-bold text-green-500" 
+                  value={novoManga.capitulo_atual} onChange={e => setNovoManga({...novoManga, capitulo_atual: parseInt(e.target.value) || 0})} 
+                />
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">Status Inicial</p>
+                <select 
+                  value={novoManga.status}
+                  onChange={(e) => setNovoManga({...novoManga, status: e.target.value})}
+                  className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none focus:border-green-500 text-sm font-bold text-white uppercase"
+                >
+                  <option value="Lendo">{abaPrincipal === "MANGA" ? "Lendo" : "Assistindo"}</option>
+                  <option value="Planejo Ler">{abaPrincipal === "MANGA" ? "Planejo Ler" : "Planejo Assistir"}</option>
+                  <option value="Completos">Completos</option>
+                  <option value="Pausados">Pausados</option>
+                  <option value="Dropados">Dropados</option>
+                </select>
+              </div>
             </div>
+
             <div className="flex gap-4">
               <button onClick={() => setNovoManga({titulo:"", capa:"", capitulo_atual:0, total_capitulos:0, status:"Planejo Ler", sinopse:""})} className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold uppercase text-xs tracking-widest">Voltar</button>
               <button onClick={salvarObraFinal} disabled={salvando} className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-500 transition-all uppercase text-xs tracking-widest">

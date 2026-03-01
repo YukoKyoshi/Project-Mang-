@@ -429,9 +429,25 @@ async function deletarPerfil(perfil: any) {
   // ✅ O Radar da Lista Ativa (Mangás ou Animes)
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : animes;
 
+  // --- SUB-SESSÃO: TRADUTOR DE FILTROS ---
+  const filtrosManga = ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"];
+  const filtrosAnime = ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
+  const filtrosAtuais = abaPrincipal === "MANGA" ? filtrosManga : filtrosAnime;
+
+  // Lógica de filtragem com tradução para Anime
   const obrasFiltradas = listaExibicao
-    .filter(m => (filtroAtivo === "Todos" ? true : m.status === filtroAtivo))
-    .filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
+     .filter(m => {
+    if (filtroAtivo === "Todos") return true;
+
+    // Se estivermos em Animes, traduzimos o botão da tela para o valor do Banco
+    if (abaPrincipal === "ANIME") {
+      if (filtroAtivo === "Assistindo") return m.status === "Lendo";
+      if (filtroAtivo === "Planejo Assistir") return m.status === "Planejo Ler";
+    }
+
+    return m.status === filtroAtivo;
+  })
+  .filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
   return (
     <main className="min-h-screen bg-[#080808] p-6 md:p-12 text-white animate-in fade-in duration-700" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
@@ -479,30 +495,30 @@ async function deletarPerfil(perfil: any) {
         <button 
           onClick={() => { setAbaPrincipal("MANGA"); setFiltroAtivo("Lendo"); }} 
           className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === "MANGA" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}
-        >
+     >
           📚 Estante de Mangás
-        </button>
-        <button 
-          onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Lendo"); }} 
-          className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}
-        >
+     </button>
+     <button 
+       onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Assistindo"); }} 
+       className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}
+    >
           📺 Estante de Animes
-        </button>
-      </div>
+    </button>
+  </div>
 
       {/* BARRA DE FILTROS E BUSCA */}
       {config.mostrar_busca && (
         <section className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
           <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800 w-full md:w-auto overflow-x-auto">
-            {["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"].map(f => (
-              <button
-                key={f}
-                onClick={() => setFiltroAtivo(f)}
-                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${filtroAtivo === f ? `${aura.bg} text-black` : 'text-zinc-500 hover:text-white'}`}
-              >
-                {f}
-              </button>
-            ))}
+          {filtrosAtuais.map(f => (
+            <button
+              key={f}
+              onClick={() => setFiltroAtivo(f)}
+              className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${filtroAtivo === f ? `${aura.bg} text-black` : 'text-zinc-500 hover:text-white'}`}
+            >
+              {f}
+            </button>
+   ))}
           </div>
           
           <input 
