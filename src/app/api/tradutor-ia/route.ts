@@ -5,11 +5,7 @@ export async function POST(request: Request) {
     const { termo } = await request.json();
     const apiKey = process.env.GROQ_API_KEY;
 
-    // 1. Verifica se a chave existe
-    if (!apiKey) {
-      console.error("❌ ERRO: GROQ_API_KEY não configurada no servidor.");
-      return NextResponse.json({ resultado: termo }); // Retorna o termo original para não travar a busca
-    }
+    if (!apiKey) return NextResponse.json({ resultado: termo });
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -22,29 +18,18 @@ export async function POST(request: Request) {
         messages: [
           { 
             role: "system", 
-            content: "Você é um tradutor. Converta nomes de animes/mangás do português para o nome oficial em inglês/romaji. Responda APENAS o nome. Ex: 'Caderno da morte' -> 'Death Note'." 
+            content: "Você é um tradutor de elite de cultura pop. Converta nomes de animes/mangás do português para o nome oficial em inglês ou romaji. Responda APENAS o nome. Ex: 'Menino de borracha' -> 'One Piece', 'Caderno da morte' -> 'Death Note'." 
           },
           { role: "user", content: termo }
         ],
-        temperature: 0.2
+        temperature: 0.1 // Precisão máxima
       })
     });
 
     const data = await response.json();
-
-    // 2. Verifica se a resposta do Groq é válida
-    if (data.choices && data.choices[0]?.message?.content) {
-      const resultado = data.choices[0].message.content.trim();
-      return NextResponse.json({ resultado });
-    } else {
-      console.error("⚠️ Groq retornou um formato inesperado ou erro:", data);
-      return NextResponse.json({ resultado: termo }); // Fallback para o termo original
-    }
-
+    const resultado = data.choices?.[0]?.message?.content?.trim() || termo;
+    return NextResponse.json({ resultado });
   } catch (error) {
-    console.error("🚨 Erro crítico na Rota de IA:", error);
-    // Em caso de erro total, retornamos o termo original para a busca do AniList tentar a sorte
-    const { termo } = await request.json().catch(() => ({ termo: "" }));
-    return NextResponse.json({ resultado: termo });
+    return NextResponse.json({ resultado: "Erro" }, { status: 200 });
   }
 }
