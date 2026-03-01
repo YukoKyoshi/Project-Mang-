@@ -9,7 +9,7 @@ interface ResultadoBusca {
   capa: string;
   total: number;
   sinopse: string;
-  fonte: "AniList" | "MyAnimeList";
+  fonte: "AniList" | "MyAnimeList" | "TMDB";
 }
 
 interface AddMangaModalProps {
@@ -73,20 +73,40 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         // 3. SEPARAÇÃO DO MOTOR: FILMES VS OTAKU
         if (abaPrincipal === "FILME") {
           // 🎬 MOTOR TMDB (FILMES)
-          // ⚠️ Crie uma conta grátis no themoviedb.org para pegar sua API Key depois!
-          const TMDB_API_KEY = "SUA_CHAVE_TMDB_AQUI"; // Substitua depois pela sua chave real
-          const resTmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
-          const jsonTmdb = await resTmdb.json();
+          // ⚠️ ATENÇÃO: COLOQUE SUA CHAVE GERADA NO SITE THEMOVIEDB.ORG AQUI 👇
+          const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
           
-          if (jsonTmdb.results) {
-            setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
-              id: m.id, 
-              titulo: m.title, 
-              capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://i.imgur.com/8Km9t4S.png",
-              total: 1, // Filmes são peça única (1)
-              sinopse: m.overview || "Sem sinopse em português.", 
-              fonte: "TMDB" as any
-            })));
+          if (TMDB_API_KEY === "SUA_CHAVE_TMDB_AQUI" || !TMDB_API_KEY) {
+            alert("⚠️ Hunter, você esqueceu de colocar a API Key do TMDB no código!");
+            setBuscando(false);
+            return;
+          }
+
+          try {
+            const resTmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
+            
+            if (!resTmdb.ok) {
+              console.error("Erro TMDB. Status:", resTmdb.status);
+              throw new Error("Falha ao comunicar com TMDB.");
+            }
+
+            const jsonTmdb = await resTmdb.json();
+            
+            if (jsonTmdb.results && jsonTmdb.results.length > 0) {
+              setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
+                id: m.id, 
+                titulo: m.title, 
+                capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://i.imgur.com/8Km9t4S.png",
+                total: 1, 
+                sinopse: m.overview || "Sem sinopse em português.", 
+                fonte: "TMDB"
+              })));
+            } else {
+              setResultados([]); // Nenhum filme encontrado
+            }
+          } catch (error) {
+            console.error("Erro no TMDB:", error);
+            setResultados([]);
           }
         } else {
           // 📚 MOTOR ANILIST / MYANIMELIST (MANGÁS E ANIMES)
