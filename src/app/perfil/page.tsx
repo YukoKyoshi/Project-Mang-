@@ -1,18 +1,18 @@
 "use client";
 
 // ==========================================
-// [SESSÃO 1] - IMPORTAÇÕES E TEMAS
+// [SESSÃO 1] - IMPORTAÇÕES E TEMAS (AURA GLOBAL)
 // ==========================================
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const TEMAS = {
-  verde: { text: "text-green-500", border: "border-green-500", glow: "shadow-green-500/20" },
-  azul: { text: "text-blue-500", border: "border-blue-500", glow: "shadow-blue-500/20" },
-  roxo: { text: "text-purple-500", border: "border-purple-500", glow: "shadow-purple-500/20" },
-  laranja: { text: "text-orange-500", border: "border-orange-500", glow: "shadow-orange-500/20" },
-  custom: { text: "text-[var(--aura)]", border: "border-[var(--aura)]", glow: "shadow-[var(--aura)]/20" }
+  verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", glow: "shadow-green-500/20", btn: "bg-green-500/10 border-green-500/50 hover:bg-green-500 hover:text-black" },
+  azul: { bg: "bg-blue-500", text: "text-blue-500", border: "border-blue-500", glow: "shadow-blue-500/20", btn: "bg-blue-500/10 border-blue-500/50 hover:bg-blue-500 hover:text-black" },
+  roxo: { bg: "bg-purple-500", text: "text-purple-500", border: "border-purple-500", glow: "shadow-purple-500/20", btn: "bg-purple-500/10 border-purple-500/50 hover:bg-purple-500 hover:text-black" },
+  laranja: { bg: "bg-orange-500", text: "text-orange-500", border: "border-orange-500", glow: "shadow-orange-500/20", btn: "bg-orange-500/10 border-orange-500/50 hover:bg-orange-500 hover:text-black" },
+  custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", glow: "shadow-[var(--aura)]/20", btn: "bg-[var(--aura)]/10 border-[var(--aura)]/50 hover:bg-[var(--aura)] hover:text-black" }
 };
 
 export default function PerfilPage() {
@@ -25,14 +25,8 @@ export default function PerfilPage() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
-  // ✅ Como deve estar na Sessão 2
   const [dadosPerfil, setDadosPerfil] = useState({ 
-    nome: "", 
-    avatar: "", 
-    bio: "", 
-    tema: "azul", 
-    custom_color: "#3b82f6",
-    pin: "" // 🔑 Garante que o PIN comece vazio, mas exista no contrato
+    nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "" 
   });
   
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
@@ -40,7 +34,7 @@ export default function PerfilPage() {
     obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0 
   });
 
-  const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/20", efeito: "" });
+  const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40", efeito: "" });
 
   // ==========================================
   // [SESSÃO 3] - CORE LOGIC (SEGURANÇA E DADOS)
@@ -72,16 +66,11 @@ export default function PerfilPage() {
       });
 
       const t = all.length;
-      if (t >= 1000) setElo({ tier: "DIVINDADE", cor: "from-white via-cyan-200 to-white", glow: "shadow-white/50", efeito: "animate-pulse" });
-      else if (t >= 750) setElo({ tier: "LENDA VIVA", cor: "from-yellow-200 via-yellow-500 to-yellow-700", glow: "shadow-yellow-500/80", efeito: "animate-bounce-slow" });
-      else if (t >= 500) setElo({ tier: "DESAFIANTE", cor: "from-red-600 via-purple-600 to-blue-600", glow: "shadow-purple-500/60", efeito: "" });
-      else if (t >= 350) setElo({ tier: "GRÃO-MESTRE", cor: "from-red-500 to-red-900", glow: "shadow-red-500/50", efeito: "" });
-      else if (t >= 200) setElo({ tier: "MESTRE", cor: "from-purple-400 to-purple-900", glow: "shadow-purple-500/40", efeito: "" });
-      else if (t >= 120) setElo({ tier: "DIAMANTE", cor: "from-blue-400 to-indigo-600", glow: "shadow-blue-500/50", efeito: "" });
-      else if (t >= 70) setElo({ tier: "PLATINA", cor: "from-emerald-400 to-cyan-500", glow: "shadow-emerald-500/40", efeito: "" });
-      else if (t >= 40) setElo({ tier: "OURO", cor: "from-yellow-400 to-amber-600", glow: "shadow-yellow-500/30", efeito: "" });
-      else if (t >= 20) setElo({ tier: "PRATA", cor: "from-zinc-400 to-zinc-100", glow: "shadow-zinc-400/20", efeito: "" });
-      else setElo({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/10", efeito: "" });
+      if (t >= 1000) setElo({ tier: "DIVINDADE", cor: "from-white via-cyan-200 to-white", glow: "shadow-white/60 shadow-[0_0_40px_rgba(255,255,255,0.3)]", efeito: "animate-pulse" });
+      else if (t >= 500) setElo({ tier: "DESAFIANTE", cor: "from-red-600 via-purple-600 to-blue-600", glow: "shadow-purple-500/40", efeito: "" });
+      else if (t >= 200) setElo({ tier: "MESTRE", cor: "from-purple-400 to-purple-900", glow: "shadow-purple-500/30", efeito: "" });
+      else if (t >= 100) setElo({ tier: "DIAMANTE", cor: "from-blue-400 to-indigo-600", glow: "shadow-blue-500/20", efeito: "" });
+      else setElo({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/20", efeito: "" });
     }
 
     if (perfil) {
@@ -91,38 +80,28 @@ export default function PerfilPage() {
         bio: perfil.bio || "",
         tema: perfil.cor_tema || "azul",
         custom_color: perfil.custom_color || "#3b82f6",
-        pin: perfil.pin || "" // ✅ ADICIONE ESTA LINHA para resolver o erro 2345
+        pin: perfil.pin || "" 
       });
     }
     setCarregando(false);
   }
 
-  // ✅ CORREÇÃO 2: SALVAMENTO PERSISTENTE
   async function atualizarPerfil() {
     setSalvando(true);
     try {
-      // 💾 Salvando no Supabase (Isso garante que apareça na escolha de perfil e estantes)
       const { error } = await supabase.from("perfis").update({
         nome_exibicao: dadosPerfil.nome,
         avatar: dadosPerfil.avatar,
         cor_tema: dadosPerfil.tema,
         custom_color: dadosPerfil.custom_color,
-        pin: dadosPerfil.pin // ✅ PIN agora é persistente
+        pin: dadosPerfil.pin 
       }).eq("nome_original", usuarioAtivo);
-      
       if (error) throw error;
-
-      alert("✨ Hunter Sincronizado! As mudanças agora são globais.");
-      
-      // Força o recarregamento para que o tema e nome atualizem no cabeçalho e estantes
+      alert("✨ Hunter Sincronizado!");
       window.location.reload(); 
-    } catch (err: any) {
-      alert("❌ Erro ao sincronizar: " + err.message);
-    } finally {
-      setSalvando(false);
-    }
+    } catch (err: any) { alert("Erro: " + err.message); } finally { setSalvando(false); }
   }
-  // ✅ CORREÇÃO 5: BACKUP (EXPORT/IMPORT)
+
   async function exportarBiblioteca() {
     try {
       const { data: m } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
@@ -150,117 +129,114 @@ export default function PerfilPage() {
   }
 
   // ==========================================
-  // [SESSÃO 4] - 50 TROFÉUS (CORREÇÃO VISUAL)
+  // [SESSÃO 4] - 50 TROFÉUS ÚNICOS (GRID 5x10)
   // ==========================================
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
+
+  const iconesTrofeus = [
+    "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️",
+    "☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑",
+    "🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌",
+    "🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺",
+    "🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱"
+  ];
 
   const listaTrofeus = Array.from({ length: 50 }, (_, i) => {
     const id = i + 1;
     let check = false;
-    let icone = "🔒";
-    let nome = `Troféu ${id}`;
-    let desc = `Bloqueado: Requer mais progresso Hunter.`;
+    let nome = `Troféu Hunter ${id}`;
+    let desc = `Bloqueado: Requer Nível ${id * 2} de progresso.`;
 
-    if (id === 1) { nome = "Semente"; desc = "1 Obra"; icone = "🌱"; check = stats.obras >= 1; }
-    if (id === 2) { nome = "Viciado"; desc = "10 Obras"; icone = "🔥"; check = stats.obras >= 10; }
-    if (id === 3) { nome = "Maratona"; desc = "100 Caps"; icone = "🏃"; check = stats.caps >= 100; }
-    if (id === 4) { nome = "Vida Gasta"; desc = "10 Horas"; icone = "⏳"; check = stats.horasVida >= 10; }
-    if (id === 5) { nome = "Curador"; desc = "5 Favoritos"; icone = "💎"; check = stats.favs >= 5; }
-    // Gerador lógico para os demais
-    if (id > 5) { check = stats.obras >= (id * 5); icone = check ? "🎖️" : "🔒"; }
+    if (id === 1) { nome = "Semente"; desc = "Adicionou 1 obra"; check = stats.obras >= 1; }
+    else if (id === 2) { nome = "Viciado"; desc = "Adicionou 10 obras"; check = stats.obras >= 10; }
+    else if (id === 3) { nome = "Maratonista"; desc = "Leu 100 capítulos"; check = stats.caps >= 100; }
+    else if (id === 4) { nome = "Sem Tempo"; desc = "10 Horas assistidas"; check = stats.horasVida >= 10; }
+    else if (id === 5) { nome = "Curador"; desc = "Marcou 5 favoritos"; check = stats.favs >= 5; }
+    else { check = stats.obras >= (id * 3); }
     
-    return { id, nome, desc, icone, check };
+    return { id, nome, desc, icone: iconesTrofeus[i], check };
   });
 
-  // ✅ CORREÇÃO 4: RECOMPENSAS SEM CONFLITO
+  // Recompensas Funcionais
   const listaMissoes = [
-    { id: 1, titulo: "O Colecionador", obj: "Ter 100 obras", prog: stats.obras, meta: 100, rec: "Emblema Exclusivo" },
-    { id: 2, titulo: "Vida Eterna", obj: "1.000 Horas", prog: stats.horasVida, meta: 1000, rec: "Avatar Especial" },
-    { id: 3, titulo: "Alpha Hunter", obj: "Completar 50 Séries", prog: stats.finais, meta: 50, rec: "Fundo Animado" }
+    { id: 1, titulo: "Segurança Máxima", obj: "Fazer 1 Backup Local", prog: 1, meta: 1, rec: "🔓 Aura Pulsante" },
+    { id: 2, titulo: "Vida Eterna", obj: "500 Horas Assistidas", prog: stats.horasVida, meta: 500, rec: "🎥 Filtro Cinema" },
+    { id: 3, titulo: "Alpha Hunter", obj: "50 Séries Completas", prog: stats.finais, meta: 50, rec: "✨ Nome Dourado" }
   ];
 
-  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic">CARREGANDO HUB...</div>;
+  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic animate-pulse">CARREGANDO HUB...</div>;
 
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
       
-      {/* ✅ CORREÇÃO 1: BOTÕES SUPERIORES RESTAURADOS */}
+      {/* BOTÕES SUPERIORES */}
       <div className="fixed top-0 left-0 w-full p-6 md:p-10 flex justify-between items-center z-[110] pointer-events-none">
-        <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md border border-white/5">
-          ← Voltar à Estante
-        </Link>
-        <button 
-          onClick={() => setTelaCheia(!telaCheia)}
-          className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl"
-        >
+        <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md border border-white/5">← Voltar</Link>
+        <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl">
           {telaCheia ? "⊙ Vista Central" : "⛶ Tela Cheia"}
         </button>
       </div>
 
+      {/* CARD PRINCIPAL - ELO DITA O BRILHO */}
       <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-12 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ${elo.glow} ring-1 ring-white/10 ${elo.efeito} ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
-    
-{/* --- [IDENTIDADE VISUAL - AVATAR INTELIGENTE] --- */}
-<div className={`w-24 h-24 bg-zinc-950 rounded-[1.5rem] flex items-center justify-center overflow-hidden border-2 ${aura.border} shadow-lg mb-4`}>
-  {dadosPerfil.avatar.startsWith('http') ? (
-    <img 
-      src={dadosPerfil.avatar} 
-      className="w-full h-full object-cover" 
-      alt="Avatar do Hunter"
-      onError={(e) => {
-        // Caso o link quebre, ele volta para um emoji padrão
-        (e.target as HTMLImageElement).src = "https://i.imgur.com/8Km9t4S.png";
-      }}
-    />
-  ) : (
-    <span className="text-5xl">{dadosPerfil.avatar || "👤"}</span>
-  )}
-</div>
+        
+        {/* AVATAR INTELIGENTE */}
+        <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${aura.border} ${elo.glow} flex items-center justify-center`}>
+          {dadosPerfil.avatar?.startsWith('http') ? (
+            <img src={dadosPerfil.avatar} className="w-full h-full object-cover" alt="" onError={(e) => (e.target as HTMLImageElement).src = "https://i.imgur.com/8Km9t4S.png"} />
+          ) : (
+            <span className="text-5xl">{dadosPerfil.avatar || "👤"}</span>
+          )}
+        </div>
+
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic">{dadosPerfil.nome}</h1>
+        
+        {/* RANK/ELO: SOBERANO (OUTRA COISA) */}
         <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
 
-        {/* Navegação */}
+        {/* NAVEGAÇÃO: AURA GLOBAL (UMA COISA) */}
         <div className="flex flex-wrap gap-6 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
           {["STATUS", "TROFÉUS", "MISSÕES", "CONFIG"].map(aba => (
-            <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110" : 'text-zinc-600 hover:text-zinc-400'}`}>
+            <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110 drop-shadow-[0_0_8px_currentColor]" : 'text-zinc-600 hover:text-zinc-400'}`}>
               {aba}
             </button>
           ))}
         </div>
 
-        {/* Área de Conteúdo */}
+        {/* ÁREA DE CONTEÚDO */}
         <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2">
           
           {abaAtiva === "STATUS" && (
             <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in-95">
-              <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center">
+              <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center group hover:border-white/10 transition-all">
                 <span className="text-3xl font-black text-white italic">{stats.obras}</span>
                 <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Obras</span>
               </div>
-              <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center">
+              <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center group hover:border-white/10 transition-all">
                 <span className="text-3xl font-black text-white italic">{stats.caps}</span>
                 <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Progresso</span>
               </div>
               <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex items-center justify-between group">
                  <div>
                    <span className="text-2xl font-black text-white italic tracking-tighter">{stats.horasVida} HORAS</span>
-                   <p className="text-[7px] font-black text-zinc-500 uppercase mt-1 tracking-widest italic">Vida gasta assistindo kkkk</p>
+                   <p className="text-[7px] font-black text-zinc-500 uppercase mt-1 tracking-widest italic">Vida gasta assistindo</p>
                  </div>
                  <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
               </div>
             </div>
           )}
 
-          {/* ✅ CORREÇÃO 3: TROFÉUS OFUSCADOS */}
+          {/* 5 TROFÉUS POR FILEIRA - SCROLL VERTICAL APENAS */}
           {abaAtiva === "TROFÉUS" && (
-            <div className="grid grid-cols-5 gap-y-10 gap-x-2 justify-items-center animate-in fade-in slide-in-from-right-4">
+            <div className="grid grid-cols-5 gap-y-10 gap-x-2 justify-items-center animate-in fade-in slide-in-from-right-4 pb-10">
               {listaTrofeus.map(t => (
                 <div key={t.id} className="flex flex-col items-center group relative">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2 transition-all duration-700 
                     ${t.check ? aura.border + " " + aura.glow + " bg-black/40" : "border-zinc-800 opacity-10 grayscale blur-[1px]"}`}>
                     {t.icone}
                   </div>
-                  <div className="absolute -top-12 bg-black border border-white/10 px-3 py-2 rounded-xl text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-2xl">
-                    <p className={`${t.check ? 'text-green-500' : 'text-zinc-600'} uppercase mb-1 font-black`}>{t.nome}</p>
+                  <div className="absolute -top-12 bg-black border border-white/10 px-3 py-2 rounded-xl text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-2xl pointer-events-none">
+                    <p className={`${t.check ? aura.text : 'text-zinc-600'} uppercase mb-1 font-black`}>{t.nome}</p>
                     {t.desc}
                   </div>
                 </div>
@@ -277,60 +253,42 @@ export default function PerfilPage() {
                       <h4 className="text-xs font-black text-white uppercase italic">{m.titulo}</h4>
                       <p className="text-[8px] text-zinc-500 uppercase mt-1">{m.obj}</p>
                     </div>
-                    <span className="text-[9px] font-black text-blue-500">🎁 {m.rec}</span>
+                    <span className={`text-[9px] font-black ${aura.text}`}>🎁 {m.rec}</span>
                   </div>
                   <div className="w-full h-1 bg-black rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 transition-all" style={{ width: `${Math.min((m.prog/m.meta)*100, 100)}%` }} />
-                  </div>
+  {/* O aura.bg agora volta a existir e o erro some */}
+  <div className={`h-full ${aura.bg} transition-all duration-1000`} style={{ width: `${Math.min((m.prog/m.meta)*100, 100)}%` }} />
+</div>
                 </div>
               ))}
             </div>
           )}
 
           {abaAtiva === "CONFIG" && (
-            <div className="space-y-6 animate-in fade-in zoom-in-95">
-              {/* Nome e Avatar */}
+            <div className="space-y-6 animate-in fade-in zoom-in-95 pb-10">
+              <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
+              <input type="text" placeholder="URL Imagem Avatar" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
               <div className="grid grid-cols-1 gap-4">
-                <input type="text" placeholder="Nome de Caçador" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none focus:border-white/20" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
-                <input type="text" placeholder="URL do Avatar" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-white/20" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
+                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Código PIN (4 Dígitos)</label>
+                <input type="password" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} />
               </div>
-
-              {/* ✅ NOVO: Alteração de PIN */}
-              <div>
-                <label className="text-[8px] font-black text-zinc-500 uppercase mb-2 block tracking-widest">Código PIN de Acesso</label>
-                <input 
-                  type="password" 
-                  maxLength={4}
-                  placeholder="Ex: 1234" 
-                  className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center outline-none focus:border-white/20" 
-                  value={dadosPerfil.pin} 
-                  onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} 
-                />
-              </div>
-
-              {/* Temas e Cores */}
               <div className="grid grid-cols-2 gap-4">
                 <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
-                  <option value="azul">Azul Neon</option>
-                  <option value="verde">Verde Hacker</option>
-                  <option value="roxo">Roxo Galático</option>
-                  <option value="laranja">Laranja Fogo</option>
-                  <option value="custom">Personalizada</option>
+                  <option value="azul">Azul Neon</option> <option value="verde">Verde Hacker</option> <option value="roxo">Roxo Galático</option> <option value="laranja">Laranja Fogo</option> <option value="custom">Personalizada</option>
                 </select>
                 {dadosPerfil.tema === "custom" && <input type="color" className="w-full h-12 bg-black border border-white/5 rounded-xl cursor-pointer" value={dadosPerfil.custom_color} onChange={e => setDadosPerfil({...dadosPerfil, custom_color: e.target.value})} />}
               </div>
-
-              <button onClick={atualizarPerfil} disabled={salvando} className="w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-black hover:scale-[1.02] transition-all shadow-xl">
+              <button onClick={atualizarPerfil} disabled={salvando} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${aura.btn}`}>
                 {salvando ? "Sincronizando..." : "Sincronizar Hunter"}
               </button>
             </div>
           )}
         </div>
 
-        {/* ✅ CORREÇÃO 5: BOTÕES DE BACKUP RESTAURADOS */}
+        {/* BACKUP E LOGOUT */}
         <div className="w-full flex flex-col gap-3 mt-8">
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all flex items-center justify-center gap-2">💾 Exportar</button>
+            <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer">
               📥 Importar <input type="file" accept=".json" onChange={importarBiblioteca} className="hidden" />
             </label>
