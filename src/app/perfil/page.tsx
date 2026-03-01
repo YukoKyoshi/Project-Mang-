@@ -25,7 +25,6 @@ export default function PerfilPage() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
-  // ✅ Token do AniList adicionado aos estados
   const [dadosPerfil, setDadosPerfil] = useState({ 
     nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" 
   });
@@ -38,7 +37,7 @@ export default function PerfilPage() {
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40", efeito: "" });
 
   // ==========================================
-  // [SESSÃO 3] - CORE LOGIC (SEGURANÇA E DADOS)
+  // [SESSÃO 3] - CORE LOGIC E AUTOMAÇÃO ANILIST
   // ==========================================
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
@@ -46,7 +45,39 @@ export default function PerfilPage() {
     setUsuarioAtivo(hunter);
   }, []);
 
-  useEffect(() => { if (usuarioAtivo) carregarDados(); }, [usuarioAtivo]);
+  // ✅ NOVO: Capturador Automático de Token do AniList
+  useEffect(() => {
+    if (!usuarioAtivo) return;
+
+    // Escaneia a URL em busca do token retornado pelo AniList
+    const hash = window.location.hash;
+    if (hash.includes("access_token")) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get("access_token");
+
+      if (token) {
+        const salvarTokenAuto = async () => {
+          setSalvando(true);
+          const { error } = await supabase.from("perfis")
+            .update({ anilist_token: token })
+            .eq("nome_original", usuarioAtivo);
+
+          if (!error) {
+            setDadosPerfil(prev => ({ ...prev, anilist_token: token }));
+            alert("✅ Conta AniList conectada com sucesso!");
+            
+            // Apaga o rastro do token gigante da URL para segurança
+            window.history.replaceState(null, '', window.location.pathname);
+          } else {
+            alert("Erro ao conectar AniList: " + error.message);
+          }
+          setSalvando(false);
+        };
+        salvarTokenAuto();
+      }
+    }
+    carregarDados();
+  }, [usuarioAtivo]);
 
   async function carregarDados() {
     const { data: mangas } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
@@ -82,7 +113,7 @@ export default function PerfilPage() {
         tema: perfil.cor_tema || "azul",
         custom_color: perfil.custom_color || "#3b82f6",
         pin: perfil.pin || "",
-        anilist_token: perfil.anilist_token || "" // ✅ Token carregado
+        anilist_token: perfil.anilist_token || "" 
       });
     }
     setCarregando(false);
@@ -97,7 +128,7 @@ export default function PerfilPage() {
         cor_tema: dadosPerfil.tema,
         custom_color: dadosPerfil.custom_color,
         pin: dadosPerfil.pin,
-        anilist_token: dadosPerfil.anilist_token // ✅ Token salvo
+        anilist_token: dadosPerfil.anilist_token 
       }).eq("nome_original", usuarioAtivo);
       if (error) throw error;
       alert("✨ Hunter Sincronizado!");
@@ -132,7 +163,7 @@ export default function PerfilPage() {
   }
 
   // ==========================================
-  // [SESSÃO 4] - 50 TROFÉUS ÚNICOS (GRID 5x10)
+  // [SESSÃO 4] - HUB VISUAL
   // ==========================================
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
 
@@ -160,7 +191,6 @@ export default function PerfilPage() {
     return { id, nome, desc, icone: iconesTrofeus[i], check };
   });
 
-  // Recompensas Funcionais
   const listaMissoes = [
     { id: 1, titulo: "Segurança Máxima", obj: "Fazer 1 Backup Local", prog: 1, meta: 1, rec: "🔓 Aura Pulsante" },
     { id: 2, titulo: "Vida Eterna", obj: "500 Horas Assistidas", prog: stats.horasVida, meta: 500, rec: "🎥 Filtro Cinema" },
@@ -180,10 +210,8 @@ export default function PerfilPage() {
         </button>
       </div>
 
-      {/* CARD PRINCIPAL - ELO DITA O BRILHO */}
       <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-12 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ${elo.glow} ring-1 ring-white/10 ${elo.efeito} ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
         
-        {/* AVATAR INTELIGENTE */}
         <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${aura.border} ${elo.glow} flex items-center justify-center`}>
           {dadosPerfil.avatar?.startsWith('http') ? (
             <img src={dadosPerfil.avatar} className="w-full h-full object-cover" alt="" onError={(e) => (e.target as HTMLImageElement).src = "https://i.imgur.com/8Km9t4S.png"} />
@@ -194,10 +222,8 @@ export default function PerfilPage() {
 
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic">{dadosPerfil.nome}</h1>
         
-        {/* RANK/ELO */}
         <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
 
-        {/* NAVEGAÇÃO */}
         <div className="flex flex-wrap gap-6 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
           {["STATUS", "TROFÉUS", "MISSÕES", "CONFIG"].map(aba => (
             <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110 drop-shadow-[0_0_8px_currentColor]" : 'text-zinc-600 hover:text-zinc-400'}`}>
@@ -206,7 +232,6 @@ export default function PerfilPage() {
           ))}
         </div>
 
-        {/* ÁREA DE CONTEÚDO */}
         <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2">
           
           {abaAtiva === "STATUS" && (
@@ -219,7 +244,7 @@ export default function PerfilPage() {
                 <span className="text-3xl font-black text-white italic">{stats.caps}</span>
                 <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Progresso</span>
               </div>
-              <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex items-center justify-between group">
+              <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex items-center justify-between group mb-2">
                  <div>
                    <span className="text-2xl font-black text-white italic tracking-tighter">{stats.horasVida} HORAS</span>
                    <p className="text-[7px] font-black text-zinc-500 uppercase mt-1 tracking-widest italic">Vida gasta assistindo</p>
@@ -227,29 +252,34 @@ export default function PerfilPage() {
                  <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
               </div>
 
-              {/* ✅ FIX: BOTÃO DO ANILIST RESTAURADO EMBAIXO DAS STATS */}
-              <div className="col-span-2 mt-2">
+              {/* ✅ INTEGRAÇÃO ANILIST AUTOMÁTICA VISUAL */}
+              <div className="col-span-2">
                 {dadosPerfil.anilist_token ? (
-                  <div className="bg-blue-500/10 border border-blue-500/30 p-5 rounded-3xl flex items-center justify-between">
+                  <div className="bg-[#0a0f1a] border border-blue-900/50 p-5 rounded-3xl flex items-center justify-between shadow-inner">
                     <div className="flex items-center gap-4">
-                      <span className="text-2xl">🌐</span>
+                      <span className="text-2xl text-blue-500">🌐</span>
                       <div>
-                        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">AniList Conectado</p>
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">AniList Conectado</p>
                         <p className="text-[8px] text-zinc-500 uppercase mt-1">Sincronização Ativa na Estante</p>
                       </div>
                     </div>
-                    <span className="text-blue-500 text-xl font-black">✅</span>
+                    <div className="w-6 h-6 bg-green-500 rounded-md flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]">
+                      <span className="text-white text-xs font-black">✓</span>
+                    </div>
                   </div>
                 ) : (
                   <a 
-                    /* ⚠️ IMPORTANTE: Troque o SEU_CLIENT_ID_AQUI pelo ID do seu App no AniList, se usar OAuth direto */
-                    href="https://anilist.co/api/v2/oauth/authorize?client_id=SEU_CLIENT_ID_AQUI&response_type=token" 
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full bg-blue-600 text-white p-5 rounded-3xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-blue-600/20"
+                    /* ⚠️ ATENÇÃO: Substitua o SEU_CLIENT_ID_AQUI pelo seu ID real do painel do AniList! */
+                    href="https://anilist.co/api/v2/oauth/authorize?client_id=36602&response_type=token" 
+                    className="bg-blue-600/10 border border-blue-500/30 p-5 rounded-3xl flex items-center justify-between hover:bg-blue-600/20 transition-all cursor-pointer group"
                   >
-                    <span className="text-2xl">🔗</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Logar e Sincronizar com AniList</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-2xl group-hover:scale-110 transition-transform">🔗</span>
+                      <div>
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Conectar ao AniList</p>
+                        <p className="text-[8px] text-zinc-500 uppercase mt-1">Sincronizar progresso automaticamente</p>
+                      </div>
+                    </div>
                   </a>
                 )}
               </div>
@@ -302,20 +332,43 @@ export default function PerfilPage() {
                 <input type="password" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} />
               </div>
 
-              {/* ✅ INPUT DO ANILIST RESTAURADO */}
-              <div className="grid grid-cols-1 gap-4">
-                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Token de Sincronização AniList</label>
-                <input 
-                  type="password" 
-                  placeholder="Cole seu Token do AniList aqui..." 
-                  className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs font-mono outline-none focus:border-white/20 transition-all" 
-                  value={dadosPerfil.anilist_token} 
-                  onChange={e => setDadosPerfil({...dadosPerfil, anilist_token: e.target.value})} 
-                />
+              {/* ✅ INPUT DO ANILIST BLINDADO E OCULTO */}
+              <div className="grid grid-cols-1 gap-2">
+                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Integração AniList</label>
+                <div className="flex gap-3">
+                  {dadosPerfil.anilist_token ? (
+                    <>
+                      <input 
+                        type="password" 
+                        value="••••••••••••••••••••••••••••••••" 
+                        readOnly 
+                        className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs font-mono opacity-50 cursor-not-allowed select-none outline-none"
+                      />
+                      <button 
+                        onClick={() => {
+                          if(confirm("Tem certeza que deseja remover a conexão com o AniList?")) {
+                            setDadosPerfil({...dadosPerfil, anilist_token: ""});
+                          }
+                        }}
+                        className="px-6 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all shadow-lg"
+                      >
+                        Desconectar
+                      </button>
+                    </>
+                  ) : (
+                    <input 
+                      type="password" 
+                      placeholder="Conecte pela aba Status ou cole manualmente aqui..." 
+                      className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs font-mono outline-none focus:border-white/20 transition-all"
+                      value={dadosPerfil.anilist_token} 
+                      onChange={e => setDadosPerfil({...dadosPerfil, anilist_token: e.target.value})} 
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
+                <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase outline-none" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
                   <option value="azul">Azul Neon</option> <option value="verde">Verde Hacker</option> <option value="roxo">Roxo Galático</option> <option value="laranja">Laranja Fogo</option> <option value="custom">Personalizada</option>
                 </select>
                 {dadosPerfil.tema === "custom" && <input type="color" className="w-full h-12 bg-black border border-white/5 rounded-xl cursor-pointer" value={dadosPerfil.custom_color} onChange={e => setDadosPerfil({...dadosPerfil, custom_color: e.target.value})} />}
