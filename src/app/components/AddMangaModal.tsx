@@ -16,7 +16,7 @@ interface AddMangaModalProps {
   estaAberto: boolean;
   fechar: () => void;
   usuarioAtual: string;
-  abaPrincipal: "MANGA" | "ANIME";
+  abaPrincipal: "MANGA" | "ANIME" | "FILME"; // ✅ FILME ADICIONADO
   aoSalvar: (novoManga: any) => void;
 }
 
@@ -70,34 +70,56 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
           }
         }
 
-        // 3. BUSCA NO ANILIST
-        const resAni = await fetch("https://graphql.anilist.co", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
-            variables: { search: termoFinal, type: abaPrincipal }
-          })
-        });
-        const jsonAni = await resAni.json();
-        const listaAni = jsonAni.data?.Page?.media || [];
-
-        if (listaAni.length > 0) {
-          setResultados(listaAni.map((m: any): ResultadoBusca => ({
-            id: m.id, titulo: m.title.romaji || m.title.english, capa: m.coverImage.large,
-            total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-            sinopse: m.description || "", fonte: "AniList"
-          })));
+        // 3. SEPARAÇÃO DO MOTOR: FILMES VS OTAKU
+        if (abaPrincipal === "FILME") {
+          // 🎬 MOTOR TMDB (FILMES)
+          // ⚠️ Crie uma conta grátis no themoviedb.org para pegar sua API Key depois!
+          const TMDB_API_KEY = "SUA_CHAVE_TMDB_AQUI"; // Substitua depois pela sua chave real
+          const resTmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
+          const jsonTmdb = await resTmdb.json();
+          
+          if (jsonTmdb.results) {
+            setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
+              id: m.id, 
+              titulo: m.title, 
+              capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://i.imgur.com/8Km9t4S.png",
+              total: 1, // Filmes são peça única (1)
+              sinopse: m.overview || "Sem sinopse em português.", 
+              fonte: "TMDB" as any
+            })));
+          }
         } else {
+          // 📚 MOTOR ANILIST / MYANIMELIST (MANGÁS E ANIMES)
+          const resAni = await fetch("https://graphql.anilist.co", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
+              variables: { search: termoFinal, type: abaPrincipal }
+            })
+          });
+          const jsonAni = await resAni.json();
+          const listaAni = jsonAni.data?.Page?.media || [];
+
+          if (listaAni.length > 0) {
+            setResultados(listaAni.map((m: any): ResultadoBusca => ({
+              id: m.id, titulo: m.title.romaji || m.title.english, capa: m.coverImage.large,
+              total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+              sinopse: m.description || "", fonte: "AniList"
+            })));
+          } else {
+
           // 4. FALLBACK: MYANIMELIST
-          const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
-          const jsonMal = await resMal.json();
-          setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
-            id: m.mal_id, titulo: m.title, capa: m.images.jpg.large_image_url,
-            total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-            sinopse: m.synopsis || "", fonte: "MyAnimeList"
-          })) || []);
+          const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : "filmes"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
+            const jsonMal = await resMal.json();
+            setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
+              id: m.mal_id, titulo: m.title, capa: m.images.jpg.large_image_url,
+              total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+              sinopse: m.synopsis || "", fonte: "MyAnimeList"
+            })) || []);
+          }
         }
+
       } catch (err) { console.error("Erro na busca:", err); } finally { setBuscando(false); }
     }, 1500); 
     return () => clearTimeout(t);

@@ -55,9 +55,10 @@ export default function Home() {
   // ==========================================
   // 📦 4. ESTADOS DE DADOS E INTERFACE
   // ==========================================
-  const [abaPrincipal, setAbaPrincipal] = useState<"MANGA" | "ANIME">("MANGA"); 
+  const [abaPrincipal, setAbaPrincipal] = useState<"MANGA" | "ANIME" | "FILME">("MANGA"); 
   const [mangas, setMangas] = useState<Manga[]>([]);
   const [animes, setAnimes] = useState<Manga[]>([]); 
+  const [filmes, setFilmes] = useState<Manga[]>([]); // ✅ NOVO ESTADO
   const [perfis, setPerfis] = useState<any[]>([]); 
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
@@ -140,14 +141,25 @@ export default function Home() {
     if (data) setAnimes(data as Manga[]);
   }
 
+  async function buscarFilmes() {
+    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    const { data } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
+    if (data) setFilmes(data as Manga[]);
+  }
+
   async function buscarPerfis() {
     const { data } = await supabase.from("perfis").select("*");
     if (data) setPerfis(data);
   }
 
-  async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR", tipoObra: "MANGA" | "ANIME" = "MANGA") {
+  // Adicionamos o | "FILME" no tipoObra
+  async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR", tipoObra: "MANGA" | "ANIME" | "FILME" = "MANGA") {
+    // Se for filme, ignoramos a sincronização com o AniList!
+    if (tipoObra === "FILME") return; 
+
     try {
       const res = await fetch('/api/anilist/sync', {
+        
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ titulo, capitulo, statusLocal, token, acao, tipoObra })
@@ -170,8 +182,8 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
     let novoStatus = manga.status;
     if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
     
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
-    const setLista = abaPrincipal === "MANGA" ? setMangas : setAnimes;
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : "filmes";
+    const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : setFilmes;
     const agora = new Date().toISOString();
 
     // 1. Atualiza a estante principal
@@ -193,9 +205,9 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
   }
 
   async function atualizarDados(id: number, campos: any) {
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
-    const setLista = abaPrincipal === "MANGA" ? setMangas : setAnimes;
-    const listaAtual = abaPrincipal === "MANGA" ? mangas : animes;
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : "filmes";
+    const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : setFilmes;
+    const listaAtual = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : filmes;
 
     // 1. Atualiza a estante principal
     setLista((prev: Manga[]) => prev.map(m => m.id === id ? { ...m, ...campos } : m));
@@ -284,7 +296,7 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
 
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
-  const listaExibicao = abaPrincipal === "MANGA" ? mangas : animes;
+  const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : filmes;
   const filtrosAtuais = abaPrincipal === "MANGA" ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
 
   const obrasFiltradas = listaExibicao.filter(m => {
@@ -331,9 +343,11 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
         </div>
       </header>
 
-      <div className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4">
-        <button onClick={() => { setAbaPrincipal("MANGA"); setFiltroAtivo("Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === "MANGA" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📚 Estante de Mangás</button>
-        <button onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📺 Estante de Animes</button>
+      <div className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto custom-scrollbar">
+        <button onClick={() => { setAbaPrincipal("MANGA"); setFiltroAtivo("Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "MANGA" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📚 Estante de Mangás</button>
+        <button onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📺 Estante de Animes</button>
+        {/* ✅ NOVA ABA */}
+        <button onClick={() => { setAbaPrincipal("FILME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "FILME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>🎬 Estante de Filmes</button>
       </div>
 
       {config.mostrar_busca && (

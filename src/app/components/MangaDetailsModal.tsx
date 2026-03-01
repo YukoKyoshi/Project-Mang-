@@ -8,7 +8,7 @@ interface Manga {
 
 interface MangaDetailsModalProps {
   manga: Manga;
-  abaPrincipal: "MANGA" | "ANIME";
+  abaPrincipal: "MANGA" | "ANIME" | "FILME"; // ✅ ADICIONADO "FILME" AQUI
   aoFechar: () => void;
   aoAtualizarCapitulo: (manga: Manga, novo: number) => void;
   aoAtualizarDados: (id: number, campos: any) => void;

@@ -20,7 +20,7 @@ interface Manga {
 interface MangaCardProps {
   manga: Manga;
   aura: any;
-  abaPrincipal: "MANGA" | "ANIME";
+  abaPrincipal: "MANGA" | "ANIME" | "FILME"; // ✅ ADICIONADO "FILME" AQUI
   atualizarCapitulo: (manga: Manga, novo: number) => Promise<void>;
   deletarManga: (id: number) => Promise<void>;
   mudarStatusManual: (id: number, status: string) => Promise<void>;
