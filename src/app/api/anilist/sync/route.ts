@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { titulo, capitulo, statusLocal, token, acao = "SALVAR" } = await request.json();
+    // ✅ NOVO: Recebemos o "tipoObra" (MANGA ou ANIME). Se não vier, assume MANGA por segurança.
+    const { titulo, capitulo, statusLocal, token, acao = "SALVAR", tipoObra = "MANGA" } = await request.json();
 
     // ==========================================
     // 🔄 LÓGICA DE PUXAR (AniList -> Estante)
@@ -12,18 +13,20 @@ export async function POST(request: Request) {
       const viewerId = (await resViewer.json()).data?.Viewer?.id;
       if (!viewerId) return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
 
-      // ✅ NOVO: Agora a Query busca coverImage, chapters e description para podermos criar a obra na estante!
-      const queryList = `query ($userId: Int) { MediaListCollection(userId: $userId, type: MANGA) { lists { entries { progress status media { title { romaji english } coverImage { large } chapters description } } } } }`;
-      const resList = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryList, variables: { userId: viewerId } }) });
+      // ✅ Usa o tipoObra dinâmico na query
+      const queryList = `query ($userId: Int, $type: MediaType) { MediaListCollection(userId: $userId, type: $type) { lists { entries { progress status media { title { romaji english } coverImage { large } chapters episodes description } } } } }`;
+      const resList = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryList, variables: { userId: viewerId, type: tipoObra } }) });
       return NextResponse.json({ success: true, data: (await resList.json()).data?.MediaListCollection?.lists || [] });
     }
 
     // ==========================================
     // 🔍 BUSCA O ID DA OBRA NO ANILIST
     // ==========================================
-    const resBusca = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: `query ($search: String) { Media (search: $search, type: MANGA) { id } }`, variables: { search: titulo } }) });
+    // ✅ Usa o tipoObra dinâmico na query de busca
+    const queryBusca = `query ($search: String, $type: MediaType) { Media (search: $search, type: $type) { id } }`;
+    const resBusca = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: queryBusca, variables: { search: titulo, type: tipoObra } }) });
     const mediaId = (await resBusca.json()).data?.Media?.id;
-    if (!mediaId) return NextResponse.json({ error: `Mangá "${titulo}" não encontrado.` }, { status: 404 });
+    if (!mediaId) return NextResponse.json({ error: `Obra "${titulo}" não encontrada.` }, { status: 404 });
 
     // ==========================================
     // 🗑️ LÓGICA DE EXCLUSÃO (Estante -> AniList)

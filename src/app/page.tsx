@@ -14,7 +14,7 @@ import AdminPanel from "./components/AdminPanel";
 import ProfileSelection from "./components/ProfileSelection";
 import UserProfile from "./components/UserProfile";
 
-// Definindo a interface Manga para o TypeScript não reclamar
+// A interface 'Manga' agora serve perfeitamente para 'Animes' também (episódios = capítulos)
 interface Manga { 
   id: number; 
   titulo: string; 
@@ -56,7 +56,10 @@ export default function Home() {
   // ==========================================
   // 📦 4. ESTADOS DE DADOS E INTERFACE
   // ==========================================
+  const [abaPrincipal, setAbaPrincipal] = useState<"MANGA" | "ANIME">("MANGA"); // ✅ O Controlador das Abas
   const [mangas, setMangas] = useState<Manga[]>([]);
+  const [animes, setAnimes] = useState<Manga[]>([]); // ✅ Lista de Animes
+  
   const [perfis, setPerfis] = useState<any[]>([]); 
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
@@ -64,43 +67,36 @@ export default function Home() {
   const [filtroAtivo, setFiltroAtivo] = useState("Lendo");
   const [pesquisaInterna, setPesquisaInterna] = useState("");
   const [config, setConfig] = useState({ mostrar_busca: true, mostrar_stats: true, mostrar_backup: true });
+  
   // --- SUB-SESSÃO 4.A: novo perfil --- //
   const [novoHunter, setNovoHunter] = useState({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
   const [editandoNomeOriginal, setEditandoNomeOriginal] = useState<string | null>(null);
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
+  
   // --- SUB-SESSÃO 4.B: MOSTRANDO PERFIL --- //
   const [mostrandoPerfil, setMostrandoPerfil] = useState(false);
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
-  // --- Adicionando um pin administrativo --- //
+
   // --- SUB-SESSÃO 4.C: NOTIFICAÇÕES (TOAST) --- //
   const [toast, setToast] = useState({ visivel: false, mensagem: "", tipo: "sucesso" });
 
   function mostrarToast(mensagem: string, tipo: "sucesso" | "erro" = "sucesso") {
     setToast({ visivel: true, mensagem, tipo });
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, visivel: false }));
-    }, 4000); // Some sozinho após 4 segundos
+    setTimeout(() => { setToast(prev => ({ ...prev, visivel: false })); }, 4000);
   }
 
   // ==========================================
   // 🔄 5. LÓGICA DE INICIALIZAÇÃO
   // ==========================================
   useEffect(() => { 
-    // 1. Checa o Portão Mestre
     const mestre = sessionStorage.getItem("acesso_mestre");
     if (mestre === "true") {
       setMestreAutorizado(true);
-      // ✅ NOVO: Garante a compatibilidade com a página /perfil
       sessionStorage.setItem('estante_acesso', 'true');
     }
-
-    // 2. Tenta recuperar o Hunter que já estava logado
     const hunterSalvo = sessionStorage.getItem("hunter_ativo");
-    if (hunterSalvo) {
-      setUsuarioAtual(hunterSalvo);
-    }
+    if (hunterSalvo) setUsuarioAtual(hunterSalvo);
     
-    // 3. Busca as configurações de visibilidade do Admin
     const buscarConfigs = async () => {
       const { data } = await supabase.from("site_config").select("*").eq("id", 1).maybeSingle();
       if (data) setConfig(data);
@@ -114,6 +110,7 @@ export default function Home() {
     if (usuarioAtual) {
       setIsAdmin(usuarioAtual === "Admin");
       buscarMangas();
+      buscarAnimes(); // ✅ Carrega as duas listas ao mesmo tempo
     }
   }, [usuarioAtual]);
 
@@ -127,24 +124,33 @@ async function buscarMangas() {
   if (data) setMangas(data as Manga[]);
 }
 
+// --- [NOVO] BUSCAR ANIMES ---
+async function buscarAnimes() {
+  if (!usuarioAtual || usuarioAtual === "Admin") return;
+  const { data } = await supabase.from("animes").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
+  if (data) setAnimes(data as Manga[]);
+}
+
+//Buscar perfis (Hunters)//
+
 async function buscarPerfis() {
   const { data } = await supabase.from("perfis").select("*");
   if (data) setPerfis(data);
 }
 
-// --- [NOVO] SINCRONIZAÇÃO COM ANILIST VIA SERVIDOR (ANTI-CORS) ---
-async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR") {
+// --- SINCRONIZAÇÃO COM ANILIST VIA SERVIDOR (ANTI-CORS HÍBRIDO) ---
+async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR", tipoObra: "MANGA" | "ANIME" = "MANGA") {
   try {
     const res = await fetch('/api/anilist/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titulo, capitulo, statusLocal, token, acao })
+      body: JSON.stringify({ titulo, capitulo, statusLocal, token, acao, tipoObra })
     });
     
     const data = await res.json();
     
     if (data.success) {
-       console.log(`✅ [Anti-CORS] "${titulo}" -> ${data.status}!`);
+       console.log(`✅ [Anti-CORS] "${titulo}" -> ${data.status} (${tipoObra})!`);
        mostrarToast(`"${titulo}" ${acao === "DELETAR" ? "removido do" : "salvo no"} AniList!`, "sucesso");
     } else {
        console.warn(`⚠️ Falha na sincronização do AniList:`, data.error);
@@ -156,7 +162,7 @@ async function sincronizarComAniList(titulo: string, capitulo: number, statusLoc
   }
 }
 
-// --- [NOVO] PUXAR E IMPORTAR DADOS DO ANILIST ---
+// --- PUXAR E IMPORTAR DADOS DO ANILIST (AGORA PUXA A ABA ATUAL) ---
 async function puxarProgressoDoAniList() {
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
   if (!perfilAtivo || !perfilAtivo.anilist_token) {
@@ -164,13 +170,13 @@ async function puxarProgressoDoAniList() {
     return;
   }
 
-  mostrarToast("📡 Buscando e importando do AniList...", "sucesso");
+  mostrarToast(`📡 Buscando e importando ${abaPrincipal === "MANGA" ? "Mangás" : "Animes"} do AniList...`, "sucesso");
   
   try {
     const res = await fetch('/api/anilist/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ acao: "PUXAR", token: perfilAtivo.anilist_token })
+      body: JSON.stringify({ acao: "PUXAR", token: perfilAtivo.anilist_token, tipoObra: abaPrincipal })
     });
     
     const anilistData = await res.json();
@@ -180,39 +186,38 @@ async function puxarProgressoDoAniList() {
        let importacoes = 0;
        const mapaStatusInverso: Record<string, string> = { "CURRENT": "Lendo", "COMPLETED": "Completos", "PLANNING": "Planejo Ler", "DROPPED": "Dropados", "PAUSED": "Pausados" };
        
-       const mangasDoAnilist: any[] = [];
-       anilistData.data.forEach((lista: any) => lista.entries.forEach((entry: any) => mangasDoAnilist.push(entry)));
+       const listaExterna: any[] = [];
+       anilistData.data.forEach((lista: any) => lista.entries.forEach((entry: any) => listaExterna.push(entry)));
 
-       // ✅ AGORA O LAÇO GIRA NOS MANGÁS DO ANILIST (Para achar os que você não tem)
-       for (const entry of mangasDoAnilist) {
+       const listaLocal = abaPrincipal === "MANGA" ? mangas : animes;
+       const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
+
+       for (const entry of listaExterna) {
          const tituloRomaji = entry.media.title.romaji?.toLowerCase() || "";
          const tituloEnglish = entry.media.title.english?.toLowerCase() || "";
          
-         // 1. Tenta achar esse mangá na sua estante local
-         const mangaLocal = mangas.find(m => {
+         const matchLocal = listaLocal.find(m => {
            const tLocal = m.titulo.toLowerCase();
            return (tituloRomaji && tLocal.includes(tituloRomaji)) || 
                   (tituloEnglish && tLocal.includes(tituloEnglish)) || 
                   (tituloRomaji && tituloRomaji.includes(tLocal));
          });
 
-         const novoCapitulo = entry.progress;
+         const novoProgresso = entry.progress;
          const novoStatus = mapaStatusInverso[entry.status] || "Lendo";
 
-         if (mangaLocal) {
-           // 🔄 JÁ EXISTE: Só atualiza
-           if (novoCapitulo !== mangaLocal.capitulo_atual || novoStatus !== mangaLocal.status) {
-             await supabase.from("mangas").update({ capitulo_atual: novoCapitulo, status: novoStatus }).eq("id", mangaLocal.id);
+         if (matchLocal) {
+           if (novoProgresso !== matchLocal.capitulo_atual || novoStatus !== matchLocal.status) {
+             await supabase.from(tabelaDb).update({ capitulo_atual: novoProgresso, status: novoStatus }).eq("id", matchLocal.id);
              atualizacoes++;
            }
          } else {
-           // ➕ NÃO EXISTE: Importa como Obra Nova!
            const tituloFinal = entry.media.title.romaji || entry.media.title.english || "Desconhecido";
-           await supabase.from("mangas").insert([{
+           await supabase.from(tabelaDb).insert([{
              titulo: tituloFinal,
              capa: entry.media.coverImage?.large || "https://via.placeholder.com/400x600.png?text=Sem+Capa",
-             capitulo_atual: novoCapitulo,
-             total_capitulos: entry.media.chapters || 0,
+             capitulo_atual: novoProgresso,
+             total_capitulos: abaPrincipal === "MANGA" ? (entry.media.chapters || 0) : (entry.media.episodes || 0),
              status: novoStatus,
              sinopse: entry.media.description || "Importado do AniList",
              usuario: usuarioAtual,
@@ -223,10 +228,10 @@ async function puxarProgressoDoAniList() {
        }
        
        if (atualizacoes > 0 || importacoes > 0) {
-         buscarMangas(); // Recarrega a tela com as obras novas
+         if (abaPrincipal === "MANGA") buscarMangas(); else buscarAnimes();
          mostrarToast(`Sincronização: ${importacoes} importados, ${atualizacoes} atualizados!`, "sucesso");
        } else {
-         mostrarToast("Sua estante já estava 100% igual ao AniList!", "sucesso");
+         mostrarToast(`Seus ${abaPrincipal === "MANGA" ? "Mangás" : "Animes"} já estavam atualizados!`, "sucesso");
        }
     }
   } catch (e) {
@@ -234,128 +239,109 @@ async function puxarProgressoDoAniList() {
   }
 }
 
-// --- LÓGICA OTIMISTA (INSTANTÂNEA) ---
+// --- LÓGICA OTIMISTA E DINÂMICA (MANGÁS OU ANIMES) ---
 async function atualizarCapitulo(manga: Manga, novo: number) {
   if (novo < 0) return;
   
   let novoStatus = manga.status;
   if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
-  else if (novo > 0 && (manga.status === "Planejo Ler" || manga.status === "Dropados")) novoStatus = "Lendo";
+  else if (novo > 0 && (manga.status === "Planejo Ler" || manga.status === "Dropados" || manga.status === "Pausados")) novoStatus = "Lendo";
   
   const agora = new Date().toISOString();
+  const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
+  const setLista = abaPrincipal === "MANGA" ? setMangas : setAnimes;
 
   // 1. ATUALIZA A TELA IMEDIATAMENTE (Otimismo)
-  setMangas(prev => prev.map(m => m.id === manga.id ? { ...m, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : m));
+  setLista((prev: Manga[]) => prev.map(m => m.id === manga.id ? { ...m, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : m));
   if (mangaDetalhe?.id === manga.id) {
     setMangaDetalhe(prev => prev ? { ...prev, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : null);
   }
 
-  // 2. SALVA NO BANCO DE DADOS EM SEGUNDO PLANO
-  const { error } = await supabase.from("mangas").update({ 
+  // 2. SALVA NO BANCO DE DADOS
+  const { error } = await supabase.from(tabelaDb).update({ 
     capitulo_atual: novo, 
     status: novoStatus, 
     ultima_leitura: agora 
   }).eq("id", manga.id);
   
   if (error) {
-    alert("❌ Erro de conexão. Revertendo o capítulo...");
-    buscarMangas(); 
+    alert("❌ Erro de conexão. Revertendo...");
+    if (abaPrincipal === "MANGA") buscarMangas(); else buscarAnimes();
   }
 
-  // ✅ [NOVO] 3. MANDA PARA O ANILIST SE O HUNTER ESTIVER SINCRONIZADO
+  // 3. MANDA PARA O ANILIST
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
   if (perfilAtivo && perfilAtivo.anilist_token) {
-    // Passamos o 'novoStatus' para forçar a criação na lista correta
-    sincronizarComAniList(manga.titulo, novo, novoStatus, perfilAtivo.anilist_token);
+    sincronizarComAniList(manga.titulo, novo, novoStatus, perfilAtivo.anilist_token, "SALVAR", abaPrincipal);
   }
 }
 
-// --- LÓGICA OTIMISTA (INSTANTÂNEA) ---
 async function atualizarDados(id: number, campos: any) {
-  // 1. ATUALIZA A TELA IMEDIATAMENTE
-  setMangas(prev => prev.map(m => m.id === id ? { ...m, ...campos } : m));
-  if (mangaDetalhe?.id === id) {
-    setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
-  }
+  const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
+  const setLista = abaPrincipal === "MANGA" ? setMangas : setAnimes;
+  const listaAtual = abaPrincipal === "MANGA" ? mangas : animes;
 
-  // 2. SALVA NO BANCO DE DADOS EM SEGUNDO PLANO
-  const { error } = await supabase.from("mangas").update(campos).eq("id", id);
+  setLista((prev: Manga[]) => prev.map(m => m.id === id ? { ...m, ...campos } : m));
+  if (mangaDetalhe?.id === id) setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
+
+  const { error } = await supabase.from(tabelaDb).update(campos).eq("id", id);
   
-  // 3. REVERSÃO DE EMERGÊNCIA
   if (error) {
     alert("❌ Erro de conexão. Revertendo alteração...");
-    buscarMangas();
+    if (abaPrincipal === "MANGA") buscarMangas(); else buscarAnimes();
   }
 
-// ✅ [NOVO] 4. SINCRONIZAÇÃO DE STATUS OU CAPÍTULO MANUAL
   if (campos.status || campos.capitulo_atual !== undefined) {
-    const mangaAlterado = mangas.find(m => m.id === id);
+    const mangaAlterado = listaAtual.find(m => m.id === id);
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
     
     if (mangaAlterado && perfilAtivo && perfilAtivo.anilist_token) {
-      // Pega o dado novo se existir, ou mantém o que já estava
-      const capituloEnvio = campos.capitulo_atual !== undefined ? campos.capitulo_atual : mangaAlterado.capitulo_atual;
+      const progressoEnvio = campos.capitulo_atual !== undefined ? campos.capitulo_atual : mangaAlterado.capitulo_atual;
       const statusEnvio = campos.status || mangaAlterado.status;
-      
-      sincronizarComAniList(mangaAlterado.titulo, capituloEnvio, statusEnvio, perfilAtivo.anilist_token, "SALVAR");
+      sincronizarComAniList(mangaAlterado.titulo, progressoEnvio, statusEnvio, perfilAtivo.anilist_token, "SALVAR", abaPrincipal);
     }
   }
 }
 
-// --- SUB-SESSÃO: EXCLUSÃO DE MANGÁS COM SINCRONIZAÇÃO ---
+// --- EXCLUSÃO COM ROTEAMENTO DINÂMICO ---
 async function deletarMangaDaEstante(id: number) {
-  const manga = mangas.find(m => m.id === id);
+  const listaAtual = abaPrincipal === "MANGA" ? mangas : animes;
+  const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
+  
+  const manga = listaAtual.find(m => m.id === id);
   if (!manga) return;
 
   if(confirm(`Tem certeza que deseja remover "${manga.titulo}" da sua estante?`)) {
-    // 1. Deleta Localmente
-    await supabase.from("mangas").delete().eq("id", id);
-    buscarMangas();
+    await supabase.from(tabelaDb).delete().eq("id", id);
+    if (abaPrincipal === "MANGA") buscarMangas(); else buscarAnimes();
 
-    // 2. Avisa o AniList para deletar lá também
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
     if (perfilAtivo && perfilAtivo.anilist_token) {
-      sincronizarComAniList(manga.titulo, manga.capitulo_atual, manga.status, perfilAtivo.anilist_token, "DELETAR");
+      sincronizarComAniList(manga.titulo, manga.capitulo_atual, manga.status, perfilAtivo.anilist_token, "DELETAR", abaPrincipal);
     }
   }
 }
-// --- criar perfis ---
 
+
+// --- criar perfis ---
 async function salvarHunter() {
   if (!novoHunter.nome) return alert("O nome é obrigatório!");
 
-  // ATENÇÃO: Separamos o nome_original para ele não ser reescrito na edição
-  const dados: any = {
-    nome_exibicao: novoHunter.nome,
-    avatar: novoHunter.avatar,
-    pin: novoHunter.pin,
-    cor_tema: novoHunter.cor
-  };
-
+  const dados: any = { nome_exibicao: novoHunter.nome, avatar: novoHunter.avatar, pin: novoHunter.pin, cor_tema: novoHunter.cor };
   let error;
 
   if (editandoNomeOriginal) {
-    // MODO EDIÇÃO: Atualiza apenas as aparências, mantém a raiz intacta
-    const result = await supabase.from("perfis")
-      .update(dados)
-      .eq("nome_original", editandoNomeOriginal);
+    const result = await supabase.from("perfis").update(dados).eq("nome_original", editandoNomeOriginal);
     error = result.error;
   } else {
-    // MODO CRIAÇÃO: Aqui sim, definimos o nome_original pela primeira vez
     dados.nome_original = novoHunter.nome;
     const result = await supabase.from("perfis").insert([dados]);
     error = result.error;
   }
 
-  if (error) {
-    alert("Erro: " + error.message);
-  } else {
-    fecharFormularioHunter();
-    buscarPerfis();
-  }
+  if (error) alert("Erro: " + error.message);
+  else { fecharFormularioHunter(); buscarPerfis(); }
 }
-
-// Função auxiliar para limpar tudo ao fechar
 
 function fecharFormularioHunter() {
   setMostrandoFormHunter(false);
@@ -363,55 +349,29 @@ function fecharFormularioHunter() {
   setNovoHunter({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
 }
 
-// Função para carregar dados no form
-
 function prepararEdicao(perfil: any) {
-  setNovoHunter({
-    nome: perfil.nome_exibicao,
-    avatar: perfil.avatar,
-    pin: perfil.pin || '',
-    cor: perfil.cor_tema
-  });
+  setNovoHunter({ nome: perfil.nome_exibicao, avatar: perfil.avatar, pin: perfil.pin || '', cor: perfil.cor_tema });
   setEditandoNomeOriginal(perfil.nome_original);
   setMostrandoFormHunter(true);
 }
 
 // ---- atualizar configs do site ----//
-
 async function atualizarConfig(chave: string, valor: boolean) {
   const novaConfig = { ...config, [chave]: valor };
-  setConfig(novaConfig); // Atualiza visualmente na hora
+  setConfig(novaConfig); 
 
-  const { error } = await supabase
-    .from("site_config")
-    .update({ [chave]: valor })
-    .eq("id", 1);
-
+  const { error } = await supabase.from("site_config").update({ [chave]: valor }).eq("id", 1);
   if (error) alert("Erro ao salvar configuração: " + error.message);
 }
 
 // --- Deletar perfis ---//
-
 async function deletarPerfil(perfil: any) {
-  if (perfil.nome_original === "Admin") {
-    alert("O perfil Administrador não pode ser removido.");
-    return;
-  }
+  if (perfil.nome_original === "Admin") { alert("O perfil Administrador não pode ser removido."); return; }
 
-  const confirmacao = confirm(`Tens a certeza que queres remover o Hunter "${perfil.nome_exibicao}"? Esta ação é permanente.`);
-  
-  if (confirmacao) {
-    const { error } = await supabase
-      .from("perfis")
-      .delete()
-      .eq("nome_original", perfil.nome_original);
-
-    if (error) {
-      alert("Erro ao remover: " + error.message);
-    } else {
-      alert("Hunter removido com sucesso.");
-      buscarPerfis(); // Atualiza a lista no Admin e na tela inicial
-    }
+  if (confirm(`Tens a certeza que queres remover o Hunter "${perfil.nome_exibicao}"? Esta ação é permanente.`)) {
+    const { error } = await supabase.from("perfis").delete().eq("nome_original", perfil.nome_original);
+    if (error) alert("Erro ao remover: " + error.message);
+    else { alert("Hunter removido com sucesso."); buscarPerfis(); }
   }
 }
 
@@ -421,86 +381,36 @@ async function deletarPerfil(perfil: any) {
   function confirmarPin() {
     const info = perfis.find(p => p.nome_original === perfilAlvoParaBloqueio);
     if (info && info.pin === pinDigitado) {
-      // ✅ NOVO: Salva no navegador quem é o Hunter ativo
       sessionStorage.setItem('hunter_ativo', perfilAlvoParaBloqueio!);
-      
       setUsuarioAtual(perfilAlvoParaBloqueio);
       setPerfilAlvoParaBloqueio(null);
-    } else {
-      alert("PIN Incorreto!");
-    }
+    } else alert("PIN Incorreto!");
   }
 
-  // Ajuste também a função de mudar perfil sem PIN
   function tentarMudarPerfil(nome: string) {
     if (nome === "Admin") {
-      setIsAdmin(true);
-      setUsuarioAtual("Admin");
-      sessionStorage.setItem('hunter_ativo', 'Admin'); // ✅ Salva Admin também
-      return;
+      setIsAdmin(true); setUsuarioAtual("Admin"); sessionStorage.setItem('hunter_ativo', 'Admin'); return;
     }
-
     const info = perfis.find(p => p.nome_original === nome);
-    if (info?.pin) {
-      setPerfilAlvoParaBloqueio(nome);
-      setPinDigitado("");
-    } else {
-      setIsAdmin(false);
-      setUsuarioAtual(nome);
-      sessionStorage.setItem('hunter_ativo', nome); // ✅ Salva o nome se não tiver PIN
-    }
+    if (info?.pin) { setPerfilAlvoParaBloqueio(nome); setPinDigitado(""); } 
+    else { setIsAdmin(false); setUsuarioAtual(nome); sessionStorage.setItem('hunter_ativo', nome); }
   }
-  // ==========================================
-  // 🖥️ 8. RENDERING: ACESSO MESTRE
-  // ==========================================
-  if (!mestreAutorizado) return (
-    <AcessoMestre aoAutorizar={() => {
-      sessionStorage.setItem("acesso_mestre", "true");
-      sessionStorage.setItem("estante_acesso", "true"); // ✅ Chave para o /perfil
-      setMestreAutorizado(true);
-    }} />
-  );
 
-  // ------------------------------------------
-  // SUB-SESSÃO 9.A: TELA DE SELEÇÃO INICIAL (COMPONENTIZADO)
-  // ------------------------------------------
+  // ==========================================
+  // 🖥️ 8. RENDERING: ACESSO MESTRE E ADMIN
+  // ==========================================
+  if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => { sessionStorage.setItem("acesso_mestre", "true"); sessionStorage.setItem("estante_acesso", "true"); setMestreAutorizado(true); }} />;
+
   if (!usuarioAtual) {
     return (
       <>
-        <ProfileSelection 
-          perfis={perfis}
-          temas={TEMAS}
-          tentarMudarPerfil={tentarMudarPerfil}
-          perfilAlvoParaBloqueio={perfilAlvoParaBloqueio}
-          pinDigitado={pinDigitado}
-          setPinDigitado={setPinDigitado}
-          confirmarPin={confirmarPin}
-          setPinAdminAberto={setPinAdminAberto} // <--- Passamos o controle para o componente
-          pinAdminAberto={pinAdminAberto}
-        />
-
-        {/* 🔐 O MODAL DO ADMIN FICA AQUI, NA TELA DE SELEÇÃO */}
+        <ProfileSelection perfis={perfis} temas={TEMAS} tentarMudarPerfil={tentarMudarPerfil} perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} pinDigitado={pinDigitado} setPinDigitado={setPinDigitado} confirmarPin={confirmarPin} setPinAdminAberto={setPinAdminAberto} pinAdminAberto={pinAdminAberto} />
         {pinAdminAberto && (
           <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/98 backdrop-blur-2xl animate-in zoom-in-95 duration-300">
             <div className="bg-zinc-900 p-12 rounded-[3rem] border border-zinc-800 text-center space-y-8 shadow-[0_0_100px_rgba(0,0,0,1)] max-w-sm w-full">
               <h2 className="text-white font-black uppercase tracking-tighter text-2xl italic text-yellow-500">Admin Login</h2>
-              <input 
-                type="password" maxLength={4} autoFocus
-                className="w-full bg-black border border-zinc-700 p-5 rounded-2xl text-center text-4xl font-bold text-white outline-none focus:border-yellow-500 transition-all font-mono"
-                onChange={(e) => {
-                   if (e.target.value === "5236") { // Lembre-se de colocar a sua senha
-                     setIsAdmin(true);
-                     setUsuarioAtual("Admin"); // <--- ESSA É A CHAVE MESTRA QUE FALTAVA
-                     setPinAdminAberto(false);
-                  }
-                }}
-              />
-              <button 
-                onClick={() => setPinAdminAberto(false)} 
-                className="text-[10px] text-zinc-600 hover:text-white uppercase font-black tracking-widest mt-4"
-              >
-                Retornar
-              </button>
+              <input type="password" maxLength={4} autoFocus className="w-full bg-black border border-zinc-700 p-5 rounded-2xl text-center text-4xl font-bold text-white outline-none focus:border-yellow-500 transition-all font-mono" onChange={(e) => { if (e.target.value === "5236") { setIsAdmin(true); setUsuarioAtual("Admin"); setPinAdminAberto(false); } }} />
+              <button onClick={() => setPinAdminAberto(false)} className="text-[10px] text-zinc-600 hover:text-white uppercase font-black tracking-widest mt-4">Retornar</button>
             </div>
           </div>
         )}
@@ -508,41 +418,18 @@ async function deletarPerfil(perfil: any) {
     );
   }
 
-  // ------------------------------------------
-  // SUB-SESSÃO 9.B: PAINEL DE CONTROLE (COMPONENTIZADO)
-  // ------------------------------------------
-  if (isAdmin) {
-    return (
-      <AdminPanel 
-        perfis={perfis}
-        config={config}
-        mostrandoFormHunter={mostrandoFormHunter}
-        setMostrandoFormHunter={setMostrandoFormHunter}
-        novoHunter={novoHunter}
-        setNovoHunter={setNovoHunter}
-        deletarPerfil={deletarPerfil}
-        setUsuarioAtual={setUsuarioAtual}
-        atualizarConfig={atualizarConfig}
-        salvarHunter={salvarHunter} 
-        prepararEdicao={prepararEdicao}
-        editandoNomeOriginal={editandoNomeOriginal}
-        fecharFormularioHunter={fecharFormularioHunter}
-      />
-    );
-  }
-
-  // --- SUB-SESSÃO FINAL: ESTANTE DE MANGÁS (USUÁRIOS COMUNS) ---
+  if (isAdmin) return <AdminPanel perfis={perfis} config={config} mostrandoFormHunter={mostrandoFormHunter} setMostrandoFormHunter={setMostrandoFormHunter} novoHunter={novoHunter} setNovoHunter={setNovoHunter} deletarPerfil={deletarPerfil} setUsuarioAtual={setUsuarioAtual} atualizarConfig={atualizarConfig} salvarHunter={salvarHunter} prepararEdicao={prepararEdicao} editandoNomeOriginal={editandoNomeOriginal} fecharFormularioHunter={fecharFormularioHunter} />;
 
   // ==========================================
-  // 🖥️ 10. ESTANTE DE MANGÁS (INTERFACE DO USUÁRIO)
+  // 🖥️ 10. ESTANTE DE MANGÁS E ANIMES
   // ==========================================
-  
-  // Pegamos os dados do Hunter logado para aplicar a Aura correta
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
   
-  // Filtramos os mangás com base no que o usuário clica ou digita
-  const mangasFiltrados = mangas
+  // ✅ O Radar da Lista Ativa (Mangás ou Animes)
+  const listaExibicao = abaPrincipal === "MANGA" ? mangas : animes;
+
+  const obrasFiltradas = listaExibicao
     .filter(m => (filtroAtivo === "Todos" ? true : m.status === filtroAtivo))
     .filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
@@ -558,11 +445,11 @@ async function deletarPerfil(perfil: any) {
 
         <div className="flex items-center gap-4 md:gap-6">
 
-          {/* ✅ NOVO: BOTÃO PUXAR DO ANILIST */}
+          {/* BOTÃO PUXAR DO ANILIST */}
           {perfilAtivo.anilist_token && (
             <button 
               onClick={puxarProgressoDoAniList}
-              title="Puxar progresso do AniList"
+              title={`Puxar ${abaPrincipal === "MANGA" ? "Mangás" : "Animes"} do AniList`}
               className={`w-14 h-14 bg-zinc-900 border border-blue-500/30 rounded-[1.2rem] flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-500/10 text-blue-500`}
             >
               🔄
@@ -574,15 +461,11 @@ async function deletarPerfil(perfil: any) {
             onClick={() => setEstaAbertoAdd(true)} 
             className={`${aura.bg} ${aura.shadow} px-8 py-4 rounded-2xl font-black uppercase text-xs hover:scale-105 active:scale-95 transition-all text-black`}
           >
-            + Adicionar Obra
+            + Adicionar {abaPrincipal === "MANGA" ? "Mangá" : "Anime"}
           </button>
 
           {/* ACESSAR PERFIL */}
-          <div 
-            onClick={() => window.location.href = '/perfil'}
-            className="group cursor-pointer flex flex-col items-center gap-2"
-            title="Configurações do Hunter"
-          >
+          <div onClick={() => window.location.href = '/perfil'} className="group cursor-pointer flex flex-col items-center gap-2" title="Configurações do Hunter">
             <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center text-3xl border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg`}>
               {perfilAtivo.avatar}
             </div>
@@ -591,7 +474,23 @@ async function deletarPerfil(perfil: any) {
         </div>
       </header>
 
-      {/* BARRA DE FILTROS (DADOS / STATUS) */}
+      {/* ✅ SELETOR DE ABAS GIGANTE (MANGÁS / ANIMES) */}
+      <div className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4">
+        <button 
+          onClick={() => { setAbaPrincipal("MANGA"); setFiltroAtivo("Lendo"); }} 
+          className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === "MANGA" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}
+        >
+          📚 Estante de Mangás
+        </button>
+        <button 
+          onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Lendo"); }} 
+          className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}
+        >
+          📺 Estante de Animes
+        </button>
+      </div>
+
+      {/* BARRA DE FILTROS E BUSCA */}
       {config.mostrar_busca && (
         <section className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
           <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800 w-full md:w-auto overflow-x-auto">
@@ -608,7 +507,7 @@ async function deletarPerfil(perfil: any) {
           
           <input 
             type="text" 
-            placeholder="Pesquisar na estante..." 
+            placeholder={`Pesquisar nos ${abaPrincipal === "MANGA" ? "Mangás" : "Animes"}...`}
             className="w-full md:w-80 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-xs font-bold uppercase outline-none focus:border-white transition-all"
             value={pesquisaInterna}
             onChange={(e) => setPesquisaInterna(e.target.value)}
@@ -616,23 +515,23 @@ async function deletarPerfil(perfil: any) {
         </section>
       )}
 
-      {/* GRADE DE MANGÁS */}
+      {/* GRADE DE OBRAS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
-        {mangasFiltrados.length > 0 ? (
-          mangasFiltrados.map(m => (
+        {obrasFiltradas.length > 0 ? (
+          obrasFiltradas.map(m => (
             <MangaCard 
               key={m.id} 
               manga={m} 
               aura={aura}
               atualizarCapitulo={atualizarCapitulo} 
-              deletarManga={(id) => deletarMangaDaEstante(id)}
+              deletarManga={deletarMangaDaEstante} 
               mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} 
               abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} 
             />
           ))
         ) : (
           <div className="col-span-full py-20 text-center border-2 border-dashed border-zinc-800 rounded-[3rem]">
-            <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs">Nenhum mangá encontrado nesta categoria.</p>
+            <p className="text-zinc-600 font-bold uppercase tracking-widest text-xs">Nenhuma obra encontrada nesta categoria.</p>
           </div>
         )}
       </div>
@@ -642,56 +541,37 @@ async function deletarPerfil(perfil: any) {
         estaAberto={estaAbertoAdd} 
         fechar={() => setEstaAbertoAdd(false)} 
         usuarioAtual={usuarioAtual} 
+        abaPrincipal={abaPrincipal} // ✅ Enviamos para o Modal saber qual banco usar
         aoSalvar={() => {
-          buscarMangas(); // Atualiza a lista
-          setEstaAbertoAdd(false); // Fecha o modal
-          }}
+          if (abaPrincipal === "MANGA") buscarMangas(); else buscarAnimes();
+          setEstaAbertoAdd(false);
+        }}
       />
       
       {mangaDetalhe && (
         <MangaDetailsModal 
           manga={mangaDetalhe} 
+          abaPrincipal={abaPrincipal} // ✅ Enviamos para o Modal saber qual banco usar
           aoFechar={() => setMangaDetalhe(null)} 
           aoAtualizarCapitulo={atualizarCapitulo} 
           aoAtualizarDados={atualizarDados} 
-          aoDeletar={(id) => { setMangaDetalhe(null); deletarMangaDaEstante(id); }}
+          aoDeletar={(id) => { setMangaDetalhe(null); deletarMangaDaEstante(id); }} 
         />
       )}
 
-      {/* PAINEL DE PERFIL DO USUÁRIO (ESTATÍSTICAS E PIN) */}
-
+      {/* PAINEL DE PERFIL DO USUÁRIO */}
       {mostrandoPerfil && (
-        <UserProfile
-          perfil={perfilAtivo}
-          mangas={mangas}
-          aoFechar={() => setMostrandoPerfil(false)}
-          aoAtualizar={buscarPerfis}
-          setUsuarioAtual={setUsuarioAtual}
-          aura={aura} // <--- essa linha contem as cores
-        />
+        <UserProfile perfil={perfilAtivo} mangas={mangas} aoFechar={() => setMostrandoPerfil(false)} aoAtualizar={buscarPerfis} setUsuarioAtual={setUsuarioAtual} aura={aura} />
       )}
       
-    {/* 🌟 NOTIFICAÇÃO FLUTUANTE (TOAST) */}
-      <div 
-        className={`fixed bottom-10 right-10 z-[300] transition-all duration-500 transform ${
-          toast.visivel ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl ${
-          toast.tipo === 'sucesso' 
-            ? 'bg-green-500/10 border-green-500/50 text-green-400 shadow-green-500/20' 
-            : 'bg-red-500/10 border-red-500/50 text-red-400 shadow-red-500/20'
-        }`}>
-          <div className="text-2xl animate-bounce">
-            {toast.tipo === 'sucesso' ? '✅' : '❌'}
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest mt-1">
-            {toast.mensagem}
-          </span>
+      {/* 🌟 NOTIFICAÇÃO FLUTUANTE (TOAST) */}
+      <div className={`fixed bottom-10 right-10 z-[300] transition-all duration-500 transform ${toast.visivel ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
+        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl ${toast.tipo === 'sucesso' ? 'bg-green-500/10 border-green-500/50 text-green-400 shadow-green-500/20' : 'bg-red-500/10 border-red-500/50 text-red-400 shadow-red-500/20'}`}>
+          <div className="text-2xl animate-bounce">{toast.tipo === 'sucesso' ? '✅' : '❌'}</div>
+          <span className="text-[10px] font-black uppercase tracking-widest mt-1">{toast.mensagem}</span>
         </div>
       </div>
 
-
-    </main> // <--- Esta é a última tag </main> do seu page.tsx
+    </main>
   );
 }
