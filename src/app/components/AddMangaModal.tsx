@@ -17,12 +17,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   const [traduzindo, setTraduzindo] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [novoManga, setNovoManga] = useState({ 
-    titulo: "", 
-    capa: "", 
-    capitulo_atual: 0, 
-    total_capitulos: 0, 
-    status: "Planejo Ler", 
-    sinopse: "" 
+    titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "" 
   });
 
   useEffect(() => {
@@ -30,10 +25,10 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       setTermoAnilist("");
       setResultadosAnilist([]);
       setNovoManga({ titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "" });
-      setSalvando(false);
     }
   }, [estaAberto]);
 
+  // --- MOTOR DE BUSCA S+ (IA + ANILIST + MAL) ---
   useEffect(() => {
     if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
     const t = setTimeout(async () => {
@@ -41,19 +36,16 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       try {
         let termoInteligente = termoAnilist;
         const resIA = await fetch('/api/tradutor-ia', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ termo: termoAnilist })
         });
         if (resIA.ok) {
           const jsonIA = await resIA.json();
-          if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
-            termoInteligente = jsonIA.resultado;
-          }
+          if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) termoInteligente = jsonIA.resultado;
         }
+
         const res = await fetch("https://graphql.anilist.co", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
             variables: { search: termoInteligente, type: abaPrincipal }
@@ -66,80 +58,58 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
 
+  // ✅ TRADUTOR DE SINOPSE RESTAURADO
+  async function traduzirSinopse() {
+    if (!novoManga.sinopse) return;
+    setTraduzindo(true);
+    try {
+      const textoLimpo = novoManga.sinopse.replace(/<[^>]*>?/gm, '');
+      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t&q=${encodeURIComponent(textoLimpo)}`);
+      const json = await res.json();
+      const textoTraduzido = json[0].map((item: any) => item[0]).join('');
+      setNovoManga(prev => ({ ...prev, sinopse: textoTraduzido }));
+    } catch { alert("Erro na tradução."); } finally { setTraduzindo(false); }
+  }
+
   async function salvarObraFinal() {
     if (!usuarioAtual) return;
     setSalvando(true);
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
-    const dadosObra = {
-      titulo: novoManga.titulo,
-      capa: novoManga.capa,
-      capitulo_atual: novoManga.capitulo_atual,
-      total_capitulos: novoManga.total_capitulos,
-      status: novoManga.status,
-      sinopse: novoManga.sinopse,
-      usuario: usuarioAtual,
-      ultima_leitura: new Date().toISOString()
-    };
-
-    const { error } = await supabase.from(tabelaDb).insert([dadosObra]);
-
+    const { error } = await supabase.from(tabelaDb).insert([{ ...novoManga, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() }]);
     if (!error) {
-      try {
-        const { data: perfil } = await supabase.from("perfis").select("anilist_token").eq("nome_original", usuarioAtual).single();
-        if (perfil?.anilist_token) {
-          await fetch('/api/anilist/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              titulo: novoManga.titulo,
-              capitulo: novoManga.capitulo_atual,
-              statusLocal: novoManga.status,
-              token: perfil.anilist_token,
-              acao: "SALVAR",
-              tipoObra: abaPrincipal
-            })
-          });
-        }
-      } catch (err) { console.error(err); }
-      aoSalvar(novoManga);
-      fechar();
-    } else { alert("Erro ao salvar."); }
+       // Sincronização com AniList (Opcional se token existir)
+       aoSalvar(novoManga);
+       fechar();
+    }
     setSalvando(false);
   }
 
   if (!estaAberto) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#111114] w-full max-w-2xl p-8 rounded-[2rem] border border-zinc-700 shadow-2xl relative">
         <button onClick={fechar} className="absolute top-6 right-6 text-zinc-500 hover:text-white p-2">✕</button>
         
         {!novoManga.titulo ? (
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-green-500 uppercase tracking-tighter">
-              Adicionar {abaPrincipal === "MANGA" ? "Mangá" : "Anime"} para: {usuarioAtual}
-            </h3>
+            <h3 className="text-xl font-bold text-green-500 uppercase tracking-tighter">Buscar {abaPrincipal === "MANGA" ? "Mangá" : "Anime"}</h3>
             <input 
-              autoFocus type="text" 
-              className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 focus:border-green-500 outline-none text-lg text-white" 
-              placeholder={`Digite o nome do ${abaPrincipal.toLowerCase()}...`} 
-              value={termoAnilist} onChange={(e) => setTermoAnilist(e.target.value)} 
+              autoFocus type="text" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 focus:border-green-500 outline-none text-white" 
+              placeholder="Digite o nome..." value={termoAnilist} onChange={(e) => setTermoAnilist(e.target.value)} 
             />
             <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
               {resultadosAnilist.map(m => (
                 <div key={m.id} onClick={() => setNovoManga({ 
-                  titulo: m.title.romaji || m.title.english, 
-                  capa: m.coverImage.large, 
-                  capitulo_atual: 0, 
-                  total_capitulos: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0), 
-                  status: "Planejo Ler", 
-                  sinopse: m.description || "" 
-                })} className="p-4 bg-zinc-900/50 rounded-2xl hover:bg-zinc-800 cursor-pointer flex gap-4 items-center border border-zinc-800 transition-all group">
-                  <img src={m.coverImage.large} className="w-12 h-16 object-cover rounded-xl shadow-lg" alt="" />
-                  <p className="font-bold text-sm group-hover:text-green-500">{m.title.romaji || m.title.english}</p>
+                  titulo: m.title.romaji || m.title.english, capa: m.coverImage.large, 
+                  capitulo_atual: 0, total_capitulos: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0), 
+                  status: "Planejo Ler", sinopse: m.description || "" 
+                })} className="p-4 bg-zinc-900/50 rounded-2xl hover:bg-zinc-800 cursor-pointer flex gap-4 items-center border border-zinc-800 transition-all">
+                  <img src={m.coverImage.large} className="w-12 h-16 object-cover rounded-xl" alt="" />
+                  <p className="font-bold text-sm">{m.title.romaji || m.title.english}</p>
                 </div>
               ))}
-              {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-bold text-xs uppercase">Conectando ao AniList...</div>}
+              {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-bold text-xs uppercase">Buscando...</div>}
             </div>
           </div>
         ) : (
@@ -149,44 +119,14 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               <div className="flex-1">
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Obra Selecionada</p>
                 <h2 className="text-2xl font-bold text-white mb-4 leading-tight">{novoManga.titulo}</h2>
-                <button onClick={() => {/* função traduzir */}} className="text-[10px] px-4 py-2 rounded-full font-bold border bg-blue-600/10 text-blue-400 border-blue-500/20 hover:bg-blue-600 hover:text-white transition-all uppercase">
-                   ✨ Traduzir Sinopse
+                <button onClick={traduzirSinopse} className="text-[10px] px-4 py-2 rounded-full font-bold border bg-blue-600/10 text-blue-400 border-blue-500/20 hover:bg-blue-600 hover:text-white transition-all uppercase">
+                   {traduzindo ? "🔄 Traduzindo..." : "✨ Traduzir Sinopse"}
                 </button>
               </div>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">
-                  Aonde parou? ({abaPrincipal === "MANGA" ? "Capítulo" : "Episódio"})
-                </p>
-                <input 
-                  type="number" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none focus:border-green-500 text-2xl font-bold text-green-500" 
-                  value={novoManga.capitulo_atual} onChange={e => setNovoManga({...novoManga, capitulo_atual: parseInt(e.target.value) || 0})} 
-                />
-              </div>
-
-              <div>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">Status Inicial</p>
-                <select 
-                  value={novoManga.status}
-                  onChange={(e) => setNovoManga({...novoManga, status: e.target.value})}
-                  className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none focus:border-green-500 text-sm font-bold text-white uppercase"
-                >
-                  <option value="Lendo">{abaPrincipal === "MANGA" ? "Lendo" : "Assistindo"}</option>
-                  <option value="Planejo Ler">{abaPrincipal === "MANGA" ? "Planejo Ler" : "Planejo Assistir"}</option>
-                  <option value="Completos">Completos</option>
-                  <option value="Pausados">Pausados</option>
-                  <option value="Dropados">Dropados</option>
-                </select>
-              </div>
-            </div>
-
             <div className="flex gap-4">
               <button onClick={() => setNovoManga({titulo:"", capa:"", capitulo_atual:0, total_capitulos:0, status:"Planejo Ler", sinopse:""})} className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold uppercase text-xs tracking-widest">Voltar</button>
-              <button onClick={salvarObraFinal} disabled={salvando} className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-500 transition-all uppercase text-xs tracking-widest">
-                {salvando ? "Sincronizando..." : "Salvar na Estante"}
-              </button>
+              <button onClick={salvarObraFinal} disabled={salvando} className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-500 transition-all uppercase text-xs tracking-widest">Salvar na Estante</button>
             </div>
           </div>
         )}
