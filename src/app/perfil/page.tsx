@@ -199,13 +199,6 @@ export default function PerfilPage() {
 
       <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-12 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ${elo.glow} ring-1 ring-white/10 ${elo.efeito} ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
     
-
-🛠️ 1. Ajuste no Perfil: src/app/perfil/page.tsx
-Sessão: Identidade Visual (Dentro do card de perfil)
-
-Substitua o bloco que renderiza o avatar (por volta da linha 170) por este código inteligente:
-
-TypeScript
 {/* --- [IDENTIDADE VISUAL - AVATAR INTELIGENTE] --- */}
 <div className={`w-24 h-24 bg-zinc-950 rounded-[1.5rem] flex items-center justify-center overflow-hidden border-2 ${aura.border} shadow-lg mb-4`}>
   {dadosPerfil.avatar.startsWith('http') ? (
