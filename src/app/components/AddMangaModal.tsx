@@ -103,23 +103,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
 
-  // ✅ CORREÇÃO: FUNÇÃO DE TRADUÇÃO LIMPA
-  async function traduzirSinopse() {
-    if (!novoManga.sinopse) return;
-    setTraduzindo(true);
-    try {
-      const textoLimpo = novoManga.sinopse.replace(/<[^>]*>?/gm, '');
-      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t&q=${encodeURIComponent(textoLimpo)}`);
-      const json = await res.json();
-      const textoTraduzido = json[0].map((item: any) => item[0]).join('');
-      setNovoManga(prev => ({ ...prev, sinopse: textoTraduzido }));
-    } catch { 
-      alert("Erro na tradução."); 
-    } finally { 
-      setTraduzindo(false); 
-    }
-  }
-
   async function salvarObraFinal() {
     if (!usuarioAtual) return;
     setSalvando(true);
@@ -155,14 +138,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               <div className="flex-1">
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Obra Selecionada</p>
                 <h2 className="text-2xl font-bold text-white mb-4 leading-tight italic">{novoManga.titulo}</h2>
-                <button 
-                  onClick={traduzirSinopse} 
-                  disabled={traduzindo}
-                  className="text-[9px] font-black uppercase text-green-500 hover:text-white transition-colors"
-                >
-                  {traduzindo ? "Traduzindo..." : "🌐 Traduzir Sinopse"}
-                </button>
-              
               </div>
             </div>
 
