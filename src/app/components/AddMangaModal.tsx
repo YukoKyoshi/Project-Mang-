@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 
-// ✅ 1. Definimos o contrato do que entra no Modal
+// ✅ 1. INTERFACES NO TOPO (Para o TS não se perder)
 interface AddMangaModalProps {
   estaAberto: boolean;
   fechar: () => void;
@@ -11,7 +11,6 @@ interface AddMangaModalProps {
   aoSalvar: (novoManga: any) => void;
 }
 
-// ✅ 2. Definimos o contrato do que é um resultado de busca (O que estava faltando!)
 interface ResultadoBusca {
   id: number | string;
   titulo: string;
@@ -23,10 +22,7 @@ interface ResultadoBusca {
 
 export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPrincipal, aoSalvar }: AddMangaModalProps) {
   const [termoAnilist, setTermoAnilist] = useState("");
-  
-  // ✅ 3. Aplicamos a interface ao estado (Isso mata o erro do 'any')
-  const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
-  
+  const [resultados, setResultados] = useState<ResultadoBusca[]>([]); // ✅ Tipado
   const [buscando, setBuscando] = useState(false);
   const [traduzindo, setTraduzindo] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -44,7 +40,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   }, [estaAberto]);
 
   // ==========================================
-  // 🚀 MOTOR DE BUSCA S+ (A HIERARQUIA)
+  // 🚀 MOTOR DE BUSCA S+ (HIERARQUIA TOTAL)
   // ==========================================
   useEffect(() => {
     if (termoAnilist.length < 3) { setResultados([]); return; }
@@ -54,7 +50,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       try {
         let termoFinal = termoAnilist;
 
-        // --- CAMADA 1: CACHE DO SUPABASE ---
+        // --- CAMADA 1: CACHE NO SUPABASE ---
         const { data: cacheHit } = await supabase
           .from('search_cache')
           .select('resultado_ia')
@@ -75,7 +71,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             const jsonIA = await resIA.json();
             if (jsonIA.resultado) {
               termoFinal = jsonIA.resultado;
-              // Salva no cache para a próxima vez
               await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
             }
           }
@@ -94,36 +89,42 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         const listaAni = jsonAni.data?.Page?.media || [];
 
         if (listaAni.length > 0) {
-          setResultados(listaAni.map((m: any) => ({ // ✅ Adicionado (m: any)
-  id: m.id,
-  titulo: m.title.romaji || m.title.english,
-  capa: m.coverImage.large,
-  total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-  sinopse: m.description,
-  fonte: "AniList"
-})));
+          // ✅ Tipando o 'm' como any para processar o JSON bruto do AniList
+          setResultados(listaAni.map((m: any): ResultadoBusca => ({
+            id: m.id,
+            titulo: m.title.romaji || m.title.english,
+            capa: m.coverImage.large,
+            total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+            sinopse: m.description || "",
+            fonte: "AniList"
+          })));
         } else {
-          // --- CAMADA 4: MYANIMELIST (MAL) FALLBACK ---
+          // --- CAMADA 4: MYANIMELIST (FALLBACK) ---
           const tipoMal = abaPrincipal === "MANGA" ? "manga" : "anime";
           const resMal = await fetch(`https://api.jikan.moe/v4/${tipoMal}?q=${encodeURIComponent(termoFinal)}&limit=5`);
           const jsonMal = await resMal.json();
           
-setResultados(jsonMal.data?.map((m: any) => ({ // ✅ Garanta que o (m: any) esteja aqui também
-  id: m.mal_id,
-  titulo: m.title,
-  capa: m.images.jpg.large_image_url,
-  total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-  sinopse: m.synopsis,
-  fonte: "MyAnimeList"
-})) || []);
+          // ✅ Tipando o 'm' como any para o MyAnimeList
+          setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
+            id: m.mal_id,
+            titulo: m.title,
+            capa: m.images.jpg.large_image_url,
+            total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+            sinopse: m.synopsis || "",
+            fonte: "MyAnimeList"
+          })) || []);
         }
 
-      } catch (err) { console.error(err); } finally { setBuscando(false); }
+      } catch (err) { 
+        console.error("Erro no Motor S+:", err); 
+      } finally { 
+        setBuscando(false); 
+      }
     }, 1200); 
+
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
 
-  // (Funções de tradução de sinopse e salvamento mantidas conforme solicitado)
   async function traduzirSinopse() {
     if (!novoManga.sinopse) return;
     setTraduzindo(true);
@@ -156,31 +157,25 @@ setResultados(jsonMal.data?.map((m: any) => ({ // ✅ Garanta que o (m: any) est
             <h3 className="text-xl font-bold text-green-500 uppercase tracking-tighter italic">Hunter Search S+</h3>
             <input autoFocus type="text" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 focus:border-green-500 outline-none text-white text-lg font-bold" placeholder="Digite em português..." value={termoAnilist} onChange={(e) => setTermoAnilist(e.target.value)} />
             
-             <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-  {resultados.map((m: ResultadoBusca) => ( // ✅ Agora o TS sabe quem é o 'm'
-    <div 
-      key={m.id} 
-      onClick={() => setNovoManga({ 
-        titulo: m.titulo, 
-        capa: m.capa, 
-        capitulo_atual: 0, 
-        total_capitulos: m.total, 
-        status: "Planejo Ler", 
-        sinopse: m.sinopse || "" 
-      })} 
-      className="p-4 bg-zinc-900/50 rounded-2xl hover:bg-zinc-800 cursor-pointer flex gap-4 items-center border border-zinc-800 transition-all group"
-    >
-      <div className="relative">
-        <img src={m.capa} className="w-12 h-16 object-cover rounded-xl shadow-lg" alt="" />
-        <span className="absolute -top-2 -left-2 bg-black text-[6px] px-2 py-1 rounded-md border border-zinc-700 text-zinc-500 font-black">
-          {m.fonte}
-        </span>
-      </div>
-      <p className="font-bold text-sm group-hover:text-green-500 transition-colors">{m.titulo}</p>
-    </div>
-  ))}
-  {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-black text-[10px] uppercase tracking-[0.3em]">Hunter Search S+ Processando...</div>}
-</div>
+            <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+              {resultados.map((m: ResultadoBusca) => ( // ✅ Tipagem explícita aqui
+                <div 
+                  key={m.id} 
+                  onClick={() => setNovoManga({ 
+                    titulo: m.titulo, capa: m.capa, capitulo_atual: 0, 
+                    total_capitulos: m.total, status: "Planejo Ler", sinopse: m.sinopse 
+                  })} 
+                  className="p-4 bg-zinc-900/50 rounded-2xl hover:bg-zinc-800 cursor-pointer flex gap-4 items-center border border-zinc-800 transition-all group"
+                >
+                  <div className="relative">
+                    <img src={m.capa} className="w-12 h-16 object-cover rounded-xl shadow-lg" alt="" />
+                    <span className="absolute -top-2 -left-2 bg-black text-[6px] px-2 py-1 rounded-md border border-zinc-700 text-zinc-500 font-black">{m.fonte}</span>
+                  </div>
+                  <p className="font-bold text-sm group-hover:text-green-500 transition-colors">{m.titulo}</p>
+                </div>
+              ))}
+              {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-black text-[10px] uppercase tracking-[0.3em]">Hunter Search S+ Processando...</div>}
+            </div>
           </div>
         ) : (
           <div className="space-y-8 animate-in slide-in-from-bottom-6 duration-500">
@@ -193,7 +188,6 @@ setResultados(jsonMal.data?.map((m: any) => ({ // ✅ Garanta que o (m: any) est
               </div>
             </div>
 
-            {/* CAMPOS DE PROGRESSO E STATUS (INTACTOS) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">Aonde parou? ({abaPrincipal === "MANGA" ? "Capítulo" : "Episódio"})</p>
@@ -213,7 +207,7 @@ setResultados(jsonMal.data?.map((m: any) => ({ // ✅ Garanta que o (m: any) est
 
             <div className="flex gap-4">
               <button onClick={() => setNovoManga({titulo:"", capa:"", capitulo_atual:0, total_capitulos:0, status:"Planejo Ler", sinopse:""})} className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold uppercase text-xs tracking-widest">Voltar</button>
-              <button onClick={salvarObraFinal} disabled={salvando} className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-500 transition-all uppercase text-xs tracking-widest shadow-lg shadow-green-600/20">{salvando ? "Processando..." : "Salvar na Estante"}</button>
+              <button onClick={salvarObraFinal} disabled={salvando} className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-500 transition-all uppercase text-xs tracking-widest shadow-lg shadow-green-600/20">{salvando ? "Salvando..." : "Salvar na Estante"}</button>
             </div>
           </div>
         )}
