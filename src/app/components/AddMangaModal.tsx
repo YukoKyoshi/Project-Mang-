@@ -30,35 +30,67 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
 
   // --- MOTOR DE BUSCA S+ (I.A. + ANILIST) ---
   useEffect(() => {
-    if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
-    const t = setTimeout(async () => {
-      setBuscando(true);
-      try {
-        let termoFinal = termoAnilist;
+if (termoAnilist.length < 3) { setResultadosAnilist([]); return; }
+  
+  const t = setTimeout(async () => {
+    setBuscando(true);
+    try {
+      let termoParaAnilist = termoAnilist;
+
+      // 🔍 1. CONSULTA O CACHE NO SUPABASE
+      const { data: cacheHit } = await supabase
+        .from('search_cache')
+        .select('resultado_ia')
+        .ilike('termo_original', termoAnilist)
+        .maybeSingle();
+
+      if (cacheHit) {
+        console.log("⚡ Cache Hit: Usando tradução salva.");
+        termoParaAnilist = cacheHit.resultado_ia;
+      } else {
+        // 🧠 2. SE NÃO ESTÁ NO CACHE, CHAMA O MOTOR S+ (GROQ)
         const resIA = await fetch('/api/tradutor-ia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ termo: termoAnilist })
         });
+        
         if (resIA.ok) {
           const jsonIA = await resIA.json();
-          console.log(`🧠 Motor S+: "${termoAnilist}" -> "${jsonIA.resultado}"`);
-          if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) termoFinal = jsonIA.resultado;
+          const resultado = jsonIA.resultado;
+
+          if (resultado && !resultado.includes('⚠️')) {
+            termoParaAnilist = resultado;
+            
+            // 💾 3. SALVA NO CACHE PARA ECONOMIZAR COTA
+            await supabase
+              .from('search_cache')
+              .insert([{ termo_original: termoAnilist, resultado_ia: resultado }]);
+          }
         }
-        const res = await fetch("https://graphql.anilist.co", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
-            variables: { search: termoFinal, type: abaPrincipal }
-          })
-        });
-        const json = await res.json();
-        setResultadosAnilist(json.data?.Page?.media || []);
-      } catch (err) { console.error(err); } finally { setBuscando(false); }
-    }, 1200); 
-    return () => clearTimeout(t);
-  }, [termoAnilist, abaPrincipal]);
+      }
+
+      // 🎯 4. BUSCA FINAL NO ANILIST
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
+          variables: { search: termoParaAnilist, type: abaPrincipal }
+        })
+      });
+      const json = await res.json();
+      setResultadosAnilist(json.data?.Page?.media || []);
+
+    } catch (err) { 
+      console.error("Erro no fluxo de busca:", err); 
+    } finally { 
+      setBuscando(false); 
+    }
+  }, 1200); 
+
+  return () => clearTimeout(t);
+}, [termoAnilist, abaPrincipal]);
   
   // --- TRADUTOR GOOGLE ---
   async function traduzirSinopse() {
