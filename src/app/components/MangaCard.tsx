@@ -1,6 +1,5 @@
 "use client";
 
-// Definição da Interface idêntica ao page.tsx para evitar conflitos
 interface Manga { 
   id: number; 
   titulo: string; 
@@ -20,7 +19,7 @@ interface Manga {
 interface MangaCardProps {
   manga: Manga;
   aura: any;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME"; // ✅ ADICIONADO "FILME" AQUI
+  abaPrincipal: "MANGA" | "ANIME" | "FILME"; 
   atualizarCapitulo: (manga: Manga, novo: number) => Promise<void>;
   deletarManga: (id: number) => Promise<void>;
   mudarStatusManual: (id: number, status: string) => Promise<void>;
@@ -29,8 +28,7 @@ interface MangaCardProps {
 
 export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo, abrirDetalhes }: MangaCardProps) {
   
-  // Tradutor visual para o badge do card baseado na aba ativa
-  const statusBadge = abaPrincipal === "ANIME" 
+  const statusBadge = (abaPrincipal === "ANIME" || abaPrincipal === "FILME")
     ? (manga.status === "Lendo" ? "Assistindo" : manga.status === "Planejo Ler" ? "Planejo Assistir" : manga.status)
     : manga.status;
 
@@ -41,14 +39,12 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
   return (
     <div className="group relative bg-zinc-900/40 rounded-[2rem] border border-zinc-800/50 hover:border-zinc-700 transition-all p-4">
       
-      {/* BADGE DINÂMICO */}
       <div className="absolute top-6 right-6 z-10">
         <span className="bg-black/60 backdrop-blur-md text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/10 text-white">
           {statusBadge}
         </span>
       </div>
 
-      {/* ÁREA DE CLIQUE PARA DETALHES */}
       <div className="cursor-pointer" onClick={() => abrirDetalhes(manga)}>
         <img 
           src={manga.capa} 
@@ -60,7 +56,6 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
         </h3>
       </div>
 
-      {/* BARRA DE PROGRESSO E CONTROLES */}
       <div className="space-y-4">
         <div className="flex justify-between items-end px-1">
            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Progresso</span>

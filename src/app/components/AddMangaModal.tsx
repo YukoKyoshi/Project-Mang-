@@ -16,7 +16,7 @@ interface AddMangaModalProps {
   estaAberto: boolean;
   fechar: () => void;
   usuarioAtual: string;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME"; // ✅ FILME ADICIONADO
+  abaPrincipal: "MANGA" | "ANIME" | "FILME";
   aoSalvar: (novoManga: any) => void;
 }
 
@@ -73,11 +73,10 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         // 3. SEPARAÇÃO DO MOTOR: FILMES VS OTAKU
         if (abaPrincipal === "FILME") {
           // 🎬 MOTOR TMDB (FILMES)
-          // ⚠️ ATENÇÃO: COLOQUE SUA CHAVE GERADA NO SITE THEMOVIEDB.ORG AQUI 👇
           const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
           
           if (TMDB_API_KEY === "SUA_CHAVE_TMDB_AQUI" || !TMDB_API_KEY) {
-            alert("⚠️ Hunter, você esqueceu de colocar a API Key do TMDB no código!");
+            alert("⚠️ Hunter, você esqueceu de colocar a API Key do TMDB no código ou no .env.local!");
             setBuscando(false);
             return;
           }
@@ -87,7 +86,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             
             if (!resTmdb.ok) {
               console.error("Erro TMDB. Status:", resTmdb.status);
-              throw new Error("Falha ao comunicar com TMDB.");
+              throw new Error("Falha ao comunicar com TMDB. Chave inválida ou limite atingido.");
             }
 
             const jsonTmdb = await resTmdb.json();
@@ -102,10 +101,11 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
                 fonte: "TMDB"
               })));
             } else {
-              setResultados([]); // Nenhum filme encontrado
+              setResultados([]); 
             }
           } catch (error) {
             console.error("Erro no TMDB:", error);
+            alert("Erro na busca de filmes. Olhe o console (F12) para detalhes.");
             setResultados([]);
           }
         } else {
@@ -128,9 +128,8 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               sinopse: m.description || "", fonte: "AniList"
             })));
           } else {
-
-          // 4. FALLBACK: MYANIMELIST
-          const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : "filmes"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
+            // ✅ FIX: Correção na sintaxe do Jikan (não pode ter "s" no final)
+            const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
             const jsonMal = await resMal.json();
             setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
               id: m.mal_id, titulo: m.title, capa: m.images.jpg.large_image_url,
@@ -145,7 +144,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
 
-  // ✅ FUNÇÃO RESTAURADA: Tradução Automática da Sinopse
   async function traduzirSinopse() {
     if (!novoManga.sinopse) return;
     setTraduzindo(true);
@@ -165,7 +163,10 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   async function salvarObraFinal() {
     if (!usuarioAtual) return;
     setSalvando(true);
-    const { error } = await supabase.from(abaPrincipal === "MANGA" ? "mangas" : "animes").insert([{ ...novoManga, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() }]);
+    // ✅ FIX: Redirecionamento correto para a tabela "filmes"
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : "filmes";
+    
+    const { error } = await supabase.from(tabelaDb).insert([{ ...novoManga, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() }]);
     if (!error) { aoSalvar(novoManga); fechar(); }
     setSalvando(false);
   }
@@ -197,8 +198,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               <div className="flex-1">
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Obra Selecionada</p>
                 <h2 className="text-2xl font-bold text-white mb-2 leading-tight italic">{novoManga.titulo}</h2>
-                
-                {/* ✅ BOTÃO RESTAURADO */}
                 <button 
                   onClick={traduzirSinopse} 
                   disabled={traduzindo}
@@ -206,13 +205,12 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
                 >
                   {traduzindo ? "Traduzindo..." : "🌐 Traduzir Sinopse"}
                 </button>
-
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">Aonde parou? ({abaPrincipal === "MANGA" ? "Capítulo" : "Episódio"})</p>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">Aonde parou? ({abaPrincipal === "MANGA" ? "Capítulo" : abaPrincipal === "ANIME" ? "Episódio" : "Parte"})</p>
                 <input type="number" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none text-2xl font-bold text-green-500" value={novoManga.capitulo_atual} onChange={e => setNovoManga({...novoManga, capitulo_atual: parseInt(e.target.value) || 0})} />
               </div>
               <div>

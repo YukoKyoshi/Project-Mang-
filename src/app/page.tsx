@@ -12,7 +12,6 @@ import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 import AdminPanel from "./components/AdminPanel";
 import ProfileSelection from "./components/ProfileSelection";
-import UserProfile from "./components/UserProfile";
 
 interface Manga { 
   id: number; 
@@ -30,9 +29,6 @@ interface Manga {
   favorito: boolean; 
 }
 
-// ==========================================
-// 🎨 2. DICIONÁRIO DE AURAS (TEMAS)
-// ==========================================
 const TEMAS = {
   verde: { nome: "Verde Néon", bg: "bg-green-500", bgActive: "bg-green-600", text: "text-green-500", border: "border-green-500", shadow: "shadow-[0_0_20px_rgba(34,197,94,0.3)]", focus: "focus:border-green-500" },
   azul: { nome: "Azul Elétrico", bg: "bg-blue-500", bgActive: "bg-blue-600", text: "text-blue-500", border: "border-blue-500", shadow: "shadow-[0_0_20px_rgba(59,130,246,0.3)]", focus: "focus:border-blue-500" },
@@ -43,22 +39,16 @@ const TEMAS = {
 };
 
 export default function Home() {
-  // ==========================================
-  // 🔐 3. ESTADOS DE SEGURANÇA E ACESSO
-  // ==========================================
   const [mestreAutorizado, setMestreAutorizado] = useState(false);
   const [usuarioAtual, setUsuarioAtual] = useState<string | null>(null);
   const [perfilAlvoParaBloqueio, setPerfilAlvoParaBloqueio] = useState<string | null>(null);
   const [pinDigitado, setPinDigitado] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // ==========================================
-  // 📦 4. ESTADOS DE DADOS E INTERFACE
-  // ==========================================
   const [abaPrincipal, setAbaPrincipal] = useState<"MANGA" | "ANIME" | "FILME">("MANGA"); 
   const [mangas, setMangas] = useState<Manga[]>([]);
   const [animes, setAnimes] = useState<Manga[]>([]); 
-  const [filmes, setFilmes] = useState<Manga[]>([]); // ✅ NOVO ESTADO
+  const [filmes, setFilmes] = useState<Manga[]>([]); 
   const [perfis, setPerfis] = useState<any[]>([]); 
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
@@ -71,18 +61,22 @@ export default function Home() {
   const [novoHunter, setNovoHunter] = useState({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
   const [editandoNomeOriginal, setEditandoNomeOriginal] = useState<string | null>(null);
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
-  const [mostrandoPerfil, setMostrandoPerfil] = useState(false);
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
-  const [toast, setToast] = useState({ visivel: false, mensagem: "", tipo: "sucesso" });
 
-  function mostrarToast(mensagem: string, tipo: "sucesso" | "erro" = "sucesso") {
-    setToast({ visivel: true, mensagem, tipo });
-    setTimeout(() => { setToast(prev => ({ ...prev, visivel: false })); }, 4000);
+  // ✅ SISTEMA DE NOTIFICAÇÕES (STACKING TOASTS)
+  interface ToastMessage {
+    id: number;
+    mensagem: string;
+    tipo: "sucesso" | "erro" | "aviso" | "anilist";
+  }
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  function mostrarToast(mensagem: string, tipo: "sucesso" | "erro" | "aviso" | "anilist" = "sucesso") {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, mensagem, tipo }]);
+    setTimeout(() => { setToasts(prev => prev.filter(t => t.id !== id)); }, 4000);
   }
 
-  // ==========================================
-  // 🔄 5. LÓGICA DE INICIALIZAÇÃO
-  // ==========================================
   useEffect(() => { 
     const mestre = sessionStorage.getItem("acesso_mestre");
     if (mestre === "true") {
@@ -109,6 +103,7 @@ export default function Home() {
       setIsAdmin(usuarioAtual === "Admin");
       buscarMangas();
       buscarAnimes();
+      buscarFilmes(); // ✅ FIX: Garante que os filmes carreguem ao abrir o app
     }
   }, [usuarioAtual]);
 
@@ -118,11 +113,6 @@ export default function Home() {
     localStorage.setItem("hunter_modo_cinema", novoEstado.toString());
   };
 
-  // ==========================================
-  // 🛠️ 6. FUNÇÕES DO BANCO DE DADOS
-  // ==========================================
-
-  // ✅ FUNÇÃO RESTAURADA: Tradutor do Google
   function abrirTradutorGoogle(texto: string) {
     if (!texto || texto === "Sem sinopse disponível.") return;
     const url = `https://translate.google.com/?sl=auto&tl=pt&text=${encodeURIComponent(texto)}&op=translate`;
@@ -152,21 +142,18 @@ export default function Home() {
     if (data) setPerfis(data);
   }
 
-  // Adicionamos o | "FILME" no tipoObra
   async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR", tipoObra: "MANGA" | "ANIME" | "FILME" = "MANGA") {
-    // Se for filme, ignoramos a sincronização com o AniList!
     if (tipoObra === "FILME") return; 
 
     try {
       const res = await fetch('/api/anilist/sync', {
-        
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ titulo, capitulo, statusLocal, token, acao, tipoObra })
       });
       const data = await res.json();
       if (data.success) {
-         mostrarToast(`"${titulo}" sincronizado no AniList!`);
+         mostrarToast(`"${titulo}" sincronizado no AniList!`, "anilist"); // ✅ Passando a cor nova
       }
     } catch (error) { console.error(error); }
   }
@@ -174,10 +161,10 @@ export default function Home() {
   async function puxarProgressoDoAniList() {
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
     if (!perfilAtivo?.anilist_token) return mostrarToast("Conecte o AniList primeiro.", "erro");
-    mostrarToast(`📡 Sincronizando ${abaPrincipal}...`);
+    mostrarToast(`📡 Sincronizando ${abaPrincipal}...`, "aviso");
   }
 
-async function atualizarCapitulo(manga: Manga, novo: number) {
+  async function atualizarCapitulo(manga: Manga, novo: number) {
     if (novo < 0) return;
     let novoStatus = manga.status;
     if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
@@ -186,18 +173,15 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
     const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : setFilmes;
     const agora = new Date().toISOString();
 
-    // 1. Atualiza a estante principal
     setLista((prev: Manga[]) => prev.map(m => m.id === manga.id ? { ...m, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : m));
     
-    // ✅ FIX BUG 2: Atualiza o Modal em tempo real para os botões funcionarem
     if (mangaDetalhe?.id === manga.id) {
       setMangaDetalhe(prev => prev ? { ...prev, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : null);
     }
 
-    // 2. Salva no banco de dados
     await supabase.from(tabelaDb).update({ capitulo_atual: novo, status: novoStatus, ultima_leitura: agora }).eq("id", manga.id);
+    mostrarToast("Salvo na base de dados.", "sucesso");
 
-    // ✅ FIX BUG 1: Chama o AniList e dispara as Notificações
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
     if (perfilAtivo && perfilAtivo.anilist_token) {
       sincronizarComAniList(manga.titulo, novo, novoStatus, perfilAtivo.anilist_token, "SALVAR", abaPrincipal);
@@ -209,18 +193,15 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
     const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : setFilmes;
     const listaAtual = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : filmes;
 
-    // 1. Atualiza a estante principal
     setLista((prev: Manga[]) => prev.map(m => m.id === id ? { ...m, ...campos } : m));
     
-    // ✅ FIX BUG 2: Atualiza o Modal em tempo real
     if (mangaDetalhe?.id === id) {
       setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
     }
 
-    // 2. Salva no banco de dados
     await supabase.from(tabelaDb).update(campos).eq("id", id);
+    mostrarToast("Configuração salva.", "sucesso");
 
-    // ✅ FIX BUG 1: Sincronização AniList para Status
     if (campos.status || campos.capitulo_atual !== undefined) {
       const mangaAlterado = listaAtual.find(m => m.id === id);
       const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
@@ -233,10 +214,14 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
   }
 
   async function deletarMangaDaEstante(id: number) {
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
+    // ✅ FIX: Garante a identificação do "filmes" na hora de apagar do banco
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : "filmes";
     if(confirm(`Remover da estante?`)) {
       await supabase.from(tabelaDb).delete().eq("id", id);
-      abaPrincipal === "MANGA" ? buscarMangas() : buscarAnimes();
+      if (abaPrincipal === "MANGA") buscarMangas();
+      else if (abaPrincipal === "ANIME") buscarAnimes();
+      else buscarFilmes();
+      mostrarToast("Obra removida.", "aviso");
     }
   }
 
@@ -264,9 +249,6 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
     }
   }
 
-  // ==========================================
-  // 🔑 7. LÓGICA DE LOGIN E VALIDAÇÃO DE PIN
-  // ==========================================
   async function confirmarPin() {
     if (!perfilAlvoParaBloqueio) return;
     const { data: perfil } = await supabase.from("perfis").select("pin, nome_exibicao").eq("nome_original", perfilAlvoParaBloqueio).single();
@@ -285,9 +267,6 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
     else { setUsuarioAtual(nome); sessionStorage.setItem('hunter_ativo', nome); }
   }
 
-  // ==========================================
-  // 🖥️ RENDERING
-  // ==========================================
   if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
 
   if (!usuarioAtual) return <ProfileSelection perfis={perfis} temas={TEMAS} tentarMudarPerfil={tentarMudarPerfil} perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} pinDigitado={pinDigitado} setPinDigitado={setPinDigitado} confirmarPin={confirmarPin} setPinAdminAberto={setPinAdminAberto} pinAdminAberto={pinAdminAberto} />;
@@ -296,12 +275,14 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
 
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
+  
+  // ✅ FIX: Lista inclui a tabela de filmes na exibição em tela
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : filmes;
   const filtrosAtuais = abaPrincipal === "MANGA" ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
 
   const obrasFiltradas = listaExibicao.filter(m => {
     if (filtroAtivo === "Todos") return true;
-    if (abaPrincipal === "ANIME") {
+    if (abaPrincipal === "ANIME" || abaPrincipal === "FILME") {
       if (filtroAtivo === "Assistindo") return m.status === "Lendo";
       if (filtroAtivo === "Planejo Assistir") return m.status === "Planejo Ler";
     }
@@ -327,7 +308,7 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
           )}
 
           <button onClick={() => setEstaAbertoAdd(true)} className={`px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all hover:scale-105 active:scale-95 bg-zinc-900 border-2 ${aura.border} ${aura.shadow} text-white hover:${aura.text}`}>
-            + Adicionar {abaPrincipal === "MANGA" ? "Mangá" : "Anime"}
+            + Adicionar {abaPrincipal === "MANGA" ? "Mangá" : abaPrincipal === "ANIME" ? "Anime" : "Filme"}
           </button>
 
           <div onClick={() => window.location.href = '/perfil'} className="group cursor-pointer flex flex-col items-center gap-2">
@@ -346,7 +327,6 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
       <div className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto custom-scrollbar">
         <button onClick={() => { setAbaPrincipal("MANGA"); setFiltroAtivo("Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "MANGA" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📚 Estante de Mangás</button>
         <button onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📺 Estante de Animes</button>
-        {/* ✅ NOVA ABA */}
         <button onClick={() => { setAbaPrincipal("FILME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "FILME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>🎬 Estante de Filmes</button>
       </div>
 
@@ -367,9 +347,19 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
         ))}
       </div>
 
-      <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} abaPrincipal={abaPrincipal} aoSalvar={() => { abaPrincipal === "MANGA" ? buscarMangas() : buscarAnimes(); setEstaAbertoAdd(false); }} />
+      <AddMangaModal 
+        estaAberto={estaAbertoAdd} 
+        fechar={() => setEstaAbertoAdd(false)} 
+        usuarioAtual={usuarioAtual} 
+        abaPrincipal={abaPrincipal} 
+        aoSalvar={() => { 
+          if (abaPrincipal === "MANGA") buscarMangas();
+          else if (abaPrincipal === "ANIME") buscarAnimes();
+          else buscarFilmes(); // ✅ FIX: Atualiza os filmes após salvar
+          setEstaAbertoAdd(false); 
+        }} 
+      />
       
-      {/* ✅ MODAL AGORA RECEBE A PROPRIEDADE DE TRADUZIR */}
       {mangaDetalhe && (
         <MangaDetailsModal 
           manga={mangaDetalhe} 
@@ -389,11 +379,23 @@ async function atualizarCapitulo(manga: Manga, novo: number) {
         </div>
       )}
 
-      <div className={`fixed bottom-10 right-10 z-[300] transition-all duration-500 transform ${toast.visivel ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'}`}>
-        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl ${toast.tipo === 'sucesso' ? 'bg-green-500/10 border-green-500/50 text-green-400' : 'bg-red-500/10 border-red-500/50 text-red-400'}`}>
-          <div className="text-2xl animate-bounce">{toast.tipo === 'sucesso' ? '✅' : '❌'}</div>
-          <span className="text-[10px] font-black uppercase tracking-widest mt-1">{toast.mensagem}</span>
-        </div>
+      {/* 🌟 SISTEMA DE NOTIFICAÇÕES EM PILHA */}
+      <div className="fixed bottom-10 right-10 z-[300] flex flex-col gap-3 pointer-events-none">
+        {toasts.map(toast => {
+          let cores = "";
+          let icone = "";
+          if (toast.tipo === "sucesso") { cores = "bg-green-500/10 border-green-500/50 text-green-400"; icone = "✅"; }
+          else if (toast.tipo === "erro") { cores = "bg-red-500/10 border-red-500/50 text-red-400"; icone = "❌"; }
+          else if (toast.tipo === "aviso") { cores = "bg-orange-500/10 border-orange-500/50 text-orange-400"; icone = "⚠️"; }
+          else if (toast.tipo === "anilist") { cores = "bg-blue-500/10 border-blue-500/50 text-blue-400"; icone = "🌐"; }
+
+          return (
+            <div key={toast.id} className={`flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 ${cores}`}>
+              <div className="text-2xl animate-bounce">{icone}</div>
+              <span className="text-[10px] font-black uppercase tracking-widest mt-1">{toast.mensagem}</span>
+            </div>
+          );
+        })}
       </div>
 
     </main>

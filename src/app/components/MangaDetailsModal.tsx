@@ -8,23 +8,20 @@ interface Manga {
 
 interface MangaDetailsModalProps {
   manga: Manga;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME"; // ✅ ADICIONADO "FILME" AQUI
+  abaPrincipal: "MANGA" | "ANIME" | "FILME"; 
   aoFechar: () => void;
   aoAtualizarCapitulo: (manga: Manga, novo: number) => void;
   aoAtualizarDados: (id: number, campos: any) => void;
   aoDeletar: (id: number) => void;
-  aoTraduzir: () => void; // ✅ RESTAURADO: Propriedade para receber a função de tradução
+  aoTraduzir: () => void; 
 }
 
 export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtualizarCapitulo, aoAtualizarDados, aoDeletar, aoTraduzir }: MangaDetailsModalProps) {
   
-  const termoProgresso = abaPrincipal === "MANGA" ? "Capítulo" : "Episódio";
-
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
       <div className="bg-[#0e0e11] w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[3rem] border border-zinc-800 shadow-2xl custom-scrollbar">
         
-        {/* Banner com Capa, Título e Favorito */}
         <div className="relative h-64 md:h-80 w-full overflow-hidden">
           <img src={manga.capa} className="w-full h-full object-cover blur-3xl opacity-20 scale-110" alt="" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e11] to-transparent" />
@@ -36,7 +33,6 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
                 {abaPrincipal} • {manga.status}
               </span>
               
-              {/* BOTÃO FAVORITAR */}
               <button 
                 onClick={() => aoAtualizarDados(manga.id, { favorito: !manga.favorito })}
                 className={`absolute top-0 right-0 w-12 h-12 flex items-center justify-center rounded-xl border border-zinc-800 transition-all ${manga.favorito ? 'bg-zinc-800 text-yellow-500' : 'text-zinc-600 hover:text-white'}`}
@@ -52,7 +48,6 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
 
         <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-12">
           
-          {/* Controles de Progresso e Nota */}
           <div className="space-y-8">
             <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800">
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Progresso Atual</p>
@@ -69,7 +64,6 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
               <p className="text-center text-[10px] text-zinc-700 mt-2 font-bold uppercase tracking-widest">Total: {manga.total_capitulos || '?'}</p>
             </div>
 
-            {/* NOTA PESSOAL */}
             <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800">
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Nota Pessoal</p>
               <input 
@@ -81,7 +75,6 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
             </div>
           </div>
 
-          {/* Sinopse e Comentários */}
           <div className="md:col-span-2 space-y-8">
             <div>
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Sinopse da Obra</p>
@@ -89,7 +82,6 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
                 <p className="text-zinc-400 text-sm leading-relaxed max-h-40 overflow-y-auto pr-4 custom-scrollbar">
                   {manga.sinopse || "Sem descrição disponível."}
                 </p>
-                {/* ✅ BOTÃO DE TRADUÇÃO RESTAURADO */}
                 <button 
                   onClick={aoTraduzir}
                   className="mt-2 text-[8px] font-black uppercase tracking-widest text-blue-500 hover:text-white transition-colors"
@@ -104,7 +96,7 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
                 onClick={() => aoDeletar(manga.id)}
                 className="px-6 py-3 rounded-xl border border-red-500/20 text-red-500 text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all"
               >
-                Remover {abaPrincipal === "MANGA" ? "Mangá" : "Anime"}
+                Remover {abaPrincipal === "MANGA" ? "Mangá" : abaPrincipal === "ANIME" ? "Anime" : "Filme"}
               </button>
             </div>
           </div>
