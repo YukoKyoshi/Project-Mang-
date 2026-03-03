@@ -286,7 +286,8 @@ export default function Home() {
     // 1. Verificação Exclusiva do Admin
     if (perfilAlvoParaBloqueio === "Admin") {
       const { data: adminDb } = await supabase.from("perfis").select("pin").eq("nome_original", "Admin").maybeSingle();
-      const pinCorreto = adminDb?.pin || "0000"; 
+      const pinDeFabrica = process.env.NEXT_PUBLIC_ADMIN_PIN;
+      const pinCorreto = adminDb?.pin || pinDeFabrica;
 
       if (pinDigitado === pinCorreto) {
         sessionStorage.setItem("hunter_ativo", "Admin");
