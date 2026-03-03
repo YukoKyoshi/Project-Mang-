@@ -115,17 +115,32 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
           }
 
         } else if (abaPrincipal === "LIVRO") {
-          // 📚 SUBTÍTULO: MOTOR GOOGLE BOOKS (LIVROS)
+          // 📚 SUBTÍTULO: MOTOR GOOGLE BOOKS + OPEN LIBRARY (LIVROS)
           try {
             const resBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt`);
             const jsonBooks = await resBooks.json();
             
             if (jsonBooks.items && jsonBooks.items.length > 0) {
               setResultados(jsonBooks.items.map((m: any): ResultadoBusca => {
-                // ✅ FIX: Puxa capas melhores, remove o efeito de "página dobrada" e usa gerador dinâmico se falhar
                 const links = m.volumeInfo.imageLinks;
-                let imagemLivro = links?.thumbnail || links?.smallThumbnail || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA";
-                imagemLivro = imagemLivro.replace('http:', 'https:').replace('&edge=curl', '');
+                let imagemLivro = links?.thumbnail || links?.smallThumbnail;
+                
+                // ✅ SISTEMA DE BACKUP: Tenta puxar a capa pela Open Library usando o ISBN
+                if (!imagemLivro) {
+                  const isbns = m.volumeInfo.industryIdentifiers;
+                  const isbnObj = isbns?.find((id: any) => id.type === "ISBN_13" || id.type === "ISBN_10");
+                  
+                  if (isbnObj) {
+                    // Puxa a capa em alta qualidade (L.jpg) direto do acervo mundial
+                    imagemLivro = `https://covers.openlibrary.org/b/isbn/${isbnObj.identifier}-L.jpg`;
+                  } else {
+                    // Último recurso real se a obra for muito obscura e não tiver nem código de barras
+                    imagemLivro = "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA";
+                  }
+                } else {
+                  // Limpa a imagem original do Google se ela existir
+                  imagemLivro = imagemLivro.replace('http:', 'https:').replace('&edge=curl', '');
+                }
 
                 return {
                   id: m.id, 
