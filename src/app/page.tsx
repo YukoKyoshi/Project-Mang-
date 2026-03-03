@@ -271,7 +271,25 @@ export default function Home() {
 
   if (!usuarioAtual) return <ProfileSelection perfis={perfis} temas={TEMAS} tentarMudarPerfil={tentarMudarPerfil} perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} pinDigitado={pinDigitado} setPinDigitado={setPinDigitado} confirmarPin={confirmarPin} setPinAdminAberto={setPinAdminAberto} pinAdminAberto={pinAdminAberto} />;
 
-  if (isAdmin) return <AdminPanel perfis={perfis} config={config} mostrandoFormHunter={mostrandoFormHunter} setMostrandoFormHunter={setMostrandoFormHunter} novoHunter={novoHunter} setNovoHunter={setNovoHunter} deletarPerfil={deletarPerfil} setUsuarioAtual={setUsuarioAtual} atualizarConfig={atualizarConfig} salvarHunter={salvarHunter} prepararEdicao={prepararEdicao} editandoNomeOriginal={editandoNomeOriginal} fecharFormularioHunter={fecharFormularioHunter} />;
+  // Painel do perfil administrador //
+  
+  if (isAdmin) return (
+    <AdminPanel 
+      perfis={perfis} 
+      config={config} 
+      mostrandoFormHunter={mostrandoFormHunter} 
+      setMostrandoFormHunter={setMostrandoFormHunter} 
+      novoHunter={novoHunter} 
+      setNovoHunter={setNovoHunter} 
+      deletarPerfil={deletarPerfil} 
+      setUsuarioAtual={setUsuarioAtual} 
+      atualizarConfig={atualizarConfig} 
+      salvarHunter={salvarHunter} 
+      prepararEdicao={prepararEdicao} 
+      editandoNomeOriginal={editandoNomeOriginal} 
+      fecharFormularioHunter={fecharFormularioHunter} 
+    />
+  );
 
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
