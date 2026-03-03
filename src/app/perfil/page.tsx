@@ -24,7 +24,7 @@ export default function PerfilPage() {
   const [telaCheia, setTelaCheia] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
-  const [fazendoUpload, setFazendoUpload] = useState(false); // ✅ NOVO: Controle de status do upload
+  const [fazendoUpload, setFazendoUpload] = useState(false);
 
   const [dadosPerfil, setDadosPerfil] = useState({ 
     nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" 
@@ -32,7 +32,7 @@ export default function PerfilPage() {
   
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
   const [stats, setStats] = useState({ 
-    obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 // ✅ Atualizado para estante
+    obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 
   });
 
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40", efeito: "" });
@@ -73,7 +73,6 @@ export default function PerfilPage() {
     carregarDados();
   }, [usuarioAtivo]);
 
-  // --- Sub-sessão: Carregar Dados ---
   async function carregarDados() {
     const { data: mangas } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
     const { data: animes } = await supabase.from("animes").select("*").eq("usuario", usuarioAtivo);
@@ -120,7 +119,6 @@ export default function PerfilPage() {
     setCarregando(false);
   }
 
-  // --- Sub-sessão: Sincronizar Perfil ---
   async function atualizarPerfil() {
     setSalvando(true);
     try {
@@ -138,7 +136,6 @@ export default function PerfilPage() {
     } catch (err: any) { alert("Erro: " + err.message); } finally { setSalvando(false); }
   }
 
-  // ✅ SUB-SESSÃO NOVA: UPLOAD DE AVATAR (PC -> SUPABASE)
   async function fazerUploadAvatar(event: React.ChangeEvent<HTMLInputElement>) {
     try {
       setFazendoUpload(true);
@@ -151,26 +148,22 @@ export default function PerfilPage() {
       const fileName = `${usuarioAtivo}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // 1. Envia a imagem para o bucket 'avatars'
       const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      // 2. Pega a URL pública dessa imagem recém-enviada
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       const publicUrl = data.publicUrl;
 
-      // 3. Coloca a URL no preview do avatar para o usuário ver antes de salvar
       setDadosPerfil(prev => ({ ...prev, avatar: publicUrl }));
-      alert('Upload concluído! Clique em "Sincronizar Hunter" no final da página para salvar as alterações.');
+      alert('Upload concluído! Clique em "Sincronizar Hunter" para salvar as alterações.');
 
     } catch (error: any) {
-      alert('Erro no upload: Certifique-se de que o Bucket "avatars" é público. Detalhes: ' + error.message);
+      alert('Erro no upload: Certifique-se de que o Bucket "avatars" é público e possui as políticas (RLS) configuradas. Detalhes: ' + error.message);
     } finally {
       setFazendoUpload(false);
     }
   }
 
-  // --- Sub-sessão: Backup e Exportação ---
   async function exportarBiblioteca() {
     try {
       const { data: m } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
@@ -267,15 +260,16 @@ export default function PerfilPage() {
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic">{dadosPerfil.nome}</h1>
         <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
 
-        <div className="flex flex-wrap gap-6 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
-          {["STATUS", "TROFÉUS", "CONFIG"].map(aba => (
+        {/* ✅ FIX: ABA "MISSÕES" ADICIONADA DE VOLTA */}
+        <div className="flex flex-wrap gap-4 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
+          {["STATUS", "MISSÕES", "TROFÉUS", "CONFIG"].map(aba => (
             <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110 drop-shadow-[0_0_8px_currentColor]" : 'text-zinc-600 hover:text-zinc-400'}`}>
               {aba}
             </button>
           ))}
         </div>
 
-        <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2">
+        <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2 relative">
           
           {abaAtiva === "STATUS" && (
             <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in-95">
@@ -287,12 +281,50 @@ export default function PerfilPage() {
                 <span className="text-3xl font-black text-white italic">{stats.caps}</span>
                 <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Progresso Geral</span>
               </div>
-              <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex items-center justify-between group mb-2">
-                 <div>
-                   <span className="text-2xl font-black text-white italic tracking-tighter">{stats.horasVida} HORAS</span>
-                   <p className="text-[7px] font-black text-zinc-500 uppercase mt-1 tracking-widest italic">Vida gasta assistindo</p>
+              
+              <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex flex-col justify-between group mb-2 relative overflow-hidden">
+                 <div className="flex justify-between items-center z-10">
+                   <div>
+                     <span className="text-2xl font-black text-white italic tracking-tighter">{stats.horasVida} HORAS</span>
+                     <p className="text-[7px] font-black text-zinc-500 uppercase mt-1 tracking-widest italic">Vida gasta assistindo</p>
+                   </div>
+                   <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
                  </div>
-                 <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
+                 
+                 {/* ✅ FIX: BOTÃO DE SINCRONIZAR ANILIST RESTAURADO (Com proteção de chave .env) */}
+                 <a 
+                   href={`https://anilist.co/api/v2/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_ANILIST_CLIENT_ID}&response_type=token`}
+                   className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10"
+                 >
+                   {dadosPerfil.anilist_token ? "✅ AniList Conectado (Sincronizar Novamente)" : "🔗 Conectar com AniList"}
+                 </a>
+              </div>
+            </div>
+          )}
+
+          {/* ✅ FIX: CONTEÚDO DA ABA MISSÕES RESTAURADO */}
+          {abaAtiva === "MISSÕES" && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-left-4 pb-10">
+              <div className="bg-zinc-900/50 p-5 rounded-3xl border border-zinc-800 flex items-center justify-between group hover:border-zinc-600 transition-all">
+                 <div>
+                   <p className="font-bold text-white uppercase text-[10px] tracking-widest">Leitor Assíduo</p>
+                   <p className="text-[8px] text-zinc-500 uppercase mt-1">Atualize 5 capítulos de mangá hoje</p>
+                 </div>
+                 <span className="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">📚</span>
+              </div>
+              <div className="bg-zinc-900/50 p-5 rounded-3xl border border-zinc-800 flex items-center justify-between group hover:border-zinc-600 transition-all">
+                 <div>
+                   <p className="font-bold text-white uppercase text-[10px] tracking-widest">Sétima Arte</p>
+                   <p className="text-[8px] text-zinc-500 uppercase mt-1">Adicione 1 filme novo na sua estante</p>
+                 </div>
+                 <span className="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">🎬</span>
+              </div>
+              <div className="bg-zinc-900/50 p-5 rounded-3xl border border-zinc-800 flex items-center justify-between group hover:border-zinc-600 transition-all">
+                 <div>
+                   <p className="font-bold text-white uppercase text-[10px] tracking-widest">Rato de Biblioteca</p>
+                   <p className="text-[8px] text-zinc-500 uppercase mt-1">Leia seu primeiro Livro</p>
+                 </div>
+                 <span className="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">📖</span>
               </div>
             </div>
           )}
@@ -316,9 +348,18 @@ export default function PerfilPage() {
 
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 animate-in fade-in zoom-in-95 pb-10">
+              
+              {/* ✅ FIX: BOTÃO DE SINCRONIZAR MOVIDO PARA O TOPO E DESTAQUE MÁXIMO */}
+              <button 
+                onClick={atualizarPerfil} 
+                disabled={salvando || fazendoUpload} 
+                className={`w-full py-5 rounded-xl font-black text-[12px] uppercase tracking-widest transition-all shadow-xl sticky top-0 z-50 backdrop-blur-md ${aura.btn}`}
+              >
+                {salvando ? "Sincronizando..." : "💾 Sincronizar Hunter"}
+              </button>
+
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
               
-              {/* ✅ FIX: NOVA ÁREA DE AVATAR COM BOTÃO DE UPLOAD */}
               <div className="grid grid-cols-1 gap-2">
                 <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Avatar (URL ou Enviar do PC)</label>
                 <div className="flex gap-3 items-center">
@@ -342,9 +383,6 @@ export default function PerfilPage() {
                 </select>
                 {dadosPerfil.tema === "custom" && <input type="color" className="w-full h-12 bg-black border border-white/5 rounded-xl cursor-pointer" value={dadosPerfil.custom_color} onChange={e => setDadosPerfil({...dadosPerfil, custom_color: e.target.value})} />}
               </div>
-              <button onClick={atualizarPerfil} disabled={salvando || fazendoUpload} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${aura.btn}`}>
-                {salvando ? "Sincronizando..." : "Sincronizar Hunter"}
-              </button>
             </div>
           )}
         </div>
