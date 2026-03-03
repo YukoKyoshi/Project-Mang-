@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 
 // ==========================================
-// 📦 SESSÃO 1: INTERFACES PARA BLINDAR O TYPESCRIPT
+// 📦 SESSÃO 1: INTERFACES
 // ==========================================
 interface ResultadoBusca {
   id: number | string;
@@ -11,14 +11,14 @@ interface ResultadoBusca {
   capa: string;
   total: number;
   sinopse: string;
-  fonte: "AniList" | "MyAnimeList" | "TMDB" | "Google Books"; // ✅ FONTE LIVROS ADICIONADA
+  fonte: "AniList" | "MyAnimeList" | "TMDB" | "Google Books";
 }
 
 interface AddMangaModalProps {
   estaAberto: boolean;
   fechar: () => void;
   usuarioAtual: string;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO"; // ✅ ABA LIVROS ADICIONADA
+  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO";
   aoSalvar: (novoManga: any) => void;
 }
 
@@ -55,15 +55,13 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       try {
         let termoFinal = termoAnilist;
 
-        // 🛑 IGNORAMOS A IA PARA FILMES E LIVROS (O TMDB e Google Books são nativos em PT-BR)
+        // 🛑 IGNORAMOS A IA PARA FILMES E LIVROS
         if (abaPrincipal !== "FILME" && abaPrincipal !== "LIVRO") {
-          // 1. VERIFICA CACHE NO SUPABASE
           const { data: cacheHit } = await supabase.from('search_cache').select('resultado_ia').ilike('termo_original', termoAnilist).maybeSingle();
 
           if (cacheHit) {
             termoFinal = cacheHit.resultado_ia;
           } else {
-            // 2. CONSULTA IA (GROQ)
             const resIA = await fetch('/api/tradutor-ia', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -80,12 +78,13 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
           }
         }
 
-        // 3. SEPARAÇÃO DO MOTOR: FILMES VS LIVROS VS OTAKU
+        // ==========================================
+        // 3.1 SUBTÍTULO: MOTOR TMDB (FILMES)
+        // ==========================================
         if (abaPrincipal === "FILME") {
-          // 🎬 SUBTÍTULO: MOTOR TMDB (FILMES)
-          const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY; 
+          const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY; // 🔒 Puxado do Cofre Seguro
           
-          if (!TMDB_API_KEY || TMDB_API_KEY === "SUA_CHAVE_TMDB_AQUI") {
+          if (!TMDB_API_KEY) {
             alert("⚠️ Hunter, a API Key do TMDB está faltando no cofre (.env.local)!");
             setBuscando(false);
             return;
@@ -100,7 +99,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
                 id: m.id, 
                 titulo: m.title, 
-                // ✅ FIX: Capa de emergência substituída por gerador dinâmico
                 capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
                 total: 1, 
                 sinopse: m.overview || "Sem sinopse em português.", 
@@ -114,40 +112,39 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             setResultados([]);
           }
 
+        // ==========================================
+        // 3.2 SUBTÍTULO: MOTOR GOOGLE BOOKS + OPEN LIBRARY
+        // ==========================================
         } else if (abaPrincipal === "LIVRO") {
-          // 📚 SUBTÍTULO: MOTOR GOOGLE BOOKS + OPEN LIBRARY (LIVROS)
           try {
             const resBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt`);
             const jsonBooks = await resBooks.json();
             
             if (jsonBooks.items && jsonBooks.items.length > 0) {
               setResultados(jsonBooks.items.map((m: any): ResultadoBusca => {
-                const links = m.volumeInfo.imageLinks;
+                const links = m.volumeInfo?.imageLinks;
                 let imagemLivro = links?.thumbnail || links?.smallThumbnail;
                 
-                // ✅ SISTEMA DE BACKUP: Tenta puxar a capa pela Open Library usando o ISBN
+                // Backup da Capa pela Open Library via ISBN
                 if (!imagemLivro) {
-                  const isbns = m.volumeInfo.industryIdentifiers;
+                  const isbns = m.volumeInfo?.industryIdentifiers;
                   const isbnObj = isbns?.find((id: any) => id.type === "ISBN_13" || id.type === "ISBN_10");
                   
                   if (isbnObj) {
-                    // Puxa a capa em alta qualidade (L.jpg) direto do acervo mundial
                     imagemLivro = `https://covers.openlibrary.org/b/isbn/${isbnObj.identifier}-L.jpg`;
                   } else {
-                    // Último recurso real se a obra for muito obscura e não tiver nem código de barras
                     imagemLivro = "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA";
                   }
                 } else {
-                  // Limpa a imagem original do Google se ela existir
                   imagemLivro = imagemLivro.replace('http:', 'https:').replace('&edge=curl', '');
                 }
 
                 return {
                   id: m.id, 
-                  titulo: m.volumeInfo.title, 
+                  titulo: m.volumeInfo?.title || "Sem Título", 
                   capa: imagemLivro,
-                  total: m.volumeInfo.pageCount || 1, 
-                  sinopse: m.volumeInfo.description || "Sem sinopse em português.", 
+                  total: m.volumeInfo?.pageCount || 1, 
+                  sinopse: m.volumeInfo?.description || "Sem sinopse em português.", 
                   fonte: "Google Books"
                 };
               }));
@@ -159,37 +156,44 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             setResultados([]);
           }
 
+        // ==========================================
+        // 3.3 SUBTÍTULO: MOTOR ANILIST / MYANIMELIST (MANGÁS/ANIMES)
+        // ==========================================
         } else {
-          // 🌸 SUBTÍTULO: MOTOR ANILIST / MYANIMELIST (MANGÁS E ANIMES)
-          const resAni = await fetch("https://graphql.anilist.co", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
-              variables: { search: termoFinal, type: abaPrincipal }
-            })
-          });
-          const jsonAni = await resAni.json();
-          const listaAni = jsonAni.data?.Page?.media || [];
+          try {
+            const resAni = await fetch("https://graphql.anilist.co", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ 
+                query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
+                variables: { search: termoFinal, type: abaPrincipal }
+              })
+            });
+            const jsonAni = await resAni.json();
+            const listaAni = jsonAni.data?.Page?.media || [];
 
-          if (listaAni.length > 0) {
-            setResultados(listaAni.map((m: any): ResultadoBusca => ({
-              id: m.id, titulo: m.title.romaji || m.title.english, capa: m.coverImage.large,
-              total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-              sinopse: m.description || "", fonte: "AniList"
-            })));
-          } else {
-            const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
-            const jsonMal = await resMal.json();
-            setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
-              id: m.mal_id, titulo: m.title, capa: m.images.jpg.large_image_url,
-              total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-              sinopse: m.synopsis || "", fonte: "MyAnimeList"
-            })) || []);
+            if (listaAni.length > 0) {
+              setResultados(listaAni.map((m: any): ResultadoBusca => ({
+                id: m.id, titulo: m.title.romaji || m.title.english, capa: m.coverImage.large,
+                total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+                sinopse: m.description || "", fonte: "AniList"
+              })));
+            } else {
+              const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
+              const jsonMal = await resMal.json();
+              setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
+                id: m.mal_id, titulo: m.title, capa: m.images.jpg.large_image_url,
+                total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+                sinopse: m.synopsis || "", fonte: "MyAnimeList"
+              })) || []);
+            }
+          } catch (error) {
+            console.error("Erro no AniList/MAL:", error);
+            setResultados([]);
           }
         }
 
-      } catch (err) { console.error("Erro na busca:", err); } finally { setBuscando(false); }
+      } catch (err) { console.error("Erro na busca geral:", err); } finally { setBuscando(false); }
     }, 1500); 
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
@@ -217,7 +221,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     if (!usuarioAtual) return;
     setSalvando(true);
     
-    // ✅ REDIRECIONAMENTO EXPANDIDO PARA INCLUIR "livros"
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : "livros";
     
     const { error } = await supabase.from(tabelaDb).insert([{ ...novoManga, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() }]);
@@ -237,7 +240,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         {!novoManga.titulo ? (
           <div className="space-y-6">
             <h3 className="text-xl font-bold text-green-500 uppercase italic tracking-tighter">Hunter Search S+</h3>
-            <input autoFocus type="text" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none text-white text-lg font-bold" placeholder="Digite em português..." value={termoAnilist} onChange={(e) => setTermoAnilist(e.target.value)} />
+            <input autoFocus type="text" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none text-white text-lg font-bold" placeholder="Digite a obra..." value={termoAnilist} onChange={(e) => setTermoAnilist(e.target.value)} />
             <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
               {resultados.map((m: ResultadoBusca) => (
                 <div key={m.id} onClick={() => setNovoManga({ titulo: m.titulo, capa: m.capa, capitulo_atual: 0, total_capitulos: m.total, status: "Planejo Ler", sinopse: m.sinopse })} className="p-4 bg-zinc-900/50 rounded-2xl hover:bg-zinc-800 cursor-pointer flex gap-4 items-center border border-zinc-800 transition-all group">
