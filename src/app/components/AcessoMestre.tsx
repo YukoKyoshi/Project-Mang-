@@ -1,17 +1,20 @@
 "use client";
 import { useState } from "react";
-import { supabase } from "../supabase";
 
 export default function AcessoMestre({ aoAutorizar }: { aoAutorizar: () => void }) {
   const [senhaDigitada, setSenhaDigitada] = useState("");
   const [erro, setErro] = useState(false);
   const [validando, setValidando] = useState(false);
 
-  async function verificarSenha() {
+  // ✅ CORREÇÃO APLICADA: Validação instantânea via Cofre (.env)
+  function verificarSenha() {
     setValidando(true);
-    const { data } = await supabase.from("sistema").select("senha_mestra").single();
     
-    if (data && data.senha_mestra === senhaDigitada) {
+    // Puxa a senha direto do arquivo .env.local ou do Vercel
+    const senhaCorreta = process.env.NEXT_PUBLIC_SENHA_MESTRA;
+    
+    // Verifica se a senha do cofre existe e bate com a digitada
+    if (senhaCorreta && senhaDigitada === senhaCorreta) {
       sessionStorage.setItem("acesso_mestre", "true");
       aoAutorizar();
     } else {
