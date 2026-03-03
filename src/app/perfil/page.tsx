@@ -1,7 +1,7 @@
 "use client";
 
 // ==========================================
-// [SESSÃO 1] - IMPORTAÇÕES E TEMAS (AURA GLOBAL)
+// 📦 [SESSÃO 1] - IMPORTAÇÕES E TEMAS
 // ==========================================
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
@@ -17,28 +17,28 @@ const TEMAS = {
 
 export default function PerfilPage() {
   // ==========================================
-  // [SESSÃO 2] - ESTADOS
+  // 🔐 [SESSÃO 2] - ESTADOS GERAIS
   // ==========================================
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
   const [telaCheia, setTelaCheia] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [fazendoUpload, setFazendoUpload] = useState(false); // ✅ NOVO: Controle de status do upload
 
   const [dadosPerfil, setDadosPerfil] = useState({ 
     nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" 
   });
   
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
-  // ✅ FIX: "filmes" adicionado aos status para rastreio dos troféus
   const [stats, setStats] = useState({ 
-    obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0 
+    obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 // ✅ Atualizado para estante
   });
 
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40", efeito: "" });
 
   // ==========================================
-  // [SESSÃO 3] - CORE LOGIC E AUTOMAÇÃO ANILIST
+  // 🧠 [SESSÃO 3] - CORE LOGIC E AUTOMAÇÃO
   // ==========================================
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
@@ -57,10 +57,7 @@ export default function PerfilPage() {
       if (token) {
         const salvarTokenAuto = async () => {
           setSalvando(true);
-          const { error } = await supabase.from("perfis")
-            .update({ anilist_token: token })
-            .eq("nome_original", usuarioAtivo);
-
+          const { error } = await supabase.from("perfis").update({ anilist_token: token }).eq("nome_original", usuarioAtivo);
           if (!error) {
             setDadosPerfil(prev => ({ ...prev, anilist_token: token }));
             alert("✅ Conta AniList conectada com sucesso!");
@@ -76,16 +73,17 @@ export default function PerfilPage() {
     carregarDados();
   }, [usuarioAtivo]);
 
+  // --- Sub-sessão: Carregar Dados ---
   async function carregarDados() {
     const { data: mangas } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
     const { data: animes } = await supabase.from("animes").select("*").eq("usuario", usuarioAtivo);
-    const { data: filmes } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtivo); // ✅ FIX: Busca de filmes adicionada
+    const { data: filmes } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtivo); 
+    const { data: livros } = await supabase.from("livros").select("*").eq("usuario", usuarioAtivo); 
     const { data: perfil } = await supabase.from("perfis").select("*").eq("nome_original", usuarioAtivo).single();
 
-    if (mangas || animes || filmes) {
-      const all = [...(mangas || []), ...(animes || []), ...(filmes || [])];
+    if (mangas || animes || filmes || livros) {
+      const all = [...(mangas || []), ...(animes || []), ...(filmes || []), ...(livros || [])];
       
-      // ✅ FIX: Cálculo de horas de vida agora inclui filmes (estimativa de 2h = 120 min por filme visto)
       const epsVistos = (animes || []).reduce((acc, a) => acc + (a.capitulo_atual || 0), 0);
       const minFilmesVistos = (filmes || []).filter(f => f.status === "Completos").length * 120; 
       
@@ -96,7 +94,8 @@ export default function PerfilPage() {
         finais: all.filter(o => o.status === "Completos").length,
         horasVida: Math.floor(((epsVistos * 23) + minFilmesVistos) / 60), 
         favs: all.filter(o => o.favorito === true || o.favorito === "true").length,
-        filmes: (filmes || []).length // Guarda a quantidade de filmes
+        filmes: (filmes || []).length,
+        livros: (livros || []).length
       });
 
       const t = all.length;
@@ -121,6 +120,7 @@ export default function PerfilPage() {
     setCarregando(false);
   }
 
+  // --- Sub-sessão: Sincronizar Perfil ---
   async function atualizarPerfil() {
     setSalvando(true);
     try {
@@ -138,13 +138,46 @@ export default function PerfilPage() {
     } catch (err: any) { alert("Erro: " + err.message); } finally { setSalvando(false); }
   }
 
-  // ✅ FIX: Exportação/Importação agora blinda seus filmes no backup
+  // ✅ SUB-SESSÃO NOVA: UPLOAD DE AVATAR (PC -> SUPABASE)
+  async function fazerUploadAvatar(event: React.ChangeEvent<HTMLInputElement>) {
+    try {
+      setFazendoUpload(true);
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('Você deve selecionar uma imagem primeiro.');
+      }
+      
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${usuarioAtivo}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // 1. Envia a imagem para o bucket 'avatars'
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      // 2. Pega a URL pública dessa imagem recém-enviada
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const publicUrl = data.publicUrl;
+
+      // 3. Coloca a URL no preview do avatar para o usuário ver antes de salvar
+      setDadosPerfil(prev => ({ ...prev, avatar: publicUrl }));
+      alert('Upload concluído! Clique em "Sincronizar Hunter" no final da página para salvar as alterações.');
+
+    } catch (error: any) {
+      alert('Erro no upload: Certifique-se de que o Bucket "avatars" é público. Detalhes: ' + error.message);
+    } finally {
+      setFazendoUpload(false);
+    }
+  }
+
+  // --- Sub-sessão: Backup e Exportação ---
   async function exportarBiblioteca() {
     try {
       const { data: m } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
       const { data: a } = await supabase.from("animes").select("*").eq("usuario", usuarioAtivo);
       const { data: f } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtivo);
-      const backup = { hunter: dadosPerfil.nome, biblioteca: { mangas: m || [], animes: a || [], filmes: f || [] } };
+      const { data: l } = await supabase.from("livros").select("*").eq("usuario", usuarioAtivo);
+      const backup = { hunter: dadosPerfil.nome, biblioteca: { mangas: m || [], animes: a || [], filmes: f || [], livros: l || [] } };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -162,13 +195,14 @@ export default function PerfilPage() {
       if (content.biblioteca.mangas) await supabase.from("mangas").insert(content.biblioteca.mangas.map(format));
       if (content.biblioteca.animes) await supabase.from("animes").insert(content.biblioteca.animes.map(format));
       if (content.biblioteca.filmes) await supabase.from("filmes").insert(content.biblioteca.filmes.map(format));
+      if (content.biblioteca.livros) await supabase.from("livros").insert(content.biblioteca.livros.map(format));
       alert("Importação Concluída!"); carregarDados();
     };
     reader.readAsText(file);
   }
 
   // ==========================================
-  // [SESSÃO 4] - 70 TROFÉUS (GRID EXPANDIDO)
+  // 🏆 [SESSÃO 4] - RENDERIZAÇÃO E INTERFACE
   // ==========================================
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
 
@@ -178,18 +212,14 @@ export default function PerfilPage() {
     "🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌",
     "🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺",
     "🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱",
-    // ✅ 20 NOVOS ÍCONES PARA A ALA DE FILMES (IDs 51 a 70)
     "🎬","🍿","🎟️","📽️","🎞️","📼","🎫","📺","🎥","🧛",
     "🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","🦖","🦈","🛸"
   ];
 
   const listaTrofeus = Array.from({ length: 70 }, (_, i) => {
     const id = i + 1;
-    let check = false;
-    let nome = `Troféu Hunter ${id}`;
-    let desc = `Bloqueado: Requer Nível ${id * 2} de progresso.`;
+    let check = false; let nome = `Troféu Hunter ${id}`; let desc = `Bloqueado: Requer Nível ${id * 2} de progresso.`;
 
-    // ALA CLÁSSICA (Mangás/Animes/Geral)
     if (id <= 50) {
       if (id === 1) { nome = "Semente"; desc = "Adicionou 1 obra"; check = stats.obras >= 1; }
       else if (id === 2) { nome = "Viciado"; desc = "Adicionou 10 obras"; check = stats.obras >= 10; }
@@ -197,9 +227,7 @@ export default function PerfilPage() {
       else if (id === 4) { nome = "Sem Tempo"; desc = "10 Horas assistidas"; check = stats.horasVida >= 10; }
       else if (id === 5) { nome = "Curador"; desc = "Marcou 5 favoritos"; check = stats.favs >= 5; }
       else { check = stats.obras >= (id * 3); }
-    } 
-    // ✅ ALA DOS CINEASTAS (Filmes)
-    else {
+    } else {
       const nivelFilme = id - 50; 
       nome = `Cineasta Nv. ${nivelFilme}`;
       desc = `Bloqueado: Requer ${nivelFilme * 5} filmes na estante.`;
@@ -209,17 +237,10 @@ export default function PerfilPage() {
       else if (id === 53) { nome = "Crítico de Sofá"; desc = "Adicionou 10 filmes"; check = stats.filmes >= 10; }
       else if (id === 54) { nome = "Cinéfilo"; desc = "Adicionou 25 filmes"; check = stats.filmes >= 25; }
       else if (id === 55) { nome = "Diretor Mestre"; desc = "Adicionou 50 filmes"; check = stats.filmes >= 50; }
-      else { check = stats.filmes >= (nivelFilme * 5); } // Os demais pedem múltiplos de 5
+      else { check = stats.filmes >= (nivelFilme * 5); }
     }
-    
     return { id, nome, desc, icone: iconesTrofeus[i], check };
   });
-
-  const listaMissoes = [
-    { id: 1, titulo: "Segurança Máxima", obj: "Fazer 1 Backup Local", prog: 1, meta: 1, rec: "🔓 Aura Pulsante" },
-    { id: 2, titulo: "Vida Eterna", obj: "500 Horas Assistidas", prog: stats.horasVida, meta: 500, rec: "🎥 Filtro Cinema" },
-    { id: 3, titulo: "Alpha Hunter", obj: "50 Séries Completas", prog: stats.finais, meta: 50, rec: "✨ Nome Dourado" }
-  ];
 
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic animate-pulse">CARREGANDO HUB...</div>;
 
@@ -244,11 +265,10 @@ export default function PerfilPage() {
         </div>
 
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic">{dadosPerfil.nome}</h1>
-        
         <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
 
         <div className="flex flex-wrap gap-6 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
-          {["STATUS", "TROFÉUS", "MISSÕES", "CONFIG"].map(aba => (
+          {["STATUS", "TROFÉUS", "CONFIG"].map(aba => (
             <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110 drop-shadow-[0_0_8px_currentColor]" : 'text-zinc-600 hover:text-zinc-400'}`}>
               {aba}
             </button>
@@ -261,11 +281,11 @@ export default function PerfilPage() {
             <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in-95">
               <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center group hover:border-white/10 transition-all">
                 <span className="text-3xl font-black text-white italic">{stats.obras}</span>
-                <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Obras</span>
+                <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Obras Totais</span>
               </div>
               <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center group hover:border-white/10 transition-all">
                 <span className="text-3xl font-black text-white italic">{stats.caps}</span>
-                <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Progresso</span>
+                <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Progresso Geral</span>
               </div>
               <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex items-center justify-between group mb-2">
                  <div>
@@ -273,36 +293,6 @@ export default function PerfilPage() {
                    <p className="text-[7px] font-black text-zinc-500 uppercase mt-1 tracking-widest italic">Vida gasta assistindo</p>
                  </div>
                  <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
-              </div>
-
-              <div className="col-span-2">
-                {dadosPerfil.anilist_token ? (
-                  <div className="bg-[#0a0f1a] border border-blue-900/50 p-5 rounded-3xl flex items-center justify-between shadow-inner">
-                    <div className="flex items-center gap-4">
-                      <span className="text-2xl text-blue-500">🌐</span>
-                      <div>
-                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">AniList Conectado</p>
-                        <p className="text-[8px] text-zinc-500 uppercase mt-1">Sincronização Ativa na Estante</p>
-                      </div>
-                    </div>
-                    <div className="w-6 h-6 bg-green-500 rounded-md flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]">
-                      <span className="text-white text-xs font-black">✓</span>
-                    </div>
-                  </div>
-                ) : (
-                  <a 
-                    href="https://anilist.co/api/v2/oauth/authorize?client_id=SEU_CLIENT_ID_AQUI&response_type=token" 
-                    className="bg-blue-600/10 border border-blue-500/30 p-5 rounded-3xl flex items-center justify-between hover:bg-blue-600/20 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className="text-2xl group-hover:scale-110 transition-transform">🔗</span>
-                      <div>
-                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Conectar ao AniList</p>
-                        <p className="text-[8px] text-zinc-500 uppercase mt-1">Sincronizar progresso automaticamente</p>
-                      </div>
-                    </div>
-                  </a>
-                )}
               </div>
             </div>
           )}
@@ -324,67 +314,26 @@ export default function PerfilPage() {
             </div>
           )}
 
-          {abaAtiva === "MISSÕES" && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-left-4">
-              {listaMissoes.map(m => (
-                <div key={m.id} className="bg-zinc-900/50 p-6 rounded-3xl border border-white/5 relative group">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h4 className="text-xs font-black text-white uppercase italic">{m.titulo}</h4>
-                      <p className="text-[8px] text-zinc-500 uppercase mt-1">{m.obj}</p>
-                    </div>
-                    <span className={`text-[9px] font-black ${aura.text}`}>🎁 {m.rec}</span>
-                  </div>
-                  <div className="w-full h-1 bg-black rounded-full overflow-hidden">
-                    <div className={`h-full ${aura.bg} transition-all duration-1000`} style={{ width: `${Math.min((m.prog/m.meta)*100, 100)}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 animate-in fade-in zoom-in-95 pb-10">
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
-              <input type="text" placeholder="URL Imagem Avatar" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
               
-              <div className="grid grid-cols-1 gap-4">
-                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Código PIN (4 Dígitos)</label>
-                <input type="password" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} />
+              {/* ✅ FIX: NOVA ÁREA DE AVATAR COM BOTÃO DE UPLOAD */}
+              <div className="grid grid-cols-1 gap-2">
+                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Avatar (URL ou Enviar do PC)</label>
+                <div className="flex gap-3 items-center">
+                  <input type="text" placeholder="Cole a URL ou faça upload..." className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-white/20" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
+                  
+                  <label className={`px-6 py-4 rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center ${fazendoUpload ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}>
+                    {fazendoUpload ? "⏳ Enviando..." : "📁 PC"}
+                    <input type="file" accept="image/*" className="hidden" onChange={fazerUploadAvatar} disabled={fazendoUpload} />
+                  </label>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-2">
-                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Integração AniList</label>
-                <div className="flex gap-3">
-                  {dadosPerfil.anilist_token ? (
-                    <>
-                      <input 
-                        type="password" 
-                        value="••••••••••••••••••••••••••••••••" 
-                        readOnly 
-                        className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs font-mono opacity-50 cursor-not-allowed select-none outline-none"
-                      />
-                      <button 
-                        onClick={() => {
-                          if(confirm("Tem certeza que deseja remover a conexão com o AniList?")) {
-                            setDadosPerfil({...dadosPerfil, anilist_token: ""});
-                          }
-                        }}
-                        className="px-6 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all shadow-lg"
-                      >
-                        Desconectar
-                      </button>
-                    </>
-                  ) : (
-                    <input 
-                      type="password" 
-                      placeholder="Conecte pela aba Status ou cole manualmente aqui..." 
-                      className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs font-mono outline-none focus:border-white/20 transition-all"
-                      value={dadosPerfil.anilist_token} 
-                      onChange={e => setDadosPerfil({...dadosPerfil, anilist_token: e.target.value})} 
-                    />
-                  )}
-                </div>
+              <div className="grid grid-cols-1 gap-4">
+                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Código PIN (4 Dígitos)</label>
+                <input type="password" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center outline-none focus:border-white/20" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value.replace(/\D/g, '')})} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -393,7 +342,7 @@ export default function PerfilPage() {
                 </select>
                 {dadosPerfil.tema === "custom" && <input type="color" className="w-full h-12 bg-black border border-white/5 rounded-xl cursor-pointer" value={dadosPerfil.custom_color} onChange={e => setDadosPerfil({...dadosPerfil, custom_color: e.target.value})} />}
               </div>
-              <button onClick={atualizarPerfil} disabled={salvando} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${aura.btn}`}>
+              <button onClick={atualizarPerfil} disabled={salvando || fazendoUpload} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${aura.btn}`}>
                 {salvando ? "Sincronizando..." : "Sincronizar Hunter"}
               </button>
             </div>
