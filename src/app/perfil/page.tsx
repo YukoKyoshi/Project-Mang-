@@ -26,16 +26,21 @@ const LOJA_ITENS = [
   { id: "moldura_gelo", nome: "Cristal de Gelo", tipo: "moldura", preco: 350, icone: "❄️", desc: "Brilho estático e congelante." },
   { id: "moldura_magma", nome: "Magma Escorrendo", tipo: "moldura", preco: 500, icone: "🌋", desc: "Animação de chamas correndo pela borda." },
   { id: "moldura_celestial", nome: "Anel Divino", tipo: "moldura", preco: 800, icone: "👼", desc: "Avatar flutuante com brilho purificador." },
-  // PARTÍCULAS
+  
+  // PARTÍCULAS (AGORA COM AS ESTAÇÕES DO ANO!)
+  { id: "particula_primavera", nome: "Brisas de Primavera", tipo: "particula", preco: 400, icone: "🍃", desc: "Folhas verdes flutuando com o vento." },
+  { id: "particula_verao", nome: "Vagalumes de Verão", tipo: "particula", preco: 400, icone: "☀️", desc: "Orbes de luz flutuando preguiçosamente." },
+  { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc: "Folhas alaranjadas caindo calmamente." },
+  { id: "particula_inverno", nome: "Inverno Rigoroso", tipo: "particula", preco: 450, icone: "⛄", desc: "Neve densa caindo sobre a tela." },
   { id: "particula_fogo", nome: "Aura de Fogo", tipo: "particula", preco: 300, icone: "🔥", desc: "Fagulhas de chamas subindo animadas." },
   { id: "particula_petalas", nome: "Chuva de Pétalas", tipo: "particula", preco: 300, icone: "🌸", desc: "Pétalas caindo com física de vento." },
-  { id: "particula_neve", nome: "Nevasca", tipo: "particula", preco: 400, icone: "🌨️", desc: "Flocos de neve caindo suavemente." },
   { id: "particula_estrelas", nome: "Céu Estrelado", tipo: "particula", preco: 450, icone: "✨", desc: "Fundo com estrelas cintilantes." },
   { id: "particula_chuva", nome: "Tempestade", tipo: "particula", preco: 350, icone: "🌧️", desc: "Chuva rápida atravessando a tela." },
   { id: "particula_bolhas", nome: "Subaquático", tipo: "particula", preco: 350, icone: "🫧", desc: "Bolhas translúcidas subindo." },
   { id: "particula_matrix", nome: "Código Matrix", tipo: "particula", preco: 600, icone: "📟", desc: "Letras verdes caindo como dados." },
   { id: "particula_confete", nome: "Festa de Vitória", tipo: "particula", preco: 700, icone: "🎊", desc: "Confetes coloridos girando na queda." },
   { id: "particula_morcegos", nome: "Noite Sombria", tipo: "particula", preco: 500, icone: "🦇", desc: "Sombras voadoras passando rápido." },
+  
   // TÍTULOS
   { id: "titulo_sabio", nome: "Título: O Sábio", tipo: "titulo", preco: 400, icone: "🦉", desc: "Clássico título dourado." },
   { id: "titulo_lenda", nome: "Título: A Lenda Viva", tipo: "titulo", preco: 500, icone: "📜", desc: "Clássico título dourado." },

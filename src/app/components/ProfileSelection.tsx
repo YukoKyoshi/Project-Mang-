@@ -1,118 +1,95 @@
-// src/app/components/ProfileSelection.tsx
 "use client";
 
-import React from 'react';
-
-// Interfaces para os Temas e Props
-interface Tema {
-  nome: string;
-  bg: string;
-  bgActive: string;
-  text: string;
-  border: string;
-  shadow: string;
-  focus: string;
-}
+// ==========================================
+// 📦 [SESSÃO 1] - IMPORTAÇÕES E INTERFACES
+// ==========================================
+import { useState } from "react";
+import EfeitosVisuais from "./EfeitosVisuais";
 
 interface ProfileSelectionProps {
   perfis: any[];
-  temas: Record<string, Tema>;
+  temas: any;
   tentarMudarPerfil: (nome: string) => void;
   perfilAlvoParaBloqueio: string | null;
   pinDigitado: string;
-  setPinDigitado: (v: string) => void;
+  setPinDigitado: (pin: string) => void;
   confirmarPin: () => void;
-  setPinAdminAberto: (v: boolean) => void;
+  setPinAdminAberto: (aberto: boolean) => void;
   pinAdminAberto: boolean;
 }
 
-export default function ProfileSelection({
-  perfis, temas, tentarMudarPerfil, perfilAlvoParaBloqueio,
-  pinDigitado, setPinDigitado, confirmarPin, setPinAdminAberto, pinAdminAberto
-  
-}: ProfileSelectionProps) {
+export default function ProfileSelection({ perfis, temas, tentarMudarPerfil, perfilAlvoParaBloqueio, pinDigitado, setPinDigitado, confirmarPin, setPinAdminAberto, pinAdminAberto }: ProfileSelectionProps) {
+  // ==========================================
+  // 🖥️ [SESSÃO 2] - RENDERIZAÇÃO
+  // ==========================================
   return (
-    <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-700">
-      <h1 className="text-4xl font-black mb-16 uppercase tracking-tighter text-white italic">Escolha seu Perfil</h1>
+    <div className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 relative overflow-hidden">
       
-      <div className="flex flex-wrap justify-center gap-10">
-        {perfis.map(p => {
-          const auraP = p.cor_tema?.startsWith('#') ? temas.custom : (temas[p.cor_tema as keyof typeof temas] || temas.verde);
-          
-          return (
-            <div 
-              key={p.nome_original} 
-              onClick={() => tentarMudarPerfil(p.nome_original)} 
-              className="flex flex-col items-center gap-4 cursor-pointer group"
-              style={p.cor_tema?.startsWith('#') ? { '--aura': p.cor_tema } as React.CSSProperties : {}}
-            >
-              {/* ✅ CORREÇÃO: AVATAR INTELIGENTE (LINK OU EMOJI) */}
-              <div className={`w-40 h-40 bg-zinc-900 rounded-[3rem] flex items-center justify-center overflow-hidden border-4 border-zinc-800 transition-all duration-500 shadow-2xl group-hover:scale-105 group-hover:${auraP.border}`}>
-                {p.avatar?.startsWith('http') ? (
-                  <img 
-                    src={p.avatar} 
-                    className="w-full h-full object-cover" 
-                    alt={p.nome_exibicao}
-                    onError={(e) => {
-                      // Fallback caso a imagem quebre
-                      (e.target as HTMLImageElement).src = "https://i.imgur.com/8Km9t4S.png";
-                    }}
-                  />
-                ) : (
-                  <span className="text-7xl">{p.avatar || "👤"}</span>
-                )}
-              </div>
+      {/* 🚀 INJETA O CSS GLOBAL DOS COSMÉTICOS SEM ATIVAR PARTÍCULAS NO LOGIN */}
+      <EfeitosVisuais particula="" />
 
-              <span className="font-bold uppercase text-zinc-500 group-hover:text-white tracking-widest transition-colors">
-                {p.nome_exibicao}
-              </span>
+      {/* TÍTULO PRINCIPAL */}
+      <div className="text-center mb-16 animate-in slide-in-from-top-8 fade-in duration-700">
+        <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter text-white">Hunter<span className="text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]">.</span>Tracker</h1>
+        <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.5em] text-zinc-500 mt-4">Selecione o seu perfil de Caçador</p>
+      </div>
+
+      {/* LISTA DE PERFIS */}
+      <div className="flex flex-wrap justify-center gap-8 md:gap-12 max-w-5xl relative z-10">
+        {perfis.filter(p => p.nome_original !== "Admin").map((perfil, i) => {
+          const aura = perfil.cor_tema?.startsWith('#') ? temas.custom : (temas[perfil.cor_tema as keyof typeof temas] || temas.verde);
+          
+          // ✨ LÊ A MOLDURA EQUIPADA DIRETAMENTE DO BANCO
+          const moldura = perfil.cosmeticos?.ativos?.moldura || "";
+
+          return (
+            <div key={perfil.id} className="flex flex-col items-center cursor-pointer group" onClick={() => tentarMudarPerfil(perfil.nome_original)} style={perfil.cor_tema?.startsWith('#') ? { '--aura': perfil.cor_tema } as React.CSSProperties : {}}>
+              <div className={`w-24 h-24 mx-auto bg-black rounded-3xl border-2 flex items-center justify-center text-4xl mb-4 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-2 relative overflow-hidden ${aura.border} ${aura.shadow} ${moldura}`}>
+                {perfil.avatar?.startsWith('http') ? <img src={perfil.avatar} className="w-full h-full object-cover" alt="" /> : perfil.avatar}
+              </div>
+              <p className="text-white font-black uppercase tracking-widest text-sm group-hover:text-yellow-500 transition-colors text-center">{perfil.nome_exibicao || perfil.nome_original}</p>
+              {perfil.pin && <p className="text-[8px] text-zinc-600 uppercase font-black tracking-widest mt-1">🔒 Bloqueado</p>}
             </div>
           );
         })}
 
-        {/* ✅ FIX: PERFIL ADMINISTRADOR CORRIGIDO */}
-        <div 
-          onClick={() => tentarMudarPerfil("Admin")} 
-          className="flex flex-col items-center gap-4 cursor-pointer group"
-        >
-          <div className="w-40 h-40 bg-zinc-900 border-4 border-dashed border-zinc-700 rounded-[3rem] flex items-center justify-center text-7xl group-hover:border-yellow-500 group-hover:bg-yellow-500/5 transition-all duration-500 group-hover:scale-105">
+        {/* ADMIN CARD */}
+        <div className="flex flex-col items-center cursor-pointer group" onClick={() => setPinAdminAberto(true)}>
+          <div className="w-24 h-24 mx-auto bg-zinc-950 rounded-3xl border-2 border-yellow-500/30 flex items-center justify-center text-4xl mb-4 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-2 group-hover:border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.1)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.4)] relative overflow-hidden">
             👑
           </div>
-          <span className="font-bold uppercase text-zinc-700 group-hover:text-yellow-500 text-[10px] tracking-widest transition-colors">
-            Administrador
-          </span>
+          <p className="text-zinc-500 font-black uppercase tracking-widest text-sm group-hover:text-yellow-500 transition-colors text-center">Admin</p>
+          <p className="text-[8px] text-zinc-600 uppercase font-black tracking-widest mt-1">S+ Rank</p>
         </div>
       </div>
 
-      {/* MODAL DE PIN */}
-      {perfilAlvoParaBloqueio && (
-        <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-xl animate-in zoom-in-95 duration-300">
-          <div className="bg-zinc-900 p-10 rounded-[2.5rem] border border-zinc-800 text-center max-w-sm w-full shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-            <h2 className="text-white font-black mb-6 uppercase tracking-widest text-xl italic">PIN de Segurança</h2>
-            <input 
-              autoFocus 
-              type="password" 
-              maxLength={4} 
-              className="bg-black border border-zinc-700 rounded-2xl w-full py-5 text-center text-4xl text-white outline-none mb-6 focus:border-white transition-all font-mono tracking-[0.5em]" 
-              value={pinDigitado} 
-              onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} 
-              onKeyDown={(e) => e.key === 'Enter' && confirmarPin()} 
-            />
-            <button 
-              onClick={confirmarPin} 
-              className="w-full py-4 bg-white text-black rounded-xl font-black uppercase hover:bg-zinc-200 transition-all active:scale-95 text-xs tracking-widest"
-            >
-              Aceder Perfil
-            </button>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="mt-6 text-[9px] text-zinc-600 hover:text-white uppercase font-black tracking-widest"
-            >
-              Cancelar
-            </button>
+      {/* MODAL DE PIN (NORMAL) */}
+      {perfilAlvoParaBloqueio && perfilAlvoParaBloqueio !== "Admin" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
+          <div className="bg-[#0e0e11] w-full max-w-sm p-8 rounded-[3rem] border border-zinc-800 shadow-2xl relative text-center">
+            <button onClick={() => { setPerfilAlvoParaBloqueio(null); setPinDigitado(""); }} className="absolute top-6 right-8 text-zinc-600 hover:text-white font-black text-xl">✕</button>
+            <div className="w-16 h-16 bg-zinc-900 rounded-2xl mx-auto mb-6 flex items-center justify-center text-2xl border border-zinc-800">🔒</div>
+            <h2 className="text-xl font-black text-white uppercase tracking-widest mb-2">Acesso Restrito</h2>
+            <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] mb-8">Digite o PIN para {perfilAlvoParaBloqueio}</p>
+            <input type="password" maxLength={4} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-black text-center text-2xl tracking-[1em] outline-none focus:border-white transition-all mb-6" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && confirmarPin()} autoFocus />
+            <button onClick={confirmarPin} className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all bg-white text-black hover:bg-zinc-200">Desbloquear</button>
           </div>
         </div>
       )}
-    </main>
+
+      {/* MODAL DE PIN (ADMIN) */}
+      {pinAdminAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in zoom-in duration-200">
+          <div className="bg-[#0e0e11] w-full max-w-sm p-8 rounded-[3rem] border border-yellow-500/30 shadow-[0_0_50px_rgba(234,179,8,0.1)] relative text-center">
+            <button onClick={() => { setPinAdminAberto(false); setPinDigitado(""); }} className="absolute top-6 right-8 text-yellow-500/50 hover:text-yellow-500 font-black text-xl">✕</button>
+            <div className="w-16 h-16 bg-yellow-500/10 rounded-2xl mx-auto mb-6 flex items-center justify-center text-3xl border border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]">👑</div>
+            <h2 className="text-xl font-black text-yellow-500 uppercase tracking-widest mb-2 drop-shadow-md">Acesso Divino</h2>
+            <p className="text-[10px] text-yellow-500/60 uppercase tracking-[0.2em] mb-8">Credenciais de Mestre</p>
+            <input type="password" maxLength={4} className="w-full bg-black border border-yellow-500/30 p-4 rounded-xl text-yellow-500 font-black text-center text-2xl tracking-[1em] outline-none focus:border-yellow-500 transition-all mb-6 shadow-[inset_0_0_10px_rgba(234,179,8,0.05)]" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => { if(e.key === 'Enter') { setPerfilAlvoParaBloqueio("Admin"); setTimeout(confirmarPin, 50); } }} autoFocus />
+            <button onClick={() => { setPerfilAlvoParaBloqueio("Admin"); setTimeout(confirmarPin, 50); }} className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all bg-yellow-500/10 text-yellow-500 border border-yellow-500/50 hover:bg-yellow-500 hover:text-black shadow-[0_0_15px_rgba(234,179,8,0.2)]">Assumir o Controle</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

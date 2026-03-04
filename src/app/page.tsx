@@ -342,8 +342,17 @@ export default function Home() {
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
   
-  // ✅ PUXANDO A PARTÍCULA DO BANCO DE DADOS
+  // ✨ PUXANDO TODOS OS COSMÉTICOS DO BANCO DE DADOS
   const particulaEquipada = perfilAtivo.cosmeticos?.ativos?.particula || "";
+  const molduraEquipada = perfilAtivo.cosmeticos?.ativos?.moldura || "";
+  const tituloEquipadoId = perfilAtivo.cosmeticos?.ativos?.titulo || "";
+
+  // Dicionário de Títulos (para não precisar carregar o array inteiro da loja aqui)
+  const NOMES_TITULOS: Record<string, string> = { 
+    titulo_sabio: "O Sábio", titulo_lenda: "A Lenda Viva", titulo_deus: "Divindade Ancestral", 
+    titulo_sombra: "A Sombra que Caminha", titulo_hacker: "Cyber Hunter", titulo_arcoiris: "Mestre das Cores", 
+    titulo_sangue: "Ceifador Carmesim", titulo_fantasma: "Espectro Inominável" 
+  };
   
   // ✅ RENDERIZANDO A LISTA DE LIVROS E AJUSTANDO FILTROS
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : livros;
@@ -368,6 +377,8 @@ export default function Home() {
         <div className="text-center md:text-left">
           <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
           <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-500 mt-2">Sincronizado como: {perfilAtivo.nome_exibicao}</p>
+          {/* ✨ RENDERIZAÇÃO GLOBAL DO TÍTULO */}
+          {tituloEquipadoId && <p className={`mt-2 text-[10px] font-black uppercase tracking-[0.3em] drop-shadow-md ${tituloEquipadoId}`}>« {NOMES_TITULOS[tituloEquipadoId]} »</p>}
         </div>
 
         <div className="flex items-center gap-4 md:gap-6">
@@ -384,7 +395,8 @@ export default function Home() {
           </button>
 
           <div onClick={() => window.location.href = '/perfil'} className="group cursor-pointer flex flex-col items-center gap-2">
-            <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center overflow-hidden border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg`}>
+            {/* ✨ RENDERIZAÇÃO GLOBAL DA MOLDURA NO CABEÇALHO */}
+            <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center overflow-hidden border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg ${molduraEquipada}`}>
               {perfilAtivo.avatar?.startsWith('http') ? (
                 <img src={perfilAtivo.avatar} className="w-full h-full object-cover" alt="" />
               ) : (
