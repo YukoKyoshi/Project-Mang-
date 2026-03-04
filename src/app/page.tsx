@@ -174,25 +174,52 @@ export default function Home() {
     } catch (error) { console.error(error); }
   }
 
+  // 🔥 [FIX] - SINCRONIZAÇÃO RESILIENTE (ANTI-FALSO POSITIVO)
   async function puxarProgressoDoAniList() {
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
     if (!perfilAtivo?.anilist_token) return mostrarToast("Conecte o AniList primeiro.", "erro");
+    
     setSincronizando(true);
-    mostrarToast(`📡 Sincronizando ${abaPrincipal}...`, "aviso");
+    // Toast no estilo do seu print (Verde e Caps)
+    mostrarToast(`SINCRONIZANDO ${abaPrincipal}...`, "aviso");
 
     try {
       const res = await fetch('/api/anilist/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: perfilAtivo.anilist_token, usuario: usuarioAtual, tipoObra: abaPrincipal, acao: "PULL" })
+        body: JSON.stringify({
+          token: perfilAtivo.anilist_token,
+          usuario: usuarioAtual, // Mantém o nome_original consistente
+          tipoObra: abaPrincipal,
+          acao: "PULL"
+        })
       });
+
       const data = await res.json();
+
       if (data.success) {
-        mostrarToast(`Sucesso! ${data.count} obras sincronizadas.`, "sucesso");
-        if (abaPrincipal === "MANGA") buscarMangas();
-        else if (abaPrincipal === "ANIME") buscarAnimes();
+        // ✅ Buffer de 1.5s para o banco respirar após 600+ inserções
+        setTimeout(async () => {
+          if (abaPrincipal === "MANGA") {
+            setMangas([]); // Limpa cache local
+            await buscarMangas();
+          } else if (abaPrincipal === "ANIME") {
+            setAnimes([]); // Limpa cache local
+            await buscarAnimes();
+          }
+          
+          mostrarToast(`SUCESSO! ${data.count} OBRAS SINCRONIZADAS.`, "sucesso");
+          setSincronizando(false);
+        }, 1500);
+
+      } else {
+        throw new Error(data.error || "Erro na API");
       }
-    } catch (err) { mostrarToast("Erro ao sincronizar dados.", "erro"); } finally { setSincronizando(false); }
+    } catch (err) {
+      console.error("Erro no Sync:", err);
+      mostrarToast("ERRO NA SINCRONIA COM O BANCO.", "erro");
+      setSincronizando(false);
+    }
   }
 
   // ==========================================
