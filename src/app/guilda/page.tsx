@@ -20,8 +20,12 @@ interface Perfil {
   esmolas: number;
 }
 
+// ✅ Expandimos as estatísticas para abraçar todos os novos rankings
 interface EstatisticasHunter extends Perfil {
   total_obras: number;
+  total_capitulos: number;
+  tempo_vida: number;
+  total_favoritos: number;
   elo: string;
 }
 
@@ -33,9 +37,9 @@ export default function GuildaPage() {
   const [enviando, setEnviando] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // ✅ [NOVO] Estados do Ranking
+  // Estados do Ranking
   const [abaAtiva, setAbaAtiva] = useState<"CHAT" | "RANKING">("CHAT");
-  const [filtroRanking, setFiltroRanking] = useState<"OBRAS" | "ESMOLAS">("OBRAS");
+  const [filtroRanking, setFiltroRanking] = useState<"OBRAS" | "ESMOLAS" | "TEMPO" | "CAPITULOS" | "FAVORITOS">("OBRAS");
   const [estatisticas, setEstatisticas] = useState<EstatisticasHunter[]>([]);
   const [carregandoRanking, setCarregandoRanking] = useState(false);
 
@@ -81,33 +85,61 @@ export default function GuildaPage() {
     if (data) setMensagens(data);
   }
 
-  // ✅ [NOVO] Motor de Estatísticas do Ranking
+  // ✅ NOVO Motor de Estatísticas Avançadas
   async function gerarRanking() {
     setCarregandoRanking(true);
     
-    // Puxa apenas os donos das obras para economizar dados
-    const { data: m } = await supabase.from("mangas").select("usuario");
-    const { data: a } = await supabase.from("animes").select("usuario");
-    const { data: f } = await supabase.from("filmes").select("usuario");
-    const { data: l } = await supabase.from("livros").select("usuario");
+    // Puxamos os dados essenciais para o cálculo
+    const { data: m } = await supabase.from("mangas").select("usuario, capitulo_atual, favorito");
+    const { data: a } = await supabase.from("animes").select("usuario, capitulo_atual, favorito");
+    const { data: f } = await supabase.from("filmes").select("usuario, capitulo_atual, status, favorito");
+    const { data: l } = await supabase.from("livros").select("usuario, capitulo_atual, favorito");
 
-    const contagemObras: Record<string, number> = {};
-    [...(m || []), ...(a || []), ...(f || []), ...(l || [])].forEach(obra => {
-      contagemObras[obra.usuario] = (contagemObras[obra.usuario] || 0) + 1;
+    const statsByUser: Record<string, { obras: number, caps: number, tempoMin: number, favs: number }> = {};
+
+    // Inicializa todos os perfis com zero
+    perfis.forEach(p => {
+      statsByUser[p.nome_original] = { obras: 0, caps: 0, tempoMin: 0, favs: 0 };
     });
 
+    const processarTabela = (dados: any[] | null, tipo: "anime" | "filme" | "outro") => {
+      (dados || []).forEach(obra => {
+        if (!statsByUser[obra.usuario]) statsByUser[obra.usuario] = { obras: 0, caps: 0, tempoMin: 0, favs: 0 };
+        
+        const userStats = statsByUser[obra.usuario];
+        userStats.obras += 1;
+        userStats.caps += (obra.capitulo_atual || 0);
+        if (obra.favorito) userStats.favs += 1;
+
+        if (tipo === "anime") {
+          userStats.tempoMin += (obra.capitulo_atual || 0) * 23; // 23 min por EP
+        } else if (tipo === "filme" && obra.status === "Completos") {
+          userStats.tempoMin += 120; // 2h por filme completo
+        }
+      });
+    };
+
+    processarTabela(m, "outro");
+    processarTabela(a, "anime");
+    processarTabela(f, "filme");
+    processarTabela(l, "outro");
+
     const statusCompletos = perfis.map(p => {
-      const total = contagemObras[p.nome_original] || 0;
+      const s = statsByUser[p.nome_original] || { obras: 0, caps: 0, tempoMin: 0, favs: 0 };
+      
       let eloTier = "BRONZE";
-      if (total >= 1000) eloTier = "DIVINDADE";
-      else if (total >= 500) eloTier = "DESAFIANTE";
-      else if (total >= 200) eloTier = "MESTRE";
-      else if (total >= 100) eloTier = "DIAMANTE";
+      if (s.obras >= 1000) eloTier = "DIVINDADE";
+      else if (s.obras >= 500) eloTier = "DESAFIANTE";
+      else if (s.obras >= 200) eloTier = "MESTRE";
+      else if (s.obras >= 100) eloTier = "DIAMANTE";
 
       return {
         ...p,
         esmolas: p.esmolas || 0,
-        total_obras: total,
+        total_obras: s.obras,
+        total_capitulos: s.caps,
+        tempo_vida: Math.floor(s.tempoMin / 60), // Converte para Horas
+        total_favoritos: s.favs,
         elo: eloTier
       };
     });
@@ -156,10 +188,14 @@ export default function GuildaPage() {
     return p.cor_tema?.startsWith('#') ? `text-[${p.cor_tema}]` : (cores[p.cor_tema] || "text-green-500");
   }
 
-  // Ordena os Hunters baseado no filtro escolhido
+  // Ordenação dinâmica com base no filtro atual
   const huntersOrdenados = [...estatisticas].sort((a, b) => {
     if (filtroRanking === "OBRAS") return b.total_obras - a.total_obras;
-    return b.esmolas - a.esmolas;
+    if (filtroRanking === "ESMOLAS") return b.esmolas - a.esmolas;
+    if (filtroRanking === "TEMPO") return b.tempo_vida - a.tempo_vida;
+    if (filtroRanking === "CAPITULOS") return b.total_capitulos - a.total_capitulos;
+    if (filtroRanking === "FAVORITOS") return b.total_favoritos - a.total_favoritos;
+    return 0;
   });
 
   return (
@@ -200,10 +236,10 @@ export default function GuildaPage() {
         {/* MURAL PRINCIPAL / RANKING */}
         <section className="flex-1 bg-[#0e0e11]/95 border border-zinc-800 rounded-[2.5rem] flex flex-col overflow-hidden relative">
           
-          {/* ✅ NAVEGAÇÃO INTERNA (CHAT / RANKING) */}
+          {/* NAVEGAÇÃO INTERNA (CHAT / RANKING) */}
           <div className="flex gap-4 p-6 border-b border-zinc-800 bg-black/20">
             <button onClick={() => setAbaAtiva("CHAT")} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${abaAtiva === "CHAT" ? 'bg-blue-600 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-white'}`}>💬 Chat Global</button>
-            <button onClick={() => setAbaAtiva("RANKING")} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${abaAtiva === "RANKING" ? 'bg-yellow-600 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-white'}`}>🏆 Ranking</button>
+            <button onClick={() => setAbaAtiva("RANKING")} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${abaAtiva === "RANKING" ? 'bg-yellow-600 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-white'}`}>🏆 Pódio / Ranks</button>
           </div>
 
           {/* ----------------- ABA 1: CHAT GLOBAL ----------------- */}
@@ -259,17 +295,21 @@ export default function GuildaPage() {
             </>
           )}
 
-          {/* ----------------- ABA 2: RANKING ----------------- */}
+          {/* ----------------- ABA 2: RANKING EXPANDIDO ----------------- */}
           {abaAtiva === "RANKING" && (
             <div className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-6">
               
-              <div className="flex justify-center gap-4 mb-4">
-                <button onClick={() => setFiltroRanking("OBRAS")} className={`px-6 py-3 rounded-xl border text-[10px] font-black uppercase transition-all ${filtroRanking === "OBRAS" ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/50 border-zinc-800 text-zinc-500'}`}>📚 Mais Viciados</button>
-                <button onClick={() => setFiltroRanking("ESMOLAS")} className={`px-6 py-3 rounded-xl border text-[10px] font-black uppercase transition-all ${filtroRanking === "ESMOLAS" ? 'bg-yellow-600/20 border-yellow-500 text-yellow-400' : 'bg-black/50 border-zinc-800 text-zinc-500'}`}>🪙 Mais Ricos</button>
+              {/* Filtros Dinâmicos */}
+              <div className="flex flex-wrap justify-center gap-3 mb-4">
+                <button onClick={() => setFiltroRanking("OBRAS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "OBRAS" ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>📚 Mais Viciados</button>
+                <button onClick={() => setFiltroRanking("ESMOLAS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "ESMOLAS" ? 'bg-yellow-600/20 border-yellow-500 text-yellow-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>🪙 Mais Ricos</button>
+                <button onClick={() => setFiltroRanking("TEMPO")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "TEMPO" ? 'bg-purple-600/20 border-purple-500 text-purple-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⏳ Veteranos (Horas)</button>
+                <button onClick={() => setFiltroRanking("CAPITULOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "CAPITULOS" ? 'bg-red-600/20 border-red-500 text-red-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>🔥 Devoradores (Caps)</button>
+                <button onClick={() => setFiltroRanking("FAVORITOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "FAVORITOS" ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⭐ Curadores</button>
               </div>
 
               {carregandoRanking ? (
-                <div className="flex-1 flex items-center justify-center text-zinc-500 italic animate-pulse">Calculando Pódio...</div>
+                <div className="flex-1 flex items-center justify-center text-zinc-500 italic animate-pulse">Inspecionando Registros dos Hunters...</div>
               ) : (
                 <div className="flex flex-col gap-4">
                   {huntersOrdenados.map((hunter, index) => {
@@ -278,6 +318,16 @@ export default function GuildaPage() {
                     const isTop3 = index === 2;
                     let medalha = "🏅";
                     if (isTop1) medalha = "👑"; else if (isTop2) medalha = "🥈"; else if (isTop3) medalha = "🥉";
+
+                    // Define a cor de destaque e a label com base no filtro
+                    let corTexto = "text-indigo-400";
+                    let valor = hunter.total_obras;
+                    let label = "Obras Lidas";
+
+                    if (filtroRanking === "ESMOLAS") { corTexto = "text-yellow-500"; valor = hunter.esmolas; label = "Esmolas"; }
+                    if (filtroRanking === "TEMPO") { corTexto = "text-purple-400"; valor = hunter.tempo_vida; label = "Horas Consumidas"; }
+                    if (filtroRanking === "CAPITULOS") { corTexto = "text-red-400"; valor = hunter.total_capitulos; label = "Caps / Episódios"; }
+                    if (filtroRanking === "FAVORITOS") { corTexto = "text-green-400"; valor = hunter.total_favoritos; label = "Obras Favoritas"; }
 
                     return (
                       <div key={hunter.nome_original} className={`flex items-center justify-between p-5 rounded-3xl border transition-all ${isTop1 ? 'bg-yellow-900/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.1)]' : isTop2 ? 'bg-zinc-800/20 border-zinc-400/50' : isTop3 ? 'bg-orange-900/10 border-orange-700/50' : 'bg-zinc-900/30 border-zinc-800'}`}>
@@ -296,17 +346,8 @@ export default function GuildaPage() {
                         </div>
 
                         <div className="text-right">
-                          {filtroRanking === "OBRAS" ? (
-                            <>
-                              <p className="text-3xl font-black italic text-indigo-400">{hunter.total_obras}</p>
-                              <p className="text-[8px] text-zinc-500 uppercase tracking-widest">Obras Lidas</p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-3xl font-black italic text-yellow-500">{hunter.esmolas}</p>
-                              <p className="text-[8px] text-zinc-500 uppercase tracking-widest">Esmolas</p>
-                            </>
-                          )}
+                          <p className={`text-3xl font-black italic ${corTexto}`}>{valor}</p>
+                          <p className="text-[8px] text-zinc-500 uppercase tracking-widest">{label}</p>
                         </div>
 
                       </div>
