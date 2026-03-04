@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react"; // ✅ Adicionado para gerenciar o input local
 
 interface Manga { 
   id: number; 
@@ -19,7 +20,7 @@ interface Manga {
 interface MangaCardProps {
   manga: Manga;
   aura: any;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO"; // ✅ LIVRO ADICIONADO
+  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO";
   atualizarCapitulo: (manga: Manga, novo: number) => Promise<void>;
   deletarManga: (id: number) => Promise<void>;
   mudarStatusManual: (id: number, status: string) => Promise<void>;
@@ -27,7 +28,14 @@ interface MangaCardProps {
 }
 
 export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo, abrirDetalhes }: MangaCardProps) {
-  
+  // ✅ Estado local para permitir que o usuário digite sem travar a UI
+  const [valorInput, setValorInput] = useState(manga.capitulo_atual);
+
+  // Sincroniza o input se o valor mudar externamente (ex: clicou no +)
+  useEffect(() => {
+    setValorInput(manga.capitulo_atual);
+  }, [manga.capitulo_atual]);
+
   const statusBadge = (abaPrincipal === "ANIME" || abaPrincipal === "FILME")
     ? (manga.status === "Lendo" ? "Assistindo" : manga.status === "Planejo Ler" ? "Planejo Assistir" : manga.status)
     : manga.status;
@@ -35,6 +43,13 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
   const progresso = manga.total_capitulos > 0 
     ? Math.round((manga.capitulo_atual / manga.total_capitulos) * 100) 
     : 0;
+
+  // ✅ Função para processar a mudança manual (Enter ou Blur)
+  const handleBlurOuEnter = () => {
+    if (valorInput !== manga.capitulo_atual) {
+      atualizarCapitulo(manga, valorInput);
+    }
+  };
 
   return (
     <div className="group relative bg-zinc-900/40 rounded-[2rem] border border-zinc-800/50 hover:border-zinc-700 transition-all p-4">
@@ -72,19 +87,27 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
         <div className="flex items-center justify-between bg-black/40 p-1 rounded-xl border border-zinc-800">
           <button 
             onClick={() => atualizarCapitulo(manga, manga.capitulo_atual - 1)} 
-            className="w-8 h-8 flex items-center justify-center hover:bg-zinc-800 rounded-lg transition-colors"
+            className="w-8 h-8 flex items-center justify-center hover:bg-zinc-800 rounded-lg transition-colors text-zinc-500 hover:text-white"
           >
             -
           </button>
           
-          <div className="text-center">
-            <span className="text-xs font-black text-white">{manga.capitulo_atual}</span>
+          <div className="text-center flex flex-col items-center">
+            {/* ✅ SMART INPUT: Hunter pode digitar o valor direto aqui */}
+            <input 
+              type="number"
+              value={valorInput}
+              onChange={(e) => setValorInput(parseInt(e.target.value) || 0)}
+              onBlur={handleBlurOuEnter}
+              onKeyDown={(e) => e.key === 'Enter' && handleBlurOuEnter()}
+              className="w-12 bg-transparent text-center text-xs font-black text-white outline-none focus:text-green-500 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
             <p className="text-[6px] text-zinc-600 font-bold uppercase">/ {manga.total_capitulos || '?'}</p>
           </div>
           
           <button 
             onClick={() => atualizarCapitulo(manga, manga.capitulo_atual + 1)} 
-            className="w-8 h-8 flex items-center justify-center hover:bg-zinc-800 rounded-lg transition-colors"
+            className="w-8 h-8 flex items-center justify-center hover:bg-zinc-800 rounded-lg transition-colors text-zinc-500 hover:text-white"
           >
             +
           </button>
