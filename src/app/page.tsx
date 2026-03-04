@@ -12,6 +12,7 @@ import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 import AdminPanel from "./components/AdminPanel";
 import ProfileSelection from "./components/ProfileSelection";
+import EfeitosVisuais from "./components/EfeitosVisuais";
 
 interface Manga { 
   id: number; 
@@ -341,6 +342,9 @@ export default function Home() {
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
   
+  // ✅ PUXANDO A PARTÍCULA DO BANCO DE DADOS
+  const particulaEquipada = perfilAtivo.cosmeticos?.ativos?.particula || "";
+  
   // ✅ RENDERIZANDO A LISTA DE LIVROS E AJUSTANDO FILTROS
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : livros;
   const filtrosAtuais = (abaPrincipal === "MANGA" || abaPrincipal === "LIVRO") ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
@@ -357,6 +361,9 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#080808] p-6 md:p-12 text-white relative overflow-x-hidden" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
       
+      {/* 🚀 INJEÇÃO DOS EFEITOS VISUAIS NA ESTANTE (TELA CHEIA) */}
+      <EfeitosVisuais particula={particulaEquipada} />
+
       <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-16 border-b border-zinc-800/50 pb-10 relative z-20">
         <div className="text-center md:text-left">
           <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
@@ -390,7 +397,7 @@ export default function Home() {
       </header>
 
       {/* ✅ NOVA ABA DA ESTANTE DE LIVROS */}
-      <div className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto custom-scrollbar">
+      <div className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto custom-scrollbar relative z-20">
         <button onClick={() => { setAbaPrincipal("MANGA"); setFiltroAtivo("Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "MANGA" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📚 Mangás</button>
         <button onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📺 Animes</button>
         <button onClick={() => { setAbaPrincipal("FILME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "FILME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>🎬 Filmes</button>
@@ -398,7 +405,7 @@ export default function Home() {
       </div>
 
       {config.mostrar_busca && (
-        <section className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
+        <section className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-between relative z-20">
           <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800 w-full md:w-auto overflow-x-auto">
             {filtrosAtuais.map(f => (
               <button key={f} onClick={() => setFiltroAtivo(f)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${filtroAtivo === f ? `${aura.bg} text-black` : 'text-zinc-500 hover:text-white'}`}>{f}</button>
@@ -408,7 +415,7 @@ export default function Home() {
         </section>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 relative z-20">
         {obrasFiltradas.map(m => (
           <MangaCard key={m.id} manga={m} aura={aura} abaPrincipal={abaPrincipal} atualizarCapitulo={atualizarCapitulo} deletarManga={deletarMangaDaEstante} mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} />
         ))}
