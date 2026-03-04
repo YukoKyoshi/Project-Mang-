@@ -330,7 +330,11 @@ export default function Home() {
 
   if (isAdmin) return (
     <AdminPanel 
-      perfis={perfis} config={config} mostrandoFormHunter={mostrandoFormHunter} setMostrandoFormHunter={setMostrandoFormHunter} novoHunter={novoHunter} setNovoHunter={setNovoHunter} deletarPerfil={deletarPerfil} setUsuarioAtual={setUsuarioAtual} atualizarConfig={atualizarConfig} salvarHunter={salvarHunter} prepararEdicao={prepararEdicao} editandoNomeOriginal={editandoNomeOriginal} fecharFormularioHunter={fecharFormularioHunter} 
+      perfis={perfis} 
+      config={config} 
+      setUsuarioAtual={setUsuarioAtual} 
+      atualizarConfig={atualizarConfig} 
+      deletarPerfil={deletarPerfil} 
     />
   );
 
