@@ -403,6 +403,12 @@ export default function Home() {
             <button onClick={puxarProgressoDoAniList} disabled={sincronizando} className={`w-14 h-14 bg-zinc-900 border-2 border-blue-500/30 rounded-2xl flex items-center justify-center text-xl transition-all ${sincronizando ? 'animate-spin' : ''}`}>🔄</button>
           )}
           <button onClick={() => setEstaAbertoAdd(true)} className={`px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-zinc-900 border-2 ${aura.border} ${aura.shadow} text-white`}>+ Adicionar Obra</button>
+          
+          {/* ✅ NOVO BOTÃO DA GUILDA AQUI */}
+          <Link href="/guilda" className="w-14 h-14 bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 rounded-2xl flex items-center justify-center text-2xl transition-all" title="A Guilda">
+            🌍
+          </Link>
+
           <Link href="/perfil" className={`w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center overflow-hidden border-2 ${aura.border} ${perfilAtivo.cosmeticos?.ativos?.moldura}`}>
             {perfilAtivo.avatar?.startsWith('http') ? <img src={perfilAtivo.avatar} className="w-full h-full object-cover" /> : <span className="text-3xl">{perfilAtivo.avatar || "👤"}</span>}
           </Link>
