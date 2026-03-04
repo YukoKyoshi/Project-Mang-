@@ -11,6 +11,7 @@ interface ProfileSelectionProps {
   temas: any;
   tentarMudarPerfil: (nome: string) => void;
   perfilAlvoParaBloqueio: string | null;
+  setPerfilAlvoParaBloqueio: (val: string | null) => void;
   pinDigitado: string;
   setPinDigitado: (pin: string) => void;
   confirmarPin: () => void;
@@ -18,7 +19,19 @@ interface ProfileSelectionProps {
   pinAdminAberto: boolean;
 }
 
-export default function ProfileSelection({ perfis, temas, tentarMudarPerfil, perfilAlvoParaBloqueio, pinDigitado, setPinDigitado, confirmarPin, setPinAdminAberto, pinAdminAberto }: ProfileSelectionProps) {
+export default function ProfileSelection({ 
+  perfis, 
+  temas, 
+  tentarMudarPerfil, 
+  perfilAlvoParaBloqueio, 
+  setPerfilAlvoParaBloqueio, 
+  pinDigitado, 
+  setPinDigitado, 
+  confirmarPin, 
+  setPinAdminAberto, 
+  pinAdminAberto 
+}: ProfileSelectionProps) {
+  
   // ==========================================
   // 🖥️ [SESSÃO 2] - RENDERIZAÇÃO
   // ==========================================
