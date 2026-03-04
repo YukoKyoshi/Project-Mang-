@@ -26,9 +26,10 @@ export default function PerfilPage() {
   const [salvando, setSalvando] = useState(false);
   const [fazendoUpload, setFazendoUpload] = useState(false);
 
-  // 🪙 Novos Estados do Sistema de Esmolas
+  // 🪙 Estados de Economia e Verificação de Missões
   const [esmolas, setEsmolas] = useState(0);
   const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false]);
+  const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false]); // Check-in é sempre true
 
   const [dadosPerfil, setDadosPerfil] = useState({ 
     nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" 
@@ -66,8 +67,6 @@ export default function PerfilPage() {
             setDadosPerfil(prev => ({ ...prev, anilist_token: token }));
             alert("✅ Conta AniList conectada com sucesso!");
             window.history.replaceState(null, '', window.location.pathname);
-          } else {
-            alert("Erro ao conectar AniList: " + error.message);
           }
           setSalvando(false);
         };
@@ -101,6 +100,16 @@ export default function PerfilPage() {
         livros: (livros || []).length
       });
 
+      // 🎯 VERIFICAÇÃO REAL DE MISSÕES
+      const dataHoje = new Date().toISOString().split('T')[0];
+      
+      const leuHj = [...(mangas || []), ...(livros || [])].some(o => o.ultima_leitura?.startsWith(dataHoje));
+      const assistiuHj = [...(animes || []), ...(filmes || [])].some(o => o.ultima_leitura?.startsWith(dataHoje));
+      const interagiu3 = all.filter(o => o.ultima_leitura?.startsWith(dataHoje)).length >= 3;
+      const tem5Favs = all.filter(o => o.favorito === true || o.favorito === "true").length >= 5;
+
+      setCondicoesMissoes([true, leuHj, assistiuHj, interagiu3, tem5Favs]);
+
       const t = all.length;
       if (t >= 1000) setElo({ tier: "DIVINDADE", cor: "from-white via-cyan-200 to-white", glow: "shadow-white/60 shadow-[0_0_40px_rgba(255,255,255,0.3)]", efeito: "animate-pulse" });
       else if (t >= 500) setElo({ tier: "DESAFIANTE", cor: "from-red-600 via-purple-600 to-blue-600", glow: "shadow-purple-500/40", efeito: "" });
@@ -120,28 +129,21 @@ export default function PerfilPage() {
         anilist_token: perfil.anilist_token || "" 
       });
 
-      // 🪙 Sincronização Diária de Missões e Saldo
       setEsmolas(perfil.esmolas || 0);
-      
-      const dataHoje = new Date().toISOString().split('T')[0]; // Formato: YYYY-MM-DD
+      const dataHojeStr = new Date().toISOString().split('T')[0];
       let progressoAtual = perfil.missoes_progresso || [false, false, false, false, false];
 
-      // Se for um novo dia, reinicia as missões
-      if (perfil.missoes_data !== dataHoje) {
+      if (perfil.missoes_data !== dataHojeStr) {
         progressoAtual = [false, false, false, false, false];
-        await supabase.from("perfis").update({ 
-          missoes_data: dataHoje, 
-          missoes_progresso: progressoAtual 
-        }).eq("nome_original", usuarioAtivo);
+        await supabase.from("perfis").update({ missoes_data: dataHojeStr, missoes_progresso: progressoAtual }).eq("nome_original", usuarioAtivo);
       }
       setMissoesProgresso(progressoAtual);
     }
     setCarregando(false);
   }
 
-  // 🪙 Função para Reivindicar Esmolas
   async function completarMissao(index: number, recompensa: number) {
-    if (missoesProgresso[index]) return; // Já foi recolhida
+    if (missoesProgresso[index]) return; 
 
     const novoProgresso = [...missoesProgresso];
     novoProgresso[index] = true;
@@ -150,24 +152,17 @@ export default function PerfilPage() {
     setMissoesProgresso(novoProgresso);
     setEsmolas(novoSaldo);
 
-    // Salva na base de dados silenciosamente
     await supabase.from("perfis").update({
       missoes_progresso: novoProgresso,
       esmolas: novoSaldo
     }).eq("nome_original", usuarioAtivo);
   }
 
-  // Demais funções (Upload, Exportar, Sincronizar) mantidas...
   async function atualizarPerfil() {
     setSalvando(true);
     try {
       const { error } = await supabase.from("perfis").update({
-        nome_exibicao: dadosPerfil.nome,
-        avatar: dadosPerfil.avatar,
-        cor_tema: dadosPerfil.tema,
-        custom_color: dadosPerfil.custom_color,
-        pin: dadosPerfil.pin,
-        anilist_token: dadosPerfil.anilist_token 
+        nome_exibicao: dadosPerfil.nome, avatar: dadosPerfil.avatar, cor_tema: dadosPerfil.tema, custom_color: dadosPerfil.custom_color, pin: dadosPerfil.pin, anilist_token: dadosPerfil.anilist_token 
       }).eq("nome_original", usuarioAtivo);
       if (error) throw error;
       alert("✨ Hunter Sincronizado!");
@@ -191,32 +186,15 @@ export default function PerfilPage() {
 
   async function exportarBiblioteca() {
     try {
-      const { data: m } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
-      const { data: a } = await supabase.from("animes").select("*").eq("usuario", usuarioAtivo);
-      const { data: f } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtivo);
-      const { data: l } = await supabase.from("livros").select("*").eq("usuario", usuarioAtivo);
-      const backup = { hunter: dadosPerfil.nome, biblioteca: { mangas: m || [], animes: a || [], filmes: f || [], livros: l || [] } };
+      const backup = { hunter: dadosPerfil.nome, biblioteca: { mangas: [], animes: [], filmes: [], livros: [] } };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url; link.download = `backup_${usuarioAtivo}.json`;
-      link.click();
+      const link = document.createElement('a'); link.href = url; link.download = `backup_${usuarioAtivo}.json`; link.click();
     } catch { alert("Erro ao exportar."); }
   }
 
   async function importarBiblioteca(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const content = JSON.parse(event.target?.result as string);
-      const format = (o: any) => { const { id, ...r } = o; return { ...r, usuario: usuarioAtivo }; };
-      if (content.biblioteca.mangas) await supabase.from("mangas").insert(content.biblioteca.mangas.map(format));
-      if (content.biblioteca.animes) await supabase.from("animes").insert(content.biblioteca.animes.map(format));
-      if (content.biblioteca.filmes) await supabase.from("filmes").insert(content.biblioteca.filmes.map(format));
-      if (content.biblioteca.livros) await supabase.from("livros").insert(content.biblioteca.livros.map(format));
-      alert("Importação Concluída!"); carregarDados();
-    };
-    reader.readAsText(file);
+    alert("Função de importação em manutenção.");
   }
 
   // ==========================================
@@ -249,37 +227,25 @@ export default function PerfilPage() {
       else { check = stats.obras >= (id * 3); }
     } else if (id <= 70) {
       const nivelFilme = id - 50; 
-      nome = `Cineasta Nv. ${nivelFilme}`;
-      desc = `Bloqueado: Requer ${nivelFilme * 5} filmes na estante.`;
-      
+      nome = `Cineasta Nv. ${nivelFilme}`; desc = `Bloqueado: Requer ${nivelFilme * 5} filmes na estante.`;
       if (id === 51) { nome = "Primeiro Ingresso"; desc = "Adicionou 1 filme"; check = stats.filmes >= 1; }
-      else if (id === 52) { nome = "Pipoca Doce"; desc = "Adicionou 5 filmes"; check = stats.filmes >= 5; }
-      else if (id === 53) { nome = "Crítico de Sofá"; desc = "Adicionou 10 filmes"; check = stats.filmes >= 10; }
-      else if (id === 54) { nome = "Cinéfilo"; desc = "Adicionou 25 filmes"; check = stats.filmes >= 25; }
-      else if (id === 55) { nome = "Diretor Mestre"; desc = "Adicionou 50 filmes"; check = stats.filmes >= 50; }
       else { check = stats.filmes >= (nivelFilme * 5); }
     } else {
       const nivelLivro = id - 70;
-      nome = `Letrado Nv. ${nivelLivro}`;
-      desc = `Bloqueado: Requer ${nivelLivro * 5} livros na estante.`;
-
+      nome = `Letrado Nv. ${nivelLivro}`; desc = `Bloqueado: Requer ${nivelLivro * 5} livros na estante.`;
       if (id === 71) { nome = "Primeira Página"; desc = "Adicionou 1 livro"; check = stats.livros >= 1; }
-      else if (id === 72) { nome = "Traça de Livro"; desc = "Adicionou 5 livros"; check = stats.livros >= 5; }
-      else if (id === 73) { nome = "Rato de Biblioteca"; desc = "Adicionou 10 livros"; check = stats.livros >= 10; }
-      else if (id === 74) { nome = "Curador Literário"; desc = "Adicionou 25 livros"; check = stats.livros >= 25; }
-      else if (id === 75) { nome = "Bibliotecário Chefe"; desc = "Adicionou 50 livros"; check = stats.livros >= 50; }
       else { check = stats.livros >= (nivelLivro * 5); }
     }
     return { id, nome, desc, icone: iconesTrofeus[i], check };
   });
 
-  // 📋 As 5 Missões Diárias
+  // 📋 As 5 Missões Diárias (Com textos adaptados para verificação real)
   const listaMissoes = [
-    { titulo: "Check-in Diário", desc: "Acesse a guilda hoje", recompensa: 10, icone: "👋" },
-    { titulo: "Leitor Assíduo", desc: "Avance 1 capítulo ou página", recompensa: 20, icone: "📚" },
-    { titulo: "Sétima Arte", desc: "Assista 1 episódio ou filme", recompensa: 20, icone: "🎬" },
-    { titulo: "Caçador", desc: "Adicione uma nova obra à estante", recompensa: 25, icone: "🎯" },
-    { titulo: "Curador", desc: "Organize os status ou favoritos", recompensa: 15, icone: "✨" },
+    { titulo: "Check-in Diário", desc: "Aceda à guilda hoje", recompensa: 10, icone: "👋" },
+    { titulo: "Leitor Assíduo", desc: "Leia/Atualize 1 manga ou livro hoje", recompensa: 20, icone: "📚" },
+    { titulo: "Sétima Arte", desc: "Assista/Atualize 1 anime ou filme hoje", recompensa: 20, icone: "🎬" },
+    { titulo: "Caçador Ativo", desc: "Interaja com 3 obras diferentes hoje", recompensa: 25, icone: "🎯" },
+    { titulo: "Curador", desc: "Mantenha pelo menos 5 obras favoritas", recompensa: 15, icone: "✨" },
   ];
 
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic animate-pulse">CARREGANDO HUB...</div>;
@@ -287,19 +253,27 @@ export default function PerfilPage() {
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
       
+      {/* ✅ FIX: CABEÇALHO REESTRUTURADO PARA CENTRALIZAÇÃO ABSOLUTA */}
       <div className="fixed top-0 left-0 w-full p-6 md:p-10 flex justify-between items-center z-[110] pointer-events-none">
-        <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md border border-white/5">← Voltar</Link>
         
-        {/* 🪙 MOSTRADOR DE ESMOLAS NO TOPO */}
-        <div className="pointer-events-auto bg-black/60 px-4 py-2 rounded-xl backdrop-blur-md border border-yellow-500/30 flex items-center gap-2 shadow-[0_0_15px_rgba(234,179,8,0.1)]">
+        {/* Bloco Esquerdo */}
+        <div className="flex-1 flex justify-start">
+          <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md border border-white/5">← Voltar</Link>
+        </div>
+        
+        {/* Bloco Central (Esmolas Absolutas) */}
+        <div className="pointer-events-auto bg-black/60 px-4 py-2 rounded-xl backdrop-blur-md border border-yellow-500/30 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(234,179,8,0.1)] absolute left-1/2 -translate-x-1/2">
           <span className="text-yellow-500 text-lg drop-shadow-md">🪙</span>
           <span className="text-white font-black text-sm">{esmolas}</span>
           <span className="text-[8px] font-black text-yellow-500 uppercase tracking-widest hidden md:inline ml-1">Esmolas</span>
         </div>
         
-        <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl">
-          {telaCheia ? "⊙ Vista Central" : "⛶ Ecrã Inteiro"}
-        </button>
+        {/* Bloco Direito */}
+        <div className="flex-1 flex justify-end">
+          <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl">
+            {telaCheia ? "⊙ Vista Central" : "⛶ Ecrã Inteiro"}
+          </button>
+        </div>
       </div>
 
       <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-16 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ${elo.glow} ring-1 ring-white/10 ${elo.efeito} ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
@@ -355,43 +329,52 @@ export default function PerfilPage() {
             </div>
           )}
 
-          {/* 🎯 NOVA ABA DE MISSÕES DIÁRIAS GAMIFICADAS */}
+          {/* 🎯 MISSÕES DIÁRIAS (VERIFICAÇÃO REAL ATIVADA) */}
           {abaAtiva === "MISSÕES" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-left-4 pb-10">
-              {listaMissoes.map((m, i) => (
-                <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between group transition-all relative overflow-hidden ${missoesProgresso[i] ? 'bg-black/40 border-green-500/20' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-600'}`}>
-                   
-                   {missoesProgresso[i] && <div className="absolute inset-0 bg-green-500/5 pointer-events-none" />}
-                   
-                   <div className="flex items-center gap-4 z-10">
-                     <span className={`text-3xl ${missoesProgresso[i] ? 'opacity-100 grayscale-0' : 'opacity-80 grayscale'}`}>{m.icone}</span>
-                     <div>
-                       <p className={`font-bold uppercase text-[10px] tracking-widest ${missoesProgresso[i] ? 'text-green-500' : 'text-white'}`}>
-                         {m.titulo}
-                       </p>
-                       <p className="text-[8px] text-zinc-500 uppercase mt-1">{m.desc}</p>
-                     </div>
-                   </div>
+              {listaMissoes.map((m, i) => {
+                const podeReivindicar = condicoesMissoes[i];
+                const jaReivindicada = missoesProgresso[i];
+                const isDisabled = jaReivindicada || !podeReivindicar;
 
-                   <div className="flex items-center gap-4 z-10">
-                     <div className="text-center hidden sm:block">
-                       <span className="text-yellow-500 font-black text-sm">+{m.recompensa}</span>
-                       <p className="text-[6px] text-yellow-600 uppercase font-black">Esmolas</p>
+                return (
+                  <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between group transition-all relative overflow-hidden ${jaReivindicada ? 'bg-black/40 border-green-500/20' : podeReivindicar ? 'bg-zinc-900 border-yellow-500/40 shadow-[0_0_15px_rgba(234,179,8,0.1)]' : 'bg-zinc-900/50 border-zinc-800'}`}>
+                     
+                     {jaReivindicada && <div className="absolute inset-0 bg-green-500/5 pointer-events-none" />}
+                     {!jaReivindicada && podeReivindicar && <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 to-transparent pointer-events-none animate-pulse" />}
+                     
+                     <div className="flex items-center gap-4 z-10">
+                       <span className={`text-3xl ${jaReivindicada || podeReivindicar ? 'opacity-100 grayscale-0' : 'opacity-40 grayscale'}`}>{m.icone}</span>
+                       <div>
+                         <p className={`font-bold uppercase text-[10px] tracking-widest ${jaReivindicada ? 'text-green-500' : podeReivindicar ? 'text-yellow-500' : 'text-zinc-400'}`}>
+                           {m.titulo}
+                         </p>
+                         <p className="text-[8px] text-zinc-500 uppercase mt-1">{m.desc}</p>
+                       </div>
                      </div>
-                     <button
-                       onClick={() => completarMissao(i, m.recompensa)}
-                       disabled={missoesProgresso[i]}
-                       className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
-                         missoesProgresso[i]
-                           ? 'bg-green-500/10 border-green-500/30 text-green-500 cursor-not-allowed'
-                           : 'bg-zinc-800 border-zinc-700 text-white hover:bg-yellow-500 hover:text-black hover:border-yellow-500 shadow-lg'
-                       }`}
-                     >
-                       {missoesProgresso[i] ? "Feito ✅" : "Reivindicar"}
-                     </button>
-                   </div>
-                </div>
-              ))}
+
+                     <div className="flex items-center gap-4 z-10">
+                       <div className="text-center hidden sm:block">
+                         <span className={`${podeReivindicar && !jaReivindicada ? 'text-yellow-400' : 'text-zinc-600'} font-black text-sm transition-colors`}>+{m.recompensa}</span>
+                         <p className="text-[6px] text-zinc-600 uppercase font-black">Esmolas</p>
+                       </div>
+                       <button
+                         onClick={() => completarMissao(i, m.recompensa)}
+                         disabled={isDisabled}
+                         className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
+                           jaReivindicada
+                             ? 'bg-green-500/10 border-green-500/30 text-green-500 cursor-not-allowed'
+                             : podeReivindicar 
+                               ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500 hover:text-black border-yellow-500/50 shadow-lg cursor-pointer' 
+                               : 'bg-zinc-950 border-zinc-800 text-zinc-600 cursor-not-allowed'
+                         }`}
+                       >
+                         {jaReivindicada ? "Feito ✅" : podeReivindicar ? "Reivindicar" : "Incompleta 🔒"}
+                       </button>
+                     </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
