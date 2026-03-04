@@ -17,35 +17,28 @@ const TEMAS = {
 };
 
 // =============================================================================
-// [SESSÃO 2] - CATÁLOGO DA LOJA (O DESPERTAR DO VFX E COSMÉTICOS)
+// [SESSÃO 2] - CATÁLOGO DA LOJA (VFX E COSMÉTICOS)
 // =============================================================================
 const LOJA_ITENS = [
-  // --- RECOMPENSAS VFX DE ELITE (VÍDEOS MP4) ---
-  { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc: "Fogo real gravado em alta definição em loop." },
-  { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, icone: "🫠", desc: "Partículas reais se dissipando no ar negro." },
-  { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc: "Chuva escorrendo pelo vidro da tela." },
-  { id: "particula_areia_deserto", nome: "Tempestade de Areia", tipo: "particula", preco: 1100, icone: "🏜️", desc: "Partículas de areia real cruzando o ecrã." },
-  { id: "particula_fogo_cinematic", nome: "Ta pegando fogo", tipo: "particula", preco: 1800, icone: "🔥", desc: "Fogueira real cinematográfica em loop." },
-
-  // --- MOLDURAS ---
+  { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc: "Fogo real gravado em alta definição (VFX)." },
+  { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, icone: "🫠", desc: "Partículas reais se dissipando no ar negro (VFX)." },
+  { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc: "Chuva real escorrendo pelo vidro (VFX)." },
+  { id: "particula_areia_deserto", nome: "Tempestade de Areia", tipo: "particula", preco: 1100, icone: "🏜️", desc: "Areia real cruzando o ecrã (VFX)." },
+  { id: "particula_fogo_cinematic", nome: "Ta pegando fogo", tipo: "particula", preco: 1800, icone: "🔥", desc: "Fogueira real cinematográfica (VFX)." },
   { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc: "Moldura dourada brilhante." },
   { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc: "Pulso cibernético rosa." },
   { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc: "Borda animada com alta voltagem azul." },
-  { id: "moldura_esmeralda", nome: "Pulso Esmeralda", tipo: "moldura", preco: 300, icone: "💎", desc: "Respiração radiante em tons de verde." },
-  { id: "moldura_sombria", nome: "Fumaça Sombria", tipo: "moldura", preco: 400, icone: "🌑", desc: "Aura negra e roxa vazando do avatar." },
-  { id: "moldura_gelo", nome: "Cristal de Gelo", tipo: "moldura", preco: 350, icone: "❄️", desc: "Brilho estático e congelante." },
-  { id: "moldura_magma", nome: "Magma Escorrendo", tipo: "moldura", preco: 500, icone: "🌋", desc: "Animação de chamas correndo pela borda." },
-  { id: "moldura_celestial", nome: "Anel Divino", tipo: "moldura", preco: 800, icone: "👼", desc: "Avatar flutuante com brilho purificador." },
-
-  // --- TÍTULOS ---
+  { id: "moldura_esmeralda", nome: "Pulso Esmeralda", tipo: "moldura", preco: 300, icone: "💎", desc: "Respiração radiante verde." },
+  { id: "moldura_sombria", nome: "Fumaça Sombria", tipo: "moldura", preco: 400, icone: "🌑", desc: "Aura negra vazando do avatar." },
+  { id: "moldura_magma", nome: "Magma Escorrendo", tipo: "moldura", preco: 500, icone: "🌋", desc: "Animação de chamas correndo." },
+  { id: "moldura_celestial", nome: "Anel Divino", tipo: "moldura", preco: 800, icone: "👼", desc: "Avatar flutuante purificador." },
   { id: "titulo_sabio", nome: "Título: O Sábio", tipo: "titulo", preco: 400, icone: "🦉", desc: "Clássico título dourado." },
   { id: "titulo_lenda", nome: "Título: A Lenda Viva", tipo: "titulo", preco: 500, icone: "📜", desc: "Clássico título dourado." },
-  { id: "titulo_deus", nome: "Divindade Ancestral", tipo: "titulo", preco: 1000, icone: "🔱", desc: "Texto animado brilhando como o sol." },
-  { id: "titulo_sombra", nome: "A Sombra que Caminha", tipo: "titulo", preco: 600, icone: "🥷", desc: "Texto com sombra escura fantasmagórica." },
-  { id: "titulo_hacker", nome: "Cyber Hunter", tipo: "titulo", preco: 800, icone: "💻", desc: "Efeito de texto tremendo (Glitch) constante." },
-  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc: "Texto com gradiente animado fluindo." },
-  { id: "titulo_sangue", nome: "Ceifador Carmesim", tipo: "titulo", preco: 750, icone: "🩸", desc: "Texto pulsando em vermelho sangue." },
-  { id: "titulo_fantasma", nome: "Espectro Inominável", tipo: "titulo", preco: 650, icone: "👻", desc: "Texto translúcido flutuando no vazio." }
+  { id: "titulo_deus", nome: "Divindade Ancestral", tipo: "titulo", preco: 1000, icone: "🔱", desc: "Texto brilhando como o sol." },
+  { id: "titulo_sombra", nome: "A Sombra que Caminha", tipo: "titulo", preco: 600, icone: "🥷", desc: "Texto com sombra fantasmagórica." },
+  { id: "titulo_hacker", nome: "Cyber Hunter", tipo: "titulo", preco: 800, icone: "💻", desc: "Efeito de texto glitch." },
+  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc: "Texto gradiente animado." },
+  { id: "titulo_sangue", nome: "Ceifador Carmesim", tipo: "titulo", preco: 750, icone: "🩸", desc: "Texto pulsando em vermelho." }
 ];
 
 export default function PerfilPage() {
@@ -53,13 +46,13 @@ export default function PerfilPage() {
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
   const [telaCheia, setTelaCheia] = useState(false);
   const [carregando, setCarregando] = useState(true);
-  const [fazendoUpload, setFazendoUpload] = useState(false);
   const [esmolas, setEsmolas] = useState(0);
   const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false]);
   const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false]); 
   const [inventario, setInventario] = useState<string[]>([]);
   const [equipados, setEquipados] = useState<Record<string, string>>({ moldura: "", particula: "", titulo: "" });
   const [dadosPerfil, setDadosPerfil] = useState({ nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" });
+  const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
   const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 });
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40" });
 
@@ -82,11 +75,12 @@ export default function PerfilPage() {
 
     if (m || a || f || l) {
       const all = [...(m || []), ...(a || []), ...(f || []), ...(l || [])];
-      const epsVistos = (a || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
-      const minFilmes = (f || []).filter(obj => obj.status === "Completos").length * 120;
+      const eps = (a || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
+      const fMin = (f || []).filter(o => o.status === "Completos").length * 120;
+      setObrasUsuario(all);
       setStats({
         obras: all.length, caps: all.reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0), finais: all.filter(obj => obj.status === "Completos").length,
-        horasVida: Math.floor(((epsVistos * 23) + minFilmes) / 60), favs: all.filter(o => o.favorito).length, filmes: (f || []).length, livros: (l || []).length
+        horasVida: Math.floor(((eps * 23) + fMin) / 60), favs: all.filter(o => o.favorito).length, filmes: (f || []).length, livros: (l || []).length
       });
       const t = all.length;
       if (t >= 1000) setElo({ tier: "DIVINDADE", cor: "from-white via-cyan-200 to-white", glow: "shadow-white/60 shadow-[0_0_40px_white]" });
@@ -109,9 +103,6 @@ export default function PerfilPage() {
     setCarregando(false);
   }
 
-  // ==========================================
-  // [AÇÕES DE JOGO] - MISSÕES E COSMÉTICOS
-  // ==========================================
   async function completarMissao(index: number, recompensa: number) {
     if (missoesProgresso[index]) return; 
     const nProg = [...missoesProgresso]; nProg[index] = true; const nSaldo = esmolas + recompensa;
@@ -139,47 +130,22 @@ export default function PerfilPage() {
     alert("✨ Hunter Sincronizado!");
   }
 
-  function exportarBiblioteca() {
-    const backup = { hunter: dadosPerfil.nome, stats: stats };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `backup_${usuarioAtivo}.json`; a.click();
-  }
-
-  async function importarJSON(e: any) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        alert(`Backup de ${json.hunter} detectado!`);
-      } catch { alert("Erro ao ler JSON."); }
-    };
-    reader.readAsText(file);
-  }
-
   // ==========================================
-  // [SESSÃO 3] - GERADOR DE TROFÉUS (85 ITENS)
+  // [SESSÃO 3] - TROFÉUS E MISSÕES (RESTAURADO)
   // ==========================================
-  const iconesTrofeus = [ "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️","☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑","🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌","🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺","🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱","🎬","🍿","🎟️","📽️","🎞️","📼","🎫","📺","🎥","🧛","🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","REX","🦈","🛸","📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘","📔","📃","📰","🗺️","🏛️" ];
+  const iconesTrofeus = [ "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️","☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑","🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌","🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺","🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱","🎬","🍿","🎟️","📽","🎞️","📼","🎫","📺","🎥","🧛","🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","REX","🦈","🛸","📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘","📔","📃","📰","🗺️","🏛️" ];
   const listaTrofeus = Array.from({ length: 85 }, (_, i) => {
-    const id = i + 1; let check = false; let nome = `Troféu Hunter ${id}`; let desc = `Bloqueado: Requer Nível ${id * 2} de progresso.`;
+    const id = i + 1; let check = false;
     if (id <= 50) {
-      if (id === 1) { nome = "Semente"; desc = "Adicionou 1 obra"; check = stats.obras >= 1; }
-      else if (id === 2) { nome = "Viciado"; desc = "Adicionou 10 obras"; check = stats.obras >= 10; }
-      else if (id === 3) { nome = "Maratonista"; desc = "Leu 100 capítulos"; check = stats.caps >= 100; }
-      else if (id === 4) { nome = "Sem Tempo"; desc = "10 Horas assistidas"; check = stats.horasVida >= 10; }
-      else if (id === 5) { nome = "Curador"; desc = "Marcou 5 favoritos"; check = stats.favs >= 5; }
-      else { check = stats.obras >= (id * 3); }
-    } else if (id <= 70) {
-      const nivelFilme = id - 50; nome = `Cineasta Nv. ${nivelFilme}`; desc = `Requer ${nivelFilme * 5} filmes na estante.`;
-      check = stats.filmes >= (nivelFilme * 5);
-    } else {
-      const nivelLivro = id - 70; nome = `Letrado Nv. ${nivelLivro}`; desc = `Requer ${nivelLivro * 5} livros na estante.`;
-      check = stats.livros >= (nivelLivro * 5);
-    }
-    return { id, nome, desc, icone: iconesTrofeus[i], check };
+      if (id === 1) check = stats.obras >= 1;
+      else if (id === 2) check = stats.obras >= 10;
+      else if (id === 3) check = stats.caps >= 100;
+      else if (id === 4) check = stats.horasVida >= 10;
+      else if (id === 5) check = stats.favs >= 5;
+      else check = stats.obras >= (id * 3);
+    } else if (id <= 70) check = stats.filmes >= ((id - 50) * 5);
+    else check = stats.livros >= ((id - 70) * 5);
+    return { id, nome: `Hunter ${id}`, icone: iconesTrofeus[i], check };
   });
 
   const listaMissoes = [
@@ -228,6 +194,14 @@ export default function PerfilPage() {
               <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex flex-col items-center overflow-hidden">
                 <span className="text-2xl font-black text-white italic">{stats.horasVida} HORAS</span>
                 <p className="text-[7px] font-black text-zinc-500 uppercase tracking-widest italic mt-1">Tempo de Vida Consumido</p>
+                
+                {/* 🔥 ✅ [RESTAURADO] - BOTÃO CONECTAR ANILIST */}
+                <a 
+                  href={`/api/auth/anilist?hunter=${usuarioAtivo}`} 
+                  className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10"
+                >
+                  {dadosPerfil.anilist_token ? "✅ AniList Conectado (Sincronizar)" : "🔗 Conectar com AniList"}
+                </a>
               </div>
             </div>
           )}
@@ -235,9 +209,9 @@ export default function PerfilPage() {
           {abaAtiva === "MISSÕES" && (
             <div className="space-y-4 pb-10">
               {listaMissoes.map((m, i) => (
-                <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between transition-all ${missoesProgresso[i] ? 'bg-black/40 border-green-500/20' : condicoesMissoes[i] ? 'bg-zinc-900 border-yellow-500/40 shadow-lg' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                  <div className="flex items-center gap-4"><span className="text-3xl">{m.icone}</span><div><p className={`font-bold uppercase text-[10px] ${missoesProgresso[i] ? 'text-green-500' : 'text-white'}`}>{m.titulo}</p><p className="text-[8px] text-zinc-500 uppercase mt-1">{m.desc}</p></div></div>
-                  <button onClick={() => completarMissao(i, m.recompensa)} disabled={missoesProgresso[i] || !condicoesMissoes[i]} className={`px-4 py-2 rounded-xl text-[9px] font-black border ${missoesProgresso[i] ? 'bg-green-500/10 border-green-500/30 text-green-500' : condicoesMissoes[i] ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'bg-zinc-950 border-zinc-800 text-zinc-600'}`}>{missoesProgresso[i] ? "Feito" : "💰"}</button>
+                <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between transition-all ${missoesProgresso[i] ? 'bg-black/40 border-green-500/20' : condicoesMissoes[i] ? 'bg-zinc-900 border-yellow-500/40' : 'bg-zinc-900/50 border-zinc-800'}`}>
+                  <div className="flex items-center gap-4"><span className="text-3xl">{m.icone}</span><div><p className={`font-bold uppercase text-[10px] ${missoesProgresso[i] ? 'text-green-500' : 'text-white'}`}>{m.titulo}</p><p className="text-[8px] text-zinc-500 uppercase">+{m.recompensa} Esmolas</p></div></div>
+                  <button onClick={() => completarMissao(i, m.recompensa)} disabled={missoesProgresso[i] || !condicoesMissoes[i]} className="px-4 py-2 rounded-xl text-[9px] font-black border border-white/10">{missoesProgresso[i] ? "Feito" : "💰"}</button>
                 </div>
               ))}
             </div>
@@ -248,9 +222,7 @@ export default function PerfilPage() {
               {listaTrofeus.map(t => (
                 <div key={t.id} className="flex flex-col items-center group relative">
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2 transition-all ${t.check ? aura.border + " bg-black/40" : "border-zinc-800 opacity-10 grayscale"}`}>{t.icone}</div>
-                  <div className="absolute -top-12 bg-black border border-white/10 px-3 py-2 rounded-xl text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 z-50 whitespace-nowrap pointer-events-none">
-                    <p className={`${t.check ? aura.text : 'text-zinc-600'} uppercase mb-1 font-black`}>{t.nome}</p>{t.desc}
-                  </div>
+                  <div className="absolute -top-12 bg-black border border-white/10 px-3 py-2 rounded-xl text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 z-50 whitespace-nowrap">{t.nome}</div>
                 </div>
               ))}
             </div>
@@ -287,8 +259,8 @@ export default function PerfilPage() {
 
         <div className="w-full flex flex-col gap-3 mt-8 relative z-20">
           <div className="grid grid-cols-2 gap-3">
-             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
-             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white transition-all">📥 Importar <input type="file" accept=".json" className="hidden" onChange={importarJSON} /></label>
+             <button onClick={() => { const blob = new Blob([JSON.stringify({biblioteca: obrasUsuario})], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'backup.json'; a.click(); }} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
+             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white">📥 Importar <input type="file" accept=".json" className="hidden" onChange={(e:any) => { const f = e.target.files[0]; if(f) alert("Backup detectado!"); }} /></label>
           </div>
           <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">Encerrar Sessão</button>
         </div>
