@@ -17,7 +17,7 @@ const TEMAS = {
 
 export default function PerfilPage() {
   // ==========================================
-  // 🔐 [SESSÃO 2] - ESTADOS GERAIS
+  // 🔐 [SESSÃO 2] - ESTADOS GERAIS E ECONOMIA
   // ==========================================
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
@@ -25,6 +25,10 @@ export default function PerfilPage() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [fazendoUpload, setFazendoUpload] = useState(false);
+
+  // 🪙 Novos Estados do Sistema de Esmolas
+  const [esmolas, setEsmolas] = useState(0);
+  const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false]);
 
   const [dadosPerfil, setDadosPerfil] = useState({ 
     nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" 
@@ -38,7 +42,7 @@ export default function PerfilPage() {
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40", efeito: "" });
 
   // ==========================================
-  // 🧠 [SESSÃO 3] - CORE LOGIC E AUTOMAÇÃO
+  // 🧠 [SESSÃO 3] - LÓGICA CORE E AUTOMAÇÃO
   // ==========================================
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
@@ -115,10 +119,45 @@ export default function PerfilPage() {
         pin: perfil.pin || "",
         anilist_token: perfil.anilist_token || "" 
       });
+
+      // 🪙 Sincronização Diária de Missões e Saldo
+      setEsmolas(perfil.esmolas || 0);
+      
+      const dataHoje = new Date().toISOString().split('T')[0]; // Formato: YYYY-MM-DD
+      let progressoAtual = perfil.missoes_progresso || [false, false, false, false, false];
+
+      // Se for um novo dia, reinicia as missões
+      if (perfil.missoes_data !== dataHoje) {
+        progressoAtual = [false, false, false, false, false];
+        await supabase.from("perfis").update({ 
+          missoes_data: dataHoje, 
+          missoes_progresso: progressoAtual 
+        }).eq("nome_original", usuarioAtivo);
+      }
+      setMissoesProgresso(progressoAtual);
     }
     setCarregando(false);
   }
 
+  // 🪙 Função para Reivindicar Esmolas
+  async function completarMissao(index: number, recompensa: number) {
+    if (missoesProgresso[index]) return; // Já foi recolhida
+
+    const novoProgresso = [...missoesProgresso];
+    novoProgresso[index] = true;
+    const novoSaldo = esmolas + recompensa;
+
+    setMissoesProgresso(novoProgresso);
+    setEsmolas(novoSaldo);
+
+    // Salva na base de dados silenciosamente
+    await supabase.from("perfis").update({
+      missoes_progresso: novoProgresso,
+      esmolas: novoSaldo
+    }).eq("nome_original", usuarioAtivo);
+  }
+
+  // Demais funções (Upload, Exportar, Sincronizar) mantidas...
   async function atualizarPerfil() {
     setSalvando(true);
     try {
@@ -139,29 +178,15 @@ export default function PerfilPage() {
   async function fazerUploadAvatar(event: React.ChangeEvent<HTMLInputElement>) {
     try {
       setFazendoUpload(true);
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('Você deve selecionar uma imagem primeiro.');
-      }
-      
+      if (!event.target.files || event.target.files.length === 0) throw new Error('Selecione uma imagem.');
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${usuarioAtivo}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
+      const filePath = `${usuarioAtivo}-${Math.random()}.${file.name.split('.').pop()}`;
       const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
       if (uploadError) throw uploadError;
-
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      const publicUrl = data.publicUrl;
-
-      setDadosPerfil(prev => ({ ...prev, avatar: publicUrl }));
+      setDadosPerfil(prev => ({ ...prev, avatar: data.publicUrl }));
       alert('Upload concluído! Clique em "Sincronizar Hunter" para salvar as alterações.');
-
-    } catch (error: any) {
-      alert('Erro no upload: Certifique-se de que o Bucket "avatars" é público e possui as políticas (RLS) configuradas. Detalhes: ' + error.message);
-    } finally {
-      setFazendoUpload(false);
-    }
+    } catch (error: any) { alert('Erro no upload: ' + error.message); } finally { setFazendoUpload(false); }
   }
 
   async function exportarBiblioteca() {
@@ -207,7 +232,6 @@ export default function PerfilPage() {
     "🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱",
     "🎬","🍿","🎟️","📽️","🎞️","📼","🎫","📺","🎥","🧛",
     "🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","🦖","🦈","🛸",
-    /* Novos 15 Ícones de Livros (71 ao 85) */
     "📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘",
     "📔","📃","📰","🗺️","🏛️"
   ];
@@ -235,7 +259,6 @@ export default function PerfilPage() {
       else if (id === 55) { nome = "Diretor Mestre"; desc = "Adicionou 50 filmes"; check = stats.filmes >= 50; }
       else { check = stats.filmes >= (nivelFilme * 5); }
     } else {
-      // 📚 NOVO SUBTÍTULO: TROFÉUS DA ESTANTE DE LIVROS (71 ao 85)
       const nivelLivro = id - 70;
       nome = `Letrado Nv. ${nivelLivro}`;
       desc = `Bloqueado: Requer ${nivelLivro * 5} livros na estante.`;
@@ -247,9 +270,17 @@ export default function PerfilPage() {
       else if (id === 75) { nome = "Bibliotecário Chefe"; desc = "Adicionou 50 livros"; check = stats.livros >= 50; }
       else { check = stats.livros >= (nivelLivro * 5); }
     }
-    
     return { id, nome, desc, icone: iconesTrofeus[i], check };
   });
+
+  // 📋 As 5 Missões Diárias
+  const listaMissoes = [
+    { titulo: "Check-in Diário", desc: "Acesse a guilda hoje", recompensa: 10, icone: "👋" },
+    { titulo: "Leitor Assíduo", desc: "Avance 1 capítulo ou página", recompensa: 20, icone: "📚" },
+    { titulo: "Sétima Arte", desc: "Assista 1 episódio ou filme", recompensa: 20, icone: "🎬" },
+    { titulo: "Caçador", desc: "Adicione uma nova obra à estante", recompensa: 25, icone: "🎯" },
+    { titulo: "Curador", desc: "Organize os status ou favoritos", recompensa: 15, icone: "✨" },
+  ];
 
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic animate-pulse">CARREGANDO HUB...</div>;
 
@@ -258,12 +289,20 @@ export default function PerfilPage() {
       
       <div className="fixed top-0 left-0 w-full p-6 md:p-10 flex justify-between items-center z-[110] pointer-events-none">
         <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md border border-white/5">← Voltar</Link>
+        
+        {/* 🪙 MOSTRADOR DE ESMOLAS NO TOPO */}
+        <div className="pointer-events-auto bg-black/60 px-4 py-2 rounded-xl backdrop-blur-md border border-yellow-500/30 flex items-center gap-2 shadow-[0_0_15px_rgba(234,179,8,0.1)]">
+          <span className="text-yellow-500 text-lg drop-shadow-md">🪙</span>
+          <span className="text-white font-black text-sm">{esmolas}</span>
+          <span className="text-[8px] font-black text-yellow-500 uppercase tracking-widest hidden md:inline ml-1">Esmolas</span>
+        </div>
+        
         <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl">
-          {telaCheia ? "⊙ Vista Central" : "⛶ Tela Cheia"}
+          {telaCheia ? "⊙ Vista Central" : "⛶ Ecrã Inteiro"}
         </button>
       </div>
 
-      <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-12 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ${elo.glow} ring-1 ring-white/10 ${elo.efeito} ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
+      <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-16 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ${elo.glow} ring-1 ring-white/10 ${elo.efeito} ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
         
         <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${aura.border} ${elo.glow} flex items-center justify-center`}>
           {dadosPerfil.avatar?.startsWith('http') ? (
@@ -276,7 +315,6 @@ export default function PerfilPage() {
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic">{dadosPerfil.nome}</h1>
         <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
 
-        {/* ✅ FIX: ABA "MISSÕES" ADICIONADA DE VOLTA */}
         <div className="flex flex-wrap gap-4 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
           {["STATUS", "MISSÕES", "TROFÉUS", "CONFIG"].map(aba => (
             <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110 drop-shadow-[0_0_8px_currentColor]" : 'text-zinc-600 hover:text-zinc-400'}`}>
@@ -307,7 +345,6 @@ export default function PerfilPage() {
                    <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
                  </div>
                  
-                 {/* ✅ FIX: BOTÃO DE SINCRONIZAR ANILIST RESTAURADO (Com proteção de chave .env) */}
                  <a 
                    href={`https://anilist.co/api/v2/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_ANILIST_CLIENT_ID}&response_type=token`}
                    className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10"
@@ -318,30 +355,43 @@ export default function PerfilPage() {
             </div>
           )}
 
-          {/* ✅ FIX: CONTEÚDO DA ABA MISSÕES RESTAURADO */}
+          {/* 🎯 NOVA ABA DE MISSÕES DIÁRIAS GAMIFICADAS */}
           {abaAtiva === "MISSÕES" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-left-4 pb-10">
-              <div className="bg-zinc-900/50 p-5 rounded-3xl border border-zinc-800 flex items-center justify-between group hover:border-zinc-600 transition-all">
-                 <div>
-                   <p className="font-bold text-white uppercase text-[10px] tracking-widest">Leitor Assíduo</p>
-                   <p className="text-[8px] text-zinc-500 uppercase mt-1">Atualize 5 capítulos de mangá hoje</p>
-                 </div>
-                 <span className="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">📚</span>
-              </div>
-              <div className="bg-zinc-900/50 p-5 rounded-3xl border border-zinc-800 flex items-center justify-between group hover:border-zinc-600 transition-all">
-                 <div>
-                   <p className="font-bold text-white uppercase text-[10px] tracking-widest">Sétima Arte</p>
-                   <p className="text-[8px] text-zinc-500 uppercase mt-1">Adicione 1 filme novo na sua estante</p>
-                 </div>
-                 <span className="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">🎬</span>
-              </div>
-              <div className="bg-zinc-900/50 p-5 rounded-3xl border border-zinc-800 flex items-center justify-between group hover:border-zinc-600 transition-all">
-                 <div>
-                   <p className="font-bold text-white uppercase text-[10px] tracking-widest">Rato de Biblioteca</p>
-                   <p className="text-[8px] text-zinc-500 uppercase mt-1">Leia seu primeiro Livro</p>
-                 </div>
-                 <span className="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">📖</span>
-              </div>
+              {listaMissoes.map((m, i) => (
+                <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between group transition-all relative overflow-hidden ${missoesProgresso[i] ? 'bg-black/40 border-green-500/20' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-600'}`}>
+                   
+                   {missoesProgresso[i] && <div className="absolute inset-0 bg-green-500/5 pointer-events-none" />}
+                   
+                   <div className="flex items-center gap-4 z-10">
+                     <span className={`text-3xl ${missoesProgresso[i] ? 'opacity-100 grayscale-0' : 'opacity-80 grayscale'}`}>{m.icone}</span>
+                     <div>
+                       <p className={`font-bold uppercase text-[10px] tracking-widest ${missoesProgresso[i] ? 'text-green-500' : 'text-white'}`}>
+                         {m.titulo}
+                       </p>
+                       <p className="text-[8px] text-zinc-500 uppercase mt-1">{m.desc}</p>
+                     </div>
+                   </div>
+
+                   <div className="flex items-center gap-4 z-10">
+                     <div className="text-center hidden sm:block">
+                       <span className="text-yellow-500 font-black text-sm">+{m.recompensa}</span>
+                       <p className="text-[6px] text-yellow-600 uppercase font-black">Esmolas</p>
+                     </div>
+                     <button
+                       onClick={() => completarMissao(i, m.recompensa)}
+                       disabled={missoesProgresso[i]}
+                       className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
+                         missoesProgresso[i]
+                           ? 'bg-green-500/10 border-green-500/30 text-green-500 cursor-not-allowed'
+                           : 'bg-zinc-800 border-zinc-700 text-white hover:bg-yellow-500 hover:text-black hover:border-yellow-500 shadow-lg'
+                       }`}
+                     >
+                       {missoesProgresso[i] ? "Feito ✅" : "Reivindicar"}
+                     </button>
+                   </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -364,13 +414,7 @@ export default function PerfilPage() {
 
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 animate-in fade-in zoom-in-95 pb-10">
-              
-              {/* ✅ FIX: BOTÃO DE SINCRONIZAR MOVIDO PARA O TOPO E DESTAQUE MÁXIMO */}
-              <button 
-                onClick={atualizarPerfil} 
-                disabled={salvando || fazendoUpload} 
-                className={`w-full py-5 rounded-xl font-black text-[12px] uppercase tracking-widest transition-all shadow-xl sticky top-0 z-50 backdrop-blur-md ${aura.btn}`}
-              >
+              <button onClick={atualizarPerfil} disabled={salvando || fazendoUpload} className={`w-full py-5 rounded-xl font-black text-[12px] uppercase tracking-widest transition-all shadow-xl sticky top-0 z-50 backdrop-blur-md ${aura.btn}`}>
                 {salvando ? "Sincronizando..." : "💾 Sincronizar Hunter"}
               </button>
 
