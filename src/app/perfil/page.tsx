@@ -15,6 +15,16 @@ const TEMAS = {
   custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", glow: "shadow-[var(--aura)]/20", btn: "bg-[var(--aura)]/10 border-[var(--aura)]/50 hover:bg-[var(--aura)] hover:text-black" }
 };
 
+// 🛒 CATÁLOGO DA LOJA DE COSMÉTICOS
+const LOJA_ITENS = [
+  { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc: "Moldura dourada brilhante para o avatar." },
+  { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc: "Moldura pulsante cibernética." },
+  { id: "particula_fogo", nome: "Aura de Fogo", tipo: "particula", preco: 300, icone: "🔥", desc: "Fagulhas de chamas no fundo do perfil." },
+  { id: "particula_petalas", nome: "Chuva de Pétalas", tipo: "particula", preco: 300, icone: "🌸", desc: "Pétalas caindo suavemente." },
+  { id: "titulo_lenda", nome: "Título: A Lenda Viva", tipo: "titulo", preco: 500, icone: "📜", desc: "Exibe o título exclusivo abaixo do seu nome." },
+  { id: "titulo_sabio", nome: "Título: O Sábio", tipo: "titulo", preco: 400, icone: "🦉", desc: "Para os verdadeiros curadores da guilda." }
+];
+
 export default function PerfilPage() {
   // ==========================================
   // 🔐 [SESSÃO 2] - ESTADOS GERAIS E ECONOMIA
@@ -26,10 +36,14 @@ export default function PerfilPage() {
   const [salvando, setSalvando] = useState(false);
   const [fazendoUpload, setFazendoUpload] = useState(false);
 
-  // 🪙 Estados de Economia e Verificação de Missões
+  // 🪙 Estados de Economia e Missões
   const [esmolas, setEsmolas] = useState(0);
   const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false]);
-  const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false]); // Check-in é sempre true
+  const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false]); 
+
+  // 🛍️ Estados da Loja e Cosméticos
+  const [inventario, setInventario] = useState<string[]>([]);
+  const [equipados, setEquipados] = useState<Record<string, string>>({ moldura: "", particula: "", titulo: "" });
 
   const [dadosPerfil, setDadosPerfil] = useState({ 
     nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" 
@@ -100,9 +114,7 @@ export default function PerfilPage() {
         livros: (livros || []).length
       });
 
-      // 🎯 VERIFICAÇÃO REAL DE MISSÕES
       const dataHoje = new Date().toISOString().split('T')[0];
-      
       const leuHj = [...(mangas || []), ...(livros || [])].some(o => o.ultima_leitura?.startsWith(dataHoje));
       const assistiuHj = [...(animes || []), ...(filmes || [])].some(o => o.ultima_leitura?.startsWith(dataHoje));
       const interagiu3 = all.filter(o => o.ultima_leitura?.startsWith(dataHoje)).length >= 3;
@@ -130,6 +142,12 @@ export default function PerfilPage() {
       });
 
       setEsmolas(perfil.esmolas || 0);
+      
+      // 🛍️ Carregamento dos Cosméticos
+      const cosmeticosDb = perfil.cosmeticos || { comprados: [], ativos: {} };
+      setInventario(cosmeticosDb.comprados || []);
+      setEquipados(cosmeticosDb.ativos || { moldura: "", particula: "", titulo: "" });
+
       const dataHojeStr = new Date().toISOString().split('T')[0];
       let progressoAtual = perfil.missoes_progresso || [false, false, false, false, false];
 
@@ -142,22 +160,45 @@ export default function PerfilPage() {
     setCarregando(false);
   }
 
+  // 🪙 Ações de Economia e Loja
   async function completarMissao(index: number, recompensa: number) {
     if (missoesProgresso[index]) return; 
-
     const novoProgresso = [...missoesProgresso];
     novoProgresso[index] = true;
     const novoSaldo = esmolas + recompensa;
-
     setMissoesProgresso(novoProgresso);
     setEsmolas(novoSaldo);
-
-    await supabase.from("perfis").update({
-      missoes_progresso: novoProgresso,
-      esmolas: novoSaldo
-    }).eq("nome_original", usuarioAtivo);
+    await supabase.from("perfis").update({ missoes_progresso: novoProgresso, esmolas: novoSaldo }).eq("nome_original", usuarioAtivo);
   }
 
+  async function comprarCosmetico(item: any) {
+    if (esmolas < item.preco) return alert("❌ Esmolas insuficientes, Hunter!");
+    if (confirm(`Comprar ${item.nome} por ${item.preco} Esmolas?`)) {
+      const novoSaldo = esmolas - item.preco;
+      const novoInventario = [...inventario, item.id];
+      const novosCosmeticos = { comprados: novoInventario, ativos: equipados };
+      
+      setEsmolas(novoSaldo);
+      setInventario(novoInventario);
+      await supabase.from("perfis").update({ esmolas: novoSaldo, cosmeticos: novosCosmeticos }).eq("nome_original", usuarioAtivo);
+    }
+  }
+
+  async function equiparCosmetico(item: any) {
+    const novosEquipados = { ...equipados };
+    // Se clicar no que já está equipado, desequipa. Se não, equipa o novo.
+    if (novosEquipados[item.tipo] === item.id) {
+      novosEquipados[item.tipo] = ""; 
+    } else {
+      novosEquipados[item.tipo] = item.id;
+    }
+    
+    const novosCosmeticos = { comprados: inventario, ativos: novosEquipados };
+    setEquipados(novosEquipados);
+    await supabase.from("perfis").update({ cosmeticos: novosCosmeticos }).eq("nome_original", usuarioAtivo);
+  }
+
+  // Demais Configurações de Perfil...
   async function atualizarPerfil() {
     setSalvando(true);
     try {
@@ -202,6 +243,20 @@ export default function PerfilPage() {
   // ==========================================
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
 
+  // 💄 Processamento Visual dos Cosméticos
+  let molduraAvatar = aura.border; // Borda padrão
+  let sombraAvatar = elo.glow; // Sombra padrão
+  
+  if (equipados.moldura === "moldura_ouro") {
+    molduraAvatar = "border-yellow-500";
+    sombraAvatar = "shadow-[0_0_30px_rgba(234,179,8,0.5)]";
+  } else if (equipados.moldura === "moldura_neon") {
+    molduraAvatar = "border-fuchsia-500 animate-pulse";
+    sombraAvatar = "shadow-[0_0_30px_rgba(217,70,239,0.5)]";
+  }
+
+  const tituloEquipado = LOJA_ITENS.find(i => i.id === equipados.titulo)?.nome.replace("Título: ", "") || "";
+
   const iconesTrofeus = [
     "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️",
     "☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑",
@@ -239,7 +294,6 @@ export default function PerfilPage() {
     return { id, nome, desc, icone: iconesTrofeus[i], check };
   });
 
-  // 📋 As 5 Missões Diárias (Com textos adaptados para verificação real)
   const listaMissoes = [
     { titulo: "Check-in Diário", desc: "Aceda à guilda hoje", recompensa: 10, icone: "👋" },
     { titulo: "Leitor Assíduo", desc: "Leia/Atualize 1 manga ou livro hoje", recompensa: 20, icone: "📚" },
@@ -253,22 +307,17 @@ export default function PerfilPage() {
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
       
-      {/* ✅ FIX: CABEÇALHO REESTRUTURADO PARA CENTRALIZAÇÃO ABSOLUTA */}
       <div className="fixed top-0 left-0 w-full p-6 md:p-10 flex justify-between items-center z-[110] pointer-events-none">
-        
-        {/* Bloco Esquerdo */}
         <div className="flex-1 flex justify-start">
           <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md border border-white/5">← Voltar</Link>
         </div>
         
-        {/* Bloco Central (Esmolas Absolutas) */}
         <div className="pointer-events-auto bg-black/60 px-4 py-2 rounded-xl backdrop-blur-md border border-yellow-500/30 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(234,179,8,0.1)] absolute left-1/2 -translate-x-1/2">
           <span className="text-yellow-500 text-lg drop-shadow-md">🪙</span>
           <span className="text-white font-black text-sm">{esmolas}</span>
           <span className="text-[8px] font-black text-yellow-500 uppercase tracking-widest hidden md:inline ml-1">Esmolas</span>
         </div>
         
-        {/* Bloco Direito */}
         <div className="flex-1 flex justify-end">
           <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl">
             {telaCheia ? "⊙ Vista Central" : "⛶ Ecrã Inteiro"}
@@ -276,9 +325,14 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-16 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ${elo.glow} ring-1 ring-white/10 ${elo.efeito} ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
+      <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-16 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ring-1 ring-white/10 ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
         
-        <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${aura.border} ${elo.glow} flex items-center justify-center`}>
+        {/* ✨ EFEITOS DE PARTÍCULAS ATIVADOS */}
+        {equipados.particula === "particula_fogo" && <div className="absolute inset-0 z-0 overflow-hidden rounded-[3.5rem] opacity-30 pointer-events-none mix-blend-screen bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-orange-600/40 via-transparent to-transparent animate-pulse" />}
+        {equipados.particula === "particula_petalas" && <div className="absolute inset-0 z-0 overflow-hidden rounded-[3.5rem] opacity-20 pointer-events-none mix-blend-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-pink-500/30 via-transparent to-transparent animate-pulse" />}
+        
+        {/* 🖼️ AVATAR COM MOLDURA DINÂMICA */}
+        <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 flex items-center justify-center relative z-10 ${molduraAvatar} ${sombraAvatar}`}>
           {dadosPerfil.avatar?.startsWith('http') ? (
             <img src={dadosPerfil.avatar} className="w-full h-full object-cover" alt="" onError={(e) => (e.target as HTMLImageElement).src = "https://i.imgur.com/8Km9t4S.png"} />
           ) : (
@@ -286,18 +340,25 @@ export default function PerfilPage() {
           )}
         </div>
 
-        <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic">{dadosPerfil.nome}</h1>
-        <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
+        <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic relative z-10">{dadosPerfil.nome}</h1>
+        
+        {/* 📜 TÍTULO DINÂMICO DE FRUFRU */}
+        {tituloEquipado && (
+          <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.3em] mb-2 drop-shadow-md relative z-10">« {tituloEquipado} »</p>
+        )}
 
+        <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10 relative z-10`}>RANK: {elo.tier}</p>
+
+        {/* 🟢 ADICIONADO "LOJA" NO MENU DE ABAS */}
         <div className="flex flex-wrap gap-4 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
-          {["STATUS", "MISSÕES", "TROFÉUS", "CONFIG"].map(aba => (
+          {["STATUS", "MISSÕES", "TROFÉUS", "LOJA", "CONFIG"].map(aba => (
             <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110 drop-shadow-[0_0_8px_currentColor]" : 'text-zinc-600 hover:text-zinc-400'}`}>
-              {aba}
+              {aba === "LOJA" ? "🛒 LOJA" : aba}
             </button>
           ))}
         </div>
 
-        <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2 relative">
+        <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2 relative z-20">
           
           {abaAtiva === "STATUS" && (
             <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in-95">
@@ -318,18 +379,13 @@ export default function PerfilPage() {
                    </div>
                    <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
                  </div>
-                 
-                 <a 
-                   href={`https://anilist.co/api/v2/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_ANILIST_CLIENT_ID}&response_type=token`}
-                   className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10"
-                 >
+                 <a href={`https://anilist.co/api/v2/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_ANILIST_CLIENT_ID}&response_type=token`} className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10">
                    {dadosPerfil.anilist_token ? "✅ AniList Conectado (Sincronizar Novamente)" : "🔗 Conectar com AniList"}
                  </a>
               </div>
             </div>
           )}
 
-          {/* 🎯 MISSÕES DIÁRIAS (VERIFICAÇÃO REAL ATIVADA) */}
           {abaAtiva === "MISSÕES" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-left-4 pb-10">
               {listaMissoes.map((m, i) => {
@@ -339,16 +395,13 @@ export default function PerfilPage() {
 
                 return (
                   <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between group transition-all relative overflow-hidden ${jaReivindicada ? 'bg-black/40 border-green-500/20' : podeReivindicar ? 'bg-zinc-900 border-yellow-500/40 shadow-[0_0_15px_rgba(234,179,8,0.1)]' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                     
                      {jaReivindicada && <div className="absolute inset-0 bg-green-500/5 pointer-events-none" />}
                      {!jaReivindicada && podeReivindicar && <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 to-transparent pointer-events-none animate-pulse" />}
                      
                      <div className="flex items-center gap-4 z-10">
                        <span className={`text-3xl ${jaReivindicada || podeReivindicar ? 'opacity-100 grayscale-0' : 'opacity-40 grayscale'}`}>{m.icone}</span>
                        <div>
-                         <p className={`font-bold uppercase text-[10px] tracking-widest ${jaReivindicada ? 'text-green-500' : podeReivindicar ? 'text-yellow-500' : 'text-zinc-400'}`}>
-                           {m.titulo}
-                         </p>
+                         <p className={`font-bold uppercase text-[10px] tracking-widest ${jaReivindicada ? 'text-green-500' : podeReivindicar ? 'text-yellow-500' : 'text-zinc-400'}`}>{m.titulo}</p>
                          <p className="text-[8px] text-zinc-500 uppercase mt-1">{m.desc}</p>
                        </div>
                      </div>
@@ -358,17 +411,7 @@ export default function PerfilPage() {
                          <span className={`${podeReivindicar && !jaReivindicada ? 'text-yellow-400' : 'text-zinc-600'} font-black text-sm transition-colors`}>+{m.recompensa}</span>
                          <p className="text-[6px] text-zinc-600 uppercase font-black">Esmolas</p>
                        </div>
-                       <button
-                         onClick={() => completarMissao(i, m.recompensa)}
-                         disabled={isDisabled}
-                         className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
-                           jaReivindicada
-                             ? 'bg-green-500/10 border-green-500/30 text-green-500 cursor-not-allowed'
-                             : podeReivindicar 
-                               ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500 hover:text-black border-yellow-500/50 shadow-lg cursor-pointer' 
-                               : 'bg-zinc-950 border-zinc-800 text-zinc-600 cursor-not-allowed'
-                         }`}
-                       >
+                       <button onClick={() => completarMissao(i, m.recompensa)} disabled={isDisabled} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${jaReivindicada ? 'bg-green-500/10 border-green-500/30 text-green-500 cursor-not-allowed' : podeReivindicar ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500 hover:text-black border-yellow-500/50 shadow-lg cursor-pointer' : 'bg-zinc-950 border-zinc-800 text-zinc-600 cursor-not-allowed'}`}>
                          {jaReivindicada ? "Feito ✅" : podeReivindicar ? "Reivindicar" : "Incompleta 🔒"}
                        </button>
                      </div>
@@ -382,10 +425,7 @@ export default function PerfilPage() {
             <div className="grid grid-cols-5 gap-y-10 gap-x-2 justify-items-center animate-in fade-in slide-in-from-right-4 pb-10">
               {listaTrofeus.map(t => (
                 <div key={t.id} className="flex flex-col items-center group relative">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2 transition-all duration-700 
-                    ${t.check ? aura.border + " " + aura.glow + " bg-black/40" : "border-zinc-800 opacity-10 grayscale blur-[1px]"}`}>
-                    {t.icone}
-                  </div>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2 transition-all duration-700 ${t.check ? aura.border + " " + aura.glow + " bg-black/40" : "border-zinc-800 opacity-10 grayscale blur-[1px]"}`}>{t.icone}</div>
                   <div className="absolute -top-12 bg-black border border-white/10 px-3 py-2 rounded-xl text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-2xl pointer-events-none">
                     <p className={`${t.check ? aura.text : 'text-zinc-600'} uppercase mb-1 font-black`}>{t.nome}</p>
                     {t.desc}
@@ -395,31 +435,66 @@ export default function PerfilPage() {
             </div>
           )}
 
+          {/* 🛒 NOVA ABA: LOJA DE FRUFRU */}
+          {abaAtiva === "LOJA" && (
+            <div className="space-y-4 animate-in fade-in zoom-in-95 pb-10">
+              <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-2xl text-center mb-6">
+                <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Loja de Cosméticos</p>
+                <p className="text-[8px] text-yellow-500/60 uppercase mt-1">Gaste suas esmolas para personalizar o seu perfil. (Não afeta o Rank!)</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {LOJA_ITENS.map(item => {
+                  const comprado = inventario.includes(item.id);
+                  const equipado = equipados[item.tipo] === item.id;
+
+                  return (
+                    <div key={item.id} className={`p-4 rounded-3xl border flex flex-col gap-4 transition-all ${comprado ? 'bg-zinc-900 border-zinc-700' : 'bg-black/50 border-zinc-800'}`}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl bg-zinc-950 p-3 rounded-2xl border border-white/5">{item.icone}</span>
+                        <div>
+                          <p className="font-bold uppercase text-[10px] tracking-widest text-white">{item.nome}</p>
+                          <p className="text-[7px] text-zinc-500 uppercase mt-1">{item.tipo}</p>
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-zinc-400 leading-relaxed min-h-[40px]">{item.desc}</p>
+                      
+                      {!comprado ? (
+                        <button onClick={() => comprarCosmetico(item)} className="w-full py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500 hover:text-black font-black uppercase text-[9px] tracking-widest transition-all">
+                          Comprar ({item.preco} 🪙)
+                        </button>
+                      ) : (
+                        <button onClick={() => equiparCosmetico(item)} className={`w-full py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all border ${equipado ? 'bg-green-500/20 text-green-500 border-green-500/50' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'}`}>
+                          {equipado ? "Equipado ✅" : "Equipar"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 animate-in fade-in zoom-in-95 pb-10">
               <button onClick={atualizarPerfil} disabled={salvando || fazendoUpload} className={`w-full py-5 rounded-xl font-black text-[12px] uppercase tracking-widest transition-all shadow-xl sticky top-0 z-50 backdrop-blur-md ${aura.btn}`}>
                 {salvando ? "Sincronizando..." : "💾 Sincronizar Hunter"}
               </button>
-
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
-              
               <div className="grid grid-cols-1 gap-2">
                 <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Avatar (URL ou Enviar do PC)</label>
                 <div className="flex gap-3 items-center">
                   <input type="text" placeholder="Cole a URL ou faça upload..." className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-white/20" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
-                  
                   <label className={`px-6 py-4 rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center ${fazendoUpload ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'hover:bg-white/10 text-white'}`}>
                     {fazendoUpload ? "⏳ Enviando..." : "📁 PC"}
                     <input type="file" accept="image/*" className="hidden" onChange={fazerUploadAvatar} disabled={fazendoUpload} />
                   </label>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 gap-4">
                 <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Código PIN (4 Dígitos)</label>
                 <input type="password" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center outline-none focus:border-white/20" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value.replace(/\D/g, '')})} />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase outline-none" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
                   <option value="azul">Azul Neon</option> <option value="verde">Verde Hacker</option> <option value="roxo">Roxo Galático</option> <option value="laranja">Laranja Fogo</option> <option value="custom">Personalizada</option>
@@ -431,7 +506,7 @@ export default function PerfilPage() {
         </div>
 
         {/* BACKUP E LOGOUT */}
-        <div className="w-full flex flex-col gap-3 mt-8">
+        <div className="w-full flex flex-col gap-3 mt-8 relative z-20">
           <div className="grid grid-cols-2 gap-3">
             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer">
