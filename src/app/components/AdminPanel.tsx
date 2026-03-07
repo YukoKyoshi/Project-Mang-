@@ -75,7 +75,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       
       if (error) throw error;
       
-      // Atualiza a lista local na hora para não precisar recarregar a página
       setLocalPerfis(prev => prev.map(p => p.nome_original === usuarioEditando.nome_original ? { ...p, ...formEdit } : p));
       setUsuarioEditando(null);
       alert("✅ Caçador atualizado com sucesso!");
@@ -206,7 +205,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       const fileName = `item-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // ✅ CALIBRAÇÃO: Roteia itens de animação (particula E vfx) para o bucket de VFX.
       const bucketAlvo = (formLoja.tipo === 'particula' || formLoja.tipo === 'vfx') ? 'vfx' : 'cosmeticos';
       
       const { error: uploadError } = await supabase.storage.from(bucketAlvo).upload(filePath, file);
@@ -229,7 +227,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   async function limparCachePesquisa() {
     if (!confirm("⚠️ Tem certeza? Isso vai apagar o histórico de buscas otimizadas pela IA. O sistema vai recriar o cache aos poucos.")) return;
     setCarregandoAcao(true);
-    await supabase.from("search_cache").delete().neq("termo_original", "x"); // Apaga tudo
+    await supabase.from("search_cache").delete().neq("termo_original", "x"); 
     alert("🧹 Cache de pesquisa purificado com sucesso!");
     setCarregandoAcao(false);
   }
@@ -237,13 +235,11 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   async function darEsmolasParaTodos() {
     const quantia = parseInt(prompt("Quantas Esmolas deseja dar para TODOS os usuários da guilda?") || "0");
     if (!quantia || quantia <= 0) return;
-    
     if (!confirm(`Distribuir ${quantia} esmolas para cada caçador?`)) return;
     setCarregandoAcao(true);
-    
     try {
       for (const p of localPerfis) {
-        if (p.nome_original === "Admin") continue; // Admin não precisa de esmolas
+        if (p.nome_original === "Admin") continue;
         await supabase.from("perfis").update({ esmolas: (p.esmolas || 0) + quantia }).eq("nome_original", p.nome_original);
       }
       setLocalPerfis(prev => prev.map(p => p.nome_original === "Admin" ? p : { ...p, esmolas: (p.esmolas || 0) + quantia }));
@@ -255,13 +251,8 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     }
   }
 
-  // ==========================================
-  // 🖥️ RENDERIZAÇÃO DO PAINEL
-  // ==========================================
   return (
     <main className="min-h-screen bg-[#040405] p-6 md:p-12 text-white font-sans relative overflow-x-hidden">
-      
-      {/* CABEÇALHO */}
       <header className="flex justify-between items-center mb-12 border-b border-yellow-500/20 pb-8">
         <div>
           <h1 className="text-4xl font-black text-white italic tracking-tighter flex items-center gap-3">
@@ -269,26 +260,19 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
           </h1>
           <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-yellow-500/60 mt-2">Controle Absoluto do Sistema</p>
         </div>
-        <button onClick={() => { sessionStorage.removeItem("hunter_ativo"); setUsuarioAtual(null); }} className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+        <button onClick={() => { sessionStorage.removeItem("hunter_ativo"); setUsuarioAtual(null); }} className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-[0_0_15px_rgba(234,179,8,0.2)]">
           Desconectar
         </button>
       </header>
 
-      {/* ABAS DO PAINEL */}
       <div className="flex flex-wrap gap-4 mb-10">
         {["GUILDA", "LOJA", "SISTEMA", "FERRAMENTAS"].map(aba => (
-          <button 
-            key={aba} onClick={() => setAbaAtiva(aba)} 
-            className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all border ${abaAtiva === aba ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600'}`}
-          >
+          <button key={aba} onClick={() => setAbaAtiva(aba)} className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all border ${abaAtiva === aba ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600'}`}>
             {aba === "GUILDA" ? "👥 A Guilda" : aba === "LOJA" ? "🛒 Loja S+" : aba === "SISTEMA" ? "⚙️ Sistema" : "⚡ Ferramentas"}
           </button>
         ))}
       </div>
 
-      {/* ==============================================
-          ABA: GUILDA (GERENCIAMENTO DE USUÁRIOS)
-      ================================================ */}
       {abaAtiva === "GUILDA" && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex justify-between items-center mb-6">
@@ -297,13 +281,10 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
               + Recrutar Novo
             </button>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {localPerfis.map(p => (
               <div key={p.id} className={`bg-zinc-900/40 p-6 rounded-3xl border flex flex-col gap-4 relative overflow-hidden transition-all hover:border-yellow-500/50 ${p.nome_original === "Admin" ? 'border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.05)]' : 'border-zinc-800'}`}>
-                
                 {p.nome_original === "Admin" && <div className="absolute top-0 right-0 bg-yellow-500 text-black text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase tracking-widest">Mestre</div>}
-
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 bg-black rounded-2xl overflow-hidden border border-zinc-700 flex items-center justify-center text-2xl">
                     {p.avatar?.startsWith('http') ? <img src={p.avatar} className="w-full h-full object-cover" /> : p.avatar}
@@ -313,7 +294,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                     <p className="text-[9px] text-zinc-500 uppercase tracking-widest">Login: {p.nome_original}</p>
                   </div>
                 </div>
-
                 <div className="flex justify-between items-center bg-black/50 p-3 rounded-xl border border-white/5 mt-2">
                   <div className="text-center">
                     <p className="text-[8px] text-zinc-500 uppercase font-black">PIN</p>
@@ -324,7 +304,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                     <p className="text-xs font-bold text-yellow-500">{p.esmolas || 0}</p>
                   </div>
                 </div>
-
                 {p.nome_original !== "Admin" && (
                   <div className="flex gap-2 mt-2">
                     <button onClick={() => abrirEdicao(p)} className="flex-1 py-3 bg-zinc-800 text-zinc-300 rounded-xl text-[9px] font-black uppercase hover:bg-white hover:text-black transition-all">Editar Tudo</button>
@@ -337,9 +316,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
-      {/* ==============================================
-          ABA: LOJA S+ (GERENCIAMENTO DE COSMÉTICOS)
-      ================================================ */}
       {abaAtiva === "LOJA" && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex justify-between items-center mb-6">
@@ -348,11 +324,9 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
               + Novo Cosmético
             </button>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {lojaItens.map(item => (
               <div key={item.id} className="bg-zinc-900/40 p-5 rounded-3xl border border-zinc-800 flex flex-col gap-3 relative">
-                
                 <div className="flex justify-between items-start">
                   <div className="w-12 h-12 bg-black rounded-xl border border-white/5 flex items-center justify-center text-2xl overflow-hidden">
                     {item.imagem_url && !item.imagem_url.includes('.mp4') && !item.imagem_url.includes('.webm') && item.tipo !== 'titulo' ? (
@@ -366,13 +340,11 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                     <p className="text-[8px] text-zinc-500 uppercase font-bold bg-black px-2 py-1 rounded-md mt-1 border border-zinc-800">{item.tipo}</p>
                   </div>
                 </div>
-
                 <div>
                   <p className={`text-xs font-black uppercase ${item.tipo === 'titulo' && item.imagem_url ? item.imagem_url : 'text-white'}`}>{item.nome}</p>
                   <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2">{item.desc_texto}</p>
                   <p className="text-[8px] text-zinc-600 mt-2 font-mono">ID: {item.id}</p>
                 </div>
-
                 <div className="flex gap-2 mt-auto pt-2 border-t border-zinc-800">
                   <button onClick={() => abrirEdicaoLoja(item)} className="flex-1 py-2 bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-bold uppercase hover:bg-white hover:text-black transition-all">Editar</button>
                   <button onClick={() => excluirItemLoja(item.id)} className="px-3 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-[9px] font-bold uppercase hover:bg-red-500 hover:text-white transition-all">🗑️</button>
@@ -383,9 +355,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
-      {/* ==============================================
-          ABA: SISTEMA (CONFIGURAÇÕES GERAIS)
-      ================================================ */}
       {abaAtiva === "SISTEMA" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-zinc-900/40 p-8 rounded-3xl border border-zinc-800 flex items-center justify-between">
@@ -409,45 +378,35 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
-      {/* ==============================================
-          ABA: FERRAMENTAS DIVINAS
-      ================================================ */}
       {abaAtiva === "FERRAMENTAS" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-gradient-to-br from-zinc-900 to-black p-8 rounded-3xl border border-zinc-800 flex flex-col gap-4">
             <span className="text-4xl">🧹</span>
             <p className="font-black text-white uppercase text-sm">Purificar Cache</p>
-            <p className="text-[10px] text-zinc-500 uppercase leading-relaxed mb-4">Apaga a memória da IA e força o sistema a buscar os títulos na internet novamente do zero. Útil se as capas estiverem vindo erradas.</p>
+            <p className="text-[10px] text-zinc-500 uppercase leading-relaxed mb-4">Apaga a memória da IA e força o sistema a buscar os títulos na internet novamente do zero.</p>
             <button onClick={limparCachePesquisa} disabled={carregandoAcao} className="mt-auto py-4 bg-zinc-800 hover:bg-red-500 hover:text-white text-zinc-400 font-black uppercase text-[10px] tracking-widest rounded-xl transition-all">Executar Limpeza</button>
           </div>
-
           <div className="bg-gradient-to-br from-zinc-900 to-black p-8 rounded-3xl border border-yellow-500/20 flex flex-col gap-4 relative overflow-hidden group">
             <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             <span className="text-4xl">🌧️</span>
             <p className="font-black text-yellow-500 uppercase text-sm drop-shadow-md">Chuva de Esmolas</p>
-            <p className="text-[10px] text-zinc-500 uppercase leading-relaxed mb-4">Adiciona uma quantia exata de Esmolas de forma instantânea para todos os caçadores registrados no banco de dados.</p>
+            <p className="text-[10px] text-zinc-500 uppercase leading-relaxed mb-4">Adiciona uma quantia exata de Esmolas para todos os caçadores.</p>
             <button onClick={darEsmolasParaTodos} disabled={carregandoAcao} className="mt-auto py-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500 hover:text-black font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(234,179,8,0.1)]">Iniciar Evento</button>
           </div>
         </div>
       )}
 
-      {/* ==============================================
-          MODAL: EDIÇÃO DIVINA DO USUÁRIO
-      ================================================ */}
       {usuarioEditando && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
           <div className="bg-[#0e0e11] w-full max-w-lg p-8 rounded-[3rem] border border-zinc-800 shadow-2xl relative animate-in zoom-in-95">
             <button onClick={() => setUsuarioEditando(null)} className="absolute top-8 right-8 text-zinc-600 hover:text-white font-black text-xl">✕</button>
-            
             <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-2">Editor Divino</h2>
             <p className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest mb-8">Editando: {usuarioEditando.nome_original}</p>
-
             <div className="space-y-5">
               <div>
                 <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome de Exibição</label>
                 <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none focus:border-yellow-500 transition-all mt-1" value={formEdit.nome_exibicao} onChange={e => setFormEdit({...formEdit, nome_exibicao: e.target.value})} />
               </div>
-              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Saldo de Esmolas</label>
@@ -458,7 +417,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                   <input type="text" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold text-center tracking-[0.5em] outline-none focus:border-red-500 transition-all mt-1" value={formEdit.pin} onChange={e => setFormEdit({...formEdit, pin: e.target.value.replace(/\D/g, '')})} placeholder="0000" />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Tema / Cor</label>
@@ -471,7 +429,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                   <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none focus:border-white/20 transition-all mt-1" value={formEdit.avatar} onChange={e => setFormEdit({...formEdit, avatar: e.target.value})} placeholder="URL ou Emoji" />
                 </div>
               </div>
-
               <button onClick={salvarEdicao} disabled={carregandoAcao} className="w-full py-5 mt-4 rounded-xl bg-yellow-500 text-black font-black uppercase tracking-widest hover:bg-yellow-400 transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)]">
                 {carregandoAcao ? "Salvando..." : "Gravar Alterações no Banco"}
               </button>
@@ -480,44 +437,43 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
-      {/* ==============================================
-          MODAL: CRIAÇÃO/EDIÇÃO DE ITEM DA LOJA
-      ================================================ */}
+      {/* ✅ MODAL FORJA: DUAS COLUNAS COM LIVE PREVIEW CALIBRADO */}
       {itemLojaEditando && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-          <div className="bg-[#0e0e11] w-full max-w-xl p-8 rounded-[3rem] border border-purple-500/30 shadow-[0_0_40px_rgba(168,85,247,0.1)] relative animate-in zoom-in-95">
-            <button onClick={() => setItemLojaEditando(null)} className="absolute top-8 right-8 text-zinc-600 hover:text-white font-black text-xl">✕</button>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
+          <div className="bg-[#0e0e11] w-full max-w-5xl p-10 rounded-[3rem] border border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.15)] relative animate-in zoom-in-95 grid grid-cols-1 md:grid-cols-2 gap-10">
+            <button onClick={() => setItemLojaEditando(null)} className="absolute top-8 right-10 text-zinc-600 hover:text-white font-black text-xl z-50 transition-colors">✕</button>
             
-            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-2">
-              {isNovoItem ? "Forjar Cosmético" : "Editar Cosmético"}
-            </h2>
-            <p className="text-[10px] font-bold uppercase text-purple-400 tracking-widest mb-8">
-              Adicionando Itens Premium à Guilda
-            </p>
+            {/* 🛠️ COLUNA 1: CONFIGURAÇÃO (FORMULÁRIO) */}
+            <div className="space-y-5">
+              <header>
+                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">
+                  {isNovoItem ? "Forjar Artefato" : "Aprimorar Item"}
+                </h2>
+                <p className="text-[10px] font-bold uppercase text-purple-400 tracking-[0.3em] mt-1">Sessão de Alquimia de Cosméticos</p>
+              </header>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 mt-6">
                 <div>
-                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Único (ex: aura_fogo)</label>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Único</label>
                   <input type="text" disabled={!isNovoItem} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-mono text-xs outline-none focus:border-purple-500 mt-1 disabled:opacity-50" value={formLoja.id} onChange={e => setFormLoja({...formLoja, id: e.target.value})} />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Preço em Esmolas</label>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Preço (Esmolas)</label>
                   <input type="number" className="w-full bg-black border border-yellow-500/30 p-4 rounded-xl text-yellow-500 font-black outline-none focus:border-yellow-500 mt-1" value={formLoja.preco} onChange={e => setFormLoja({...formLoja, preco: parseInt(e.target.value) || 0})} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="col-span-1">
                   <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome do Item</label>
                   <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none focus:border-purple-500 mt-1" value={formLoja.nome} onChange={e => setFormLoja({...formLoja, nome: e.target.value})} />
                 </div>
-                <div>
+                <div className="col-span-1">
                   <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Tipo de Equipamento</label>
-                  <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase outline-none mt-1" value={formLoja.tipo} onChange={e => setFormLoja({...formLoja, tipo: e.target.value})}>
+                  <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase outline-none mt-1 cursor-pointer" value={formLoja.tipo} onChange={e => setFormLoja({...formLoja, tipo: e.target.value})}>
                     <option value="moldura">Moldura de Avatar</option>
-                    <option value="particula">Partículas de Fundo (Foreground)</option>
-                    <option value="vfx">VÍDEO DE FUNDO (VFX - Background)</option>
+                    <option value="particula">Partículas (Foreground)</option>
+                    <option value="vfx">VÍDEO DE FUNDO (VFX)</option>
                     <option value="titulo">Título Honroso</option>
                     <option value="chat_cor">Cor de Chat</option>
                     <option value="chat_balao">Balão de Chat</option>
@@ -526,53 +482,83 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Descrição Curta</label>
+                <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Descrição do Artefato</label>
                 <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-purple-500 mt-1" value={formLoja.desc_texto} onChange={e => setFormLoja({...formLoja, desc_texto: e.target.value})} />
               </div>
 
-              {/* LÓGICA CONDICIONAL: SE FOR TÍTULO, MOSTRA A FORJA. SENÃO, MOSTRA O UPLOAD. */}
+              {/* LÓGICA DE APARÊNCIA */}
               {formLoja.tipo === "titulo" ? (
-                <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-2xl flex flex-col gap-3 mt-4">
-                  <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Aura do Título (Forja Automática)</p>
+                <div className="p-5 bg-purple-500/5 border border-purple-500/20 rounded-2xl flex flex-col gap-3">
+                  <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Aura do Título</p>
                   <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={formLoja.imagem_url} onChange={e => setFormLoja({...formLoja, imagem_url: e.target.value})}>
-                    <option value="">Selecione a Aura Mágica...</option>
+                    <option value="">Selecione a Aura...</option>
                     {TITULO_PRESETS.map(p => <option key={p.id} value={p.classes}>{p.nome}</option>)}
                   </select>
-                  {formLoja.imagem_url && (
-                    <div className="mt-4 text-center p-4 bg-black border border-zinc-800 rounded-xl">
-                      <span className={`text-xl font-black uppercase tracking-widest ${formLoja.imagem_url}`}>Preview do Título</span>
-                    </div>
-                  )}
                 </div>
               ) : (
-                <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-2xl flex flex-col gap-3 mt-4">
-                  <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Aparência do Item (PNG/GIF/MP4/WEBM)</p>
-                  <div className="flex gap-3">
-                    <input type="text" placeholder="URL direta ou deixe vazio..." className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={formLoja.imagem_url} onChange={e => setFormLoja({...formLoja, imagem_url: e.target.value})} />
-                    
-                    <label className={`flex items-center justify-center px-4 rounded-xl font-black uppercase text-[9px] cursor-pointer transition-all border ${fazendoUploadLoja ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-purple-600/20 text-purple-400 border-purple-500/30 hover:bg-purple-600 hover:text-white'}`}>
-                      {fazendoUploadLoja ? "⏳..." : "⬆️ Upar do PC"}
-                      {/* ✅ MUDANÇA: ACEITANDO ARQUIVOS DE VÍDEO E GIF AGORA */}
-                      <input type="file" accept="image/*, image/gif, video/mp4, video/webm" className="hidden" onChange={uploadImagemLoja} disabled={fazendoUploadLoja} />
+                <div className="p-5 bg-purple-500/5 border border-purple-500/20 rounded-2xl space-y-3">
+                  <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Mídia do Item</p>
+                  <div className="flex gap-2">
+                    <input type="text" placeholder="URL ou deixe vazio..." className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-purple-500" value={formLoja.imagem_url} onChange={e => setFormLoja({...formLoja, imagem_url: e.target.value})} />
+                    <label className={`px-5 flex items-center bg-purple-600 rounded-xl cursor-pointer hover:bg-purple-500 transition-all ${fazendoUploadLoja ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <span className="text-sm font-black text-white">{fazendoUploadLoja ? "⏳" : "⬆️"}</span>
+                      <input type="file" className="hidden" onChange={uploadImagemLoja} disabled={fazendoUploadLoja} />
                     </label>
                   </div>
                   {!formLoja.imagem_url && (
-                    <div>
-                      <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Ícone Simples (Emoji)</label>
-                      <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-2xl text-center outline-none focus:border-purple-500 mt-1" value={formLoja.icone} onChange={e => setFormLoja({...formLoja, icone: e.target.value})} placeholder="🔥" />
-                    </div>
+                    <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-2xl text-center outline-none focus:border-purple-500" value={formLoja.icone} onChange={e => setFormLoja({...formLoja, icone: e.target.value})} placeholder="🔥" />
                   )}
                 </div>
               )}
 
-              <button onClick={salvarItemLoja} disabled={carregandoAcao} className="w-full py-5 mt-4 rounded-xl bg-purple-600 text-white font-black uppercase tracking-widest hover:bg-purple-500 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                {carregandoAcao ? "Salvando..." : (isNovoItem ? "Lançar Cosmético no Mercado" : "Atualizar Item")}
-              </button>
+              <div className="pt-4">
+                <button onClick={salvarItemLoja} disabled={carregandoAcao} className="w-full py-5 rounded-xl bg-purple-600 text-white font-black uppercase tracking-widest hover:bg-purple-500 transition-all shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                  {carregandoAcao ? "Sincronizando..." : (isNovoItem ? "Lançar Artefato" : "Concluir Melhoria")}
+                </button>
+              </div>
             </div>
+
+            {/* 👁️ COLUNA 2: LIVE FORGE PREVIEW (REFLEXO DO SITE) */}
+            <div className="bg-zinc-950/50 border border-white/5 rounded-[3rem] p-10 flex flex-col items-center justify-center relative overflow-hidden">
+              <div className="absolute top-8 left-10 flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse shadow-[0_0_8px_#a855f7]" />
+                <p className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.3em]">Visualização em Tempo Real</p>
+              </div>
+
+              <div className="w-full h-80 rounded-[2.5rem] border border-white/10 overflow-hidden flex items-center justify-center bg-[#040405] relative shadow-2xl">
+                {formLoja.imagem_url ? (
+                  formLoja.imagem_url.split('?')[0].toLowerCase().endsWith('.mp4') || formLoja.imagem_url.split('?')[0].toLowerCase().endsWith('.webm') ? (
+                    <video key={formLoja.imagem_url} autoPlay loop muted playsInline crossOrigin="anonymous" className="w-full h-full object-cover opacity-70 mix-blend-screen">
+                      <source src={formLoja.imagem_url} />
+                    </video>
+                  ) : formLoja.tipo === 'titulo' ? (
+                    <span className={`text-2xl font-black uppercase tracking-widest text-center px-4 leading-relaxed ${formLoja.imagem_url}`}>Preview do Título</span>
+                  ) : (
+                    <img src={formLoja.imagem_url} className={`max-w-[85%] max-h-[85%] object-contain ${formLoja.imagem_url.endsWith('.gif') ? 'opacity-70' : ''}`} alt="Preview" />
+                  )
+                ) : (
+                  <div className="text-center opacity-20">
+                    <span className="text-6xl block mb-4">⚒️</span>
+                    <p className="text-[11px] text-white uppercase font-black tracking-[0.4em]">Em Construção...</p>
+                  </div>
+                )}
+                
+                {/* ✅ TESTE DE CLARIDADE: Filtro de 25% + Blur sutil */}
+                <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" />
+              </div>
+
+              <div className="w-full mt-10 text-center space-y-2">
+                <p className="text-2xl font-black uppercase tracking-tighter text-white">{formLoja.nome || "Artefato Sem Nome"}</p>
+                <div className="flex justify-center gap-3">
+                   <span className="text-[9px] text-yellow-500 font-black bg-yellow-500/10 px-4 py-1.5 rounded-full border border-yellow-500/20 italic tracking-widest">{formLoja.preco} 🪙 Esmolas</span>
+                   <span className="text-[9px] text-zinc-500 font-black bg-white/5 px-4 py-1.5 rounded-full border border-white/10 uppercase tracking-widest">{formLoja.tipo}</span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
-
     </main>
   );
 }

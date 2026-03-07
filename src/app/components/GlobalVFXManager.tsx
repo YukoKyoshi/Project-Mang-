@@ -30,7 +30,6 @@ export default function GlobalVFXManager() {
       setParticulaId(ativos.particula || "");
 
       // ✅ Slot 2: VFX (Background Imersivo)
-      // Agora buscamos pelo ID guardado em 'vfx', não mais em 'moldura'
       if (ativos.vfx) {
         const { data: item } = await supabase
           .from("loja_itens")
@@ -60,13 +59,13 @@ export default function GlobalVFXManager() {
 
   return (
     <>
-      {/* 🎬 CAMADA DE BACKGROUND (VFX) */}
+      {/* 🎬 CAMADA DE BACKGROUND (VFX) - CALIBRADA PARA CLARIDADE */}
       {backgroundUrl && (
         <div className="fixed inset-0 z-[-2] pointer-events-none overflow-hidden">
           {backgroundUrl.split('?')[0].toLowerCase().endsWith('.gif') ? (
             <img 
               src={backgroundUrl} 
-              className="w-full h-full object-cover opacity-40" 
+              className="w-full h-full object-cover opacity-70" // ✅ Aumentado para dar mais brilho ao GIF
               alt="Background VFX" 
             />
           ) : (
@@ -78,14 +77,14 @@ export default function GlobalVFXManager() {
               playsInline 
               preload="auto"
               crossOrigin="anonymous"
-              className="w-full h-full object-cover opacity-40 mix-blend-screen"
+              className="w-full h-full object-cover opacity-50 mix-blend-screen" // ✅ Opacidade do vídeo equilibrada
             >
               <source src={backgroundUrl} type={backgroundUrl.includes('.webm') ? 'video/webm' : 'video/mp4'} />
             </video>
           )}
           
-          {/* Sombra de profundidade para garantir leitura da UI */}
-          <div className="absolute inset-0 bg-black/60" />
+          {/* ✅ FILTRO DE PROFUNDIDADE REVISADO: Mais claro e com desfoque sutil */}
+          <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" />
         </div>
       )}
 
