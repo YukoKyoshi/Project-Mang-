@@ -116,15 +116,18 @@ export default function GuildaPage() {
     }
   }, [mensagens, abaAtiva]);
 
+  // ✅ ALTERAÇÃO: Agora calcula as estatísticas sempre que houver perfis carregados, independente da aba
   useEffect(() => {
-    if (abaAtiva === "RANKING" && estatisticas.length === 0) {
+    if (perfis.length > 0 && estatisticas.length === 0) {
       gerarRanking();
     }
-  }, [abaAtiva]);
+  }, [perfis, abaAtiva]);
 
+  // ✅ ALTERAÇÃO: Adicionado gerarRanking() aqui para carregar dados reais no início
   async function carregarDados() {
     await buscarPerfis();
     await buscarMensagens();
+    await gerarRanking(); 
     const { data: itensDB } = await supabase.from("loja_itens").select("*");
     if (itensDB) setLojaItens(itensDB);
   }
@@ -361,7 +364,6 @@ export default function GuildaPage() {
                   const molduraSidebar = getMolduraPng(p.cosmeticos?.ativos?.moldura);
                   const tituloSidebar = getTituloItem(p.cosmeticos?.ativos?.titulo);
                   return (
-                    // ✅ AJUSTE: Clique para Inspecionar Hunter na Sidebar
                     <div 
                       key={p.nome_original} 
                       onClick={() => abrirInspecao(p.nome_original)}
@@ -416,7 +418,8 @@ export default function GuildaPage() {
                   let mostrarCabecalho = true;
                   if (index > 0) {
                     const prevMsg = mensagens[index - 1];
-                   const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
+                    // ✅ CORREÇÃO: Propriedade corrigida para criado_em
+                    const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
                     if (prevMsg.usuario === msg.usuario && diffTime < 300000) mostrarCabecalho = false;
                   }
                   return (
@@ -503,7 +506,6 @@ export default function GuildaPage() {
                 <button onClick={() => setFiltroRanking("FAVORITOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "FAVORITOS" ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⭐ Curadores</button>
               </div>
               <div className="flex flex-col gap-4">
-                {/* ✅ CORREÇÃO 2: Tipando explicitamente os parâmetros do map e adicionando Clique para Inspecionar */}
                 {huntersOrdenados.map((hunter: EstatisticasHunter, index: number) => {
                   const isTop1 = index === 0; const isTop2 = index === 1; const isTop3 = index === 2;
                   let medalha = "🏅"; if (isTop1) medalha = "👑"; else if (isTop2) medalha = "🥈"; else if (isTop3) medalha = "🥉";
