@@ -356,7 +356,8 @@ export default function PerfilPage() {
   const imagemMolduraUrl = molduraEquipadaItem?.imagem_url && !molduraEquipadaItem.imagem_url.includes('.mp4') && !molduraEquipadaItem.imagem_url.includes('.webm') ? molduraEquipadaItem.imagem_url : null;
 
   const particulaEquipadaItem = lojaItens.find(item => item.id === equipados.particula);
-  const vfxUrlPersonalizado = particulaEquipadaItem?.imagem_url && (particulaEquipadaItem.imagem_url.includes('.mp4') || particulaEquipadaItem.imagem_url.includes('.webm')) ? particulaEquipadaItem.imagem_url : undefined;
+  const vfxUrlPersonalizado = particulaEquipadaItem?.imagem_url && (particulaEquipadaItem.imagem_url.includes('.mp4') || particulaEquipadaItem.imagem_url.includes('.webm')|| 
+    particulaEquipadaItem.imagem_url.includes('.gif')) ? particulaEquipadaItem.imagem_url : undefined;
 
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white italic animate-pulse">SINCRONIZANDO HUB...</div>;
 

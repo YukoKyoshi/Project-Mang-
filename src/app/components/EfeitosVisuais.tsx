@@ -26,16 +26,19 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
     const checkStatus = () => setAtivo(localStorage.getItem("hunter_animacoes") !== "false");
     checkStatus();
     
-    // ✅ SE HOUVER UM URL DO BANCO (MP4/WEBM CUSTOMIZADO), ELE SOBRESCREVE OS PADRÕES!
+    // ✅ SE HOUVER UM URL DO BANCO (MP4/WEBM/GIF CUSTOMIZADO), ELE SOBRESCREVE OS PADRÕES!
     setVideoUrl(urlVfx || VIDEOS_VFX[particula] || null);
 
     window.addEventListener("hunter_animacoes_toggle", checkStatus);
     return () => window.removeEventListener("hunter_animacoes_toggle", checkStatus);
   }, [particula, urlVfx]);
 
+  // ✅ DETECTOR DE FORMATO GIF
+  const ehGif = videoUrl?.toLowerCase().includes('.gif');
+
   return (
     <>
-      {/* 🚀 CSS GLOBAL DE COSMÉTICOS (CENTRALIZADO) */}
+      {/* 🚀 CSS GLOBAL DE COSMÉTICOS (RESTAURADO E COMPLETO) */}
       <style>{`
         /* ANIMAÇÕES DE PARTÍCULAS BASE */
         @keyframes cairPetala { 0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(110vh) translateX(50px) rotate(720deg); opacity: 0; } }
@@ -103,18 +106,26 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
       {ativo && particula && (
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none w-screen h-screen">
           
-          {/* 🎬 MOTOR DE VÍDEO MP4/WEBM (ITENS DE ELITE) */}
+          {/* ✅ MOTOR HÍBRIDO: DETECTA SE É VÍDEO OU GIF */}
           {videoUrl && (
-            <video
-              key={videoUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen transition-opacity duration-1000"
-            >
-              <source src={videoUrl} type={videoUrl.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
-            </video>
+            ehGif ? (
+              <img 
+                src={videoUrl} 
+                className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen transition-opacity duration-1000"
+                alt="VFX Background"
+              />
+            ) : (
+              <video
+                key={videoUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen transition-opacity duration-1000"
+              >
+                <source src={videoUrl} type={videoUrl.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
+              </video>
+            )
           )}
 
           {/* ❄️ MOTOR DE PARTÍCULAS CSS (ITENS CLÁSSICOS) */}
@@ -129,8 +140,6 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
               {particula === "particula_matrix" && Array.from({ length: 25 }).map((_, i) => <div key={i} className="matrix" style={{ left: `${Math.random() * 100}%`, top: '-10%', animationDelay: `${Math.random() * 5}s`, animationDuration: `${2 + Math.random() * 3}s` }}>{MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)]}</div>)}
               {particula === "particula_confete" && Array.from({ length: 50 }).map((_, i) => <div key={i} className="confete" style={{ left: `${Math.random() * 100}%`, top: '-10%', width: '10px', height: '10px', backgroundColor: CONFETE_CORES[Math.floor(Math.random() * CONFETE_CORES.length)], animationDelay: `${Math.random() * 5}s`, animationDuration: `${3 + Math.random() * 4}s` }} />)}
               {particula === "particula_morcegos" && Array.from({ length: 6 }).map((_, i) => <div key={i} className="morcego" style={{ width: '20px', height: '10px', animationDelay: `${Math.random() * 10}s`, animationDuration: `${2 + Math.random() * 2}s` }} />)}
-              
-              {/* AS 4 ESTAÇÕES */}
               {particula === "particula_primavera" && Array.from({ length: 25 }).map((_, i) => <div key={i} className="folha-primavera" style={{ left: `${Math.random() * 100}%`, top: '-10%', width: `${6 + Math.random() * 10}px`, height: `${6 + Math.random() * 10}px`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${4 + Math.random() * 6}s` }} />)}
               {particula === "particula_outono" && Array.from({ length: 30 }).map((_, i) => <div key={i} className="folha-outono" style={{ left: `${Math.random() * 100}%`, top: '-10%', width: `${8 + Math.random() * 10}px`, height: `${8 + Math.random() * 10}px`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${3 + Math.random() * 5}s` }} />)}
               {particula === "particula_verao" && Array.from({ length: 20 }).map((_, i) => <div key={i} className="vagalume" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, width: `${4 + Math.random() * 4}px`, height: `${4 + Math.random() * 4}px`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${3 + Math.random() * 3}s` }} />)}
