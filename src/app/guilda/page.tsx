@@ -89,6 +89,9 @@ export default function GuildaPage() {
     fonte_cor: '#ffffff'
   });
 
+  // ✅ NOVO ESTADO: INSPEÇÃO DE PERFIL
+  const [inspecionandoHunter, setInspecionandoHunter] = useState<EstatisticasHunter | null>(null);
+
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { window.location.href = '/'; return; }
@@ -139,6 +142,17 @@ export default function GuildaPage() {
       .limit(limiteMensagens);
     if (data) setMensagens(data.reverse());
   }
+
+  // ✅ FUNÇÃO: ABRIR RELATÓRIO DE INSPEÇÃO
+  const abrirInspecao = (nomeOriginal: string) => {
+    const stats = estatisticas.find(s => s.nome_original === nomeOriginal);
+    if (stats) {
+      setInspecionandoHunter(stats);
+    } else {
+      const basico = perfis.find(p => p.nome_original === nomeOriginal);
+      if (basico) setInspecionandoHunter({ ...basico, total_obras: 0, total_capitulos: 0, tempo_vida: 0, total_favoritos: 0, elo: 'BRONZE' } as EstatisticasHunter);
+    }
+  };
 
   async function gerarRanking() {
     setCarregandoRanking(true);
@@ -347,7 +361,12 @@ export default function GuildaPage() {
                   const molduraSidebar = getMolduraPng(p.cosmeticos?.ativos?.moldura);
                   const tituloSidebar = getTituloItem(p.cosmeticos?.ativos?.titulo);
                   return (
-                    <div key={p.nome_original} className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5">
+                    // ✅ AJUSTE: Clique para Inspecionar Hunter na Sidebar
+                    <div 
+                      key={p.nome_original} 
+                      onClick={() => abrirInspecao(p.nome_original)}
+                      className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all"
+                    >
                       <HunterAvatar 
                         avatarUrl={p.avatar} 
                         idMoldura={p.cosmeticos?.ativos?.moldura} 
@@ -397,7 +416,7 @@ export default function GuildaPage() {
                   let mostrarCabecalho = true;
                   if (index > 0) {
                     const prevMsg = mensagens[index - 1];
-                    const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
+                   const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
                     if (prevMsg.usuario === msg.usuario && diffTime < 300000) mostrarCabecalho = false;
                   }
                   return (
@@ -484,7 +503,7 @@ export default function GuildaPage() {
                 <button onClick={() => setFiltroRanking("FAVORITOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "FAVORITOS" ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⭐ Curadores</button>
               </div>
               <div className="flex flex-col gap-4">
-                {/* ✅ CORREÇÃO 2: Tipando explicitamente os parâmetros do map */}
+                {/* ✅ CORREÇÃO 2: Tipando explicitamente os parâmetros do map e adicionando Clique para Inspecionar */}
                 {huntersOrdenados.map((hunter: EstatisticasHunter, index: number) => {
                   const isTop1 = index === 0; const isTop2 = index === 1; const isTop3 = index === 2;
                   let medalha = "🏅"; if (isTop1) medalha = "👑"; else if (isTop2) medalha = "🥈"; else if (isTop3) medalha = "🥉";
@@ -496,7 +515,11 @@ export default function GuildaPage() {
                   const molduraRank = getMolduraPng(hunter.cosmeticos?.ativos?.moldura);
                   const tituloRank = getTituloItem(hunter.cosmeticos?.ativos?.titulo);
                   return (
-                    <div key={hunter.nome_original} className={`flex items-center justify-between p-5 rounded-3xl border transition-all ${isTop1 ? 'bg-yellow-900/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.1)]' : isTop2 ? 'bg-zinc-800/20 border-zinc-400/50' : isTop3 ? 'bg-orange-900/10 border-orange-700/50' : 'bg-zinc-900/30 border-zinc-800'}`}>
+                    <div 
+                      key={hunter.nome_original} 
+                      onClick={() => abrirInspecao(hunter.nome_original)}
+                      className={`flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer ${isTop1 ? 'bg-yellow-900/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.1)]' : isTop2 ? 'bg-zinc-800/20 border-zinc-400/50' : isTop3 ? 'bg-orange-900/10 border-orange-700/50' : 'bg-zinc-900/30 border-zinc-800'}`}
+                    >
                       <div className="flex items-center gap-6">
                         <span className={`text-3xl font-black italic w-10 text-center ${isTop1 ? 'text-yellow-500 drop-shadow-md' : isTop2 ? 'text-zinc-300' : isTop3 ? 'text-orange-500' : 'text-zinc-600'}`}>#{index + 1}</span>
                         <HunterAvatar 
@@ -580,6 +603,54 @@ export default function GuildaPage() {
                 Voltar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NOVO: MODAL DE INSPEÇÃO DE HUNTER (Relatório de Atributos) */}
+      
+      {inspecionandoHunter && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md" onClick={() => setInspecionandoHunter(null)}>
+          <div 
+            className="bg-[#0e0e11] border border-zinc-800 w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in duration-300"
+            onClick={(e) => e.stopPropagation()} 
+          >
+            {/* CABEÇALHO COM O PLAYER CARD CUSTOMIZADO DO ALVO */}
+            <HunterCard 
+              perfil={inspecionandoHunter} 
+              customizacao={inspecionandoHunter.cosmeticos?.ativos?.card_config} 
+            />
+
+            <div className="p-8 grid grid-cols-2 gap-4">
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">Obras Lidas</p>
+                <p className="text-xl font-black italic text-blue-500">{inspecionandoHunter.total_obras}</p>
+              </div>
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">Capítulos</p>
+                <p className="text-xl font-black italic text-red-500">{inspecionandoHunter.total_capitulos}</p>
+              </div>
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">Esmolas</p>
+                <p className="text-xl font-black italic text-yellow-500">{(inspecionandoHunter.esmolas || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">Elo Hunter</p>
+                <p className="text-[10px] font-black uppercase text-white mt-2">{inspecionandoHunter.elo}</p>
+              </div>
+              
+              <div className="col-span-2 bg-blue-600/10 p-4 rounded-2xl border border-blue-500/20 text-center">
+                <p className="text-[8px] font-black uppercase text-blue-400 tracking-widest mb-1">Tempo de Vida</p>
+                <p className="text-sm font-black text-white">{inspecionandoHunter.tempo_vida} horas de imersão</p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setInspecionandoHunter(null)} 
+              className="w-full py-6 bg-zinc-900 hover:bg-zinc-800 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 transition-all border-t border-zinc-800"
+            >
+              Fechar Relatório
+            </button>
           </div>
         </div>
       )}
