@@ -3,8 +3,12 @@
 import { supabase } from "../supabase";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-// ✅ IMPORTANDO AS MOLDURAS DIRETAMENTE DO PERFIL PARA USAR NA GUILDA
+// ✅ MOLDURAS IMPORTADAS DO PERFIL
 import { MOLDURAS_DISCORD } from "../perfil/page";
+// ✅ COMPONENTE DE IDENTIDADE UNIFICADO
+import HunterAvatar from "../components/HunterAvatar";
+// ✅ NOVO: Player Card
+import HunterCard from "../components/HunterCard";
 
 // ==========================================
 // 🎨 DICIONÁRIO DE COSMÉTICOS DO CHAT
@@ -38,9 +42,10 @@ interface Perfil {
   nome_exibicao: string;
   avatar: string;
   cor_tema: string;
+  custom_color?: string;
   esmolas: number;
   figurinhas?: string[];
-  cosmeticos?: { ativos: Record<string, string> };
+  cosmeticos?: { ativos: Record<string, any> };
   chat_farm_diario?: { data: string, ganhos: number };
 }
 
@@ -60,38 +65,49 @@ export default function GuildaPage() {
   const [enviando, setEnviando] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Estados do Ranking
   const [abaAtiva, setAbaAtiva] = useState<"CHAT" | "RANKING">("CHAT");
   const [filtroRanking, setFiltroRanking] = useState<"OBRAS" | "ESMOLAS" | "TEMPO" | "CAPITULOS" | "FAVORITOS">("OBRAS");
   const [estatisticas, setEstatisticas] = useState<EstatisticasHunter[]>([]);
   const [carregandoRanking, setCarregandoRanking] = useState(false);
 
-  // Estados das Figurinhas
   const [painelFigurinhas, setPainelFigurinhas] = useState(false);
   const [novaFigurinhaUrl, setNovaFigurinhaUrl] = useState("");
   const [fazendoUploadFigurinha, setFazendoUploadFigurinha] = useState(false);
 
-  // Estados de Edição, Exclusão e Paginação
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [textoEdicao, setTextoEdicao] = useState("");
   const [limiteMensagens, setLimiteMensagens] = useState(50);
   
-  // ✅ ESTADO DOS ITENS DA LOJA (PARA LER OS VÍDEOS E AS AURA DOS TÍTULOS)
   const [lojaItens, setLojaItens] = useState<any[]>([]);
+
+  // ✅ ESTADOS DO PLAYER CARD
+  const [editandoCard, setEditandoCard] = useState(false);
+  const [cardDados, setCardDados] = useState({
+    banner_url: '',
+    tag_texto: 'HUNTER',
+    tag_cor: '#3b82f6',
+    fonte_cor: '#ffffff'
+  });
 
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { window.location.href = '/'; return; }
     setUsuarioAtivo(hunter);
-    
     carregarDados();
-    
     const intervalo = setInterval(buscarMensagens, 10000);
     return () => clearInterval(intervalo);
   }, [limiteMensagens]);
 
+  const meuPerfilAtivo = perfis.find(p => p.nome_original === usuarioAtivo);
+
+  // Sincroniza dados do card quando o perfil carregar
   useEffect(() => {
-    // Só força o scroll para baixo se não estivermos paginando (vendo antigas)
+    if (meuPerfilAtivo?.cosmeticos?.ativos?.card_config) {
+      setCardDados(meuPerfilAtivo.cosmeticos.ativos.card_config);
+    }
+  }, [meuPerfilAtivo]);
+
+  useEffect(() => {
     if (scrollRef.current && abaAtiva === "CHAT" && limiteMensagens === 50) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -106,8 +122,6 @@ export default function GuildaPage() {
   async function carregarDados() {
     await buscarPerfis();
     await buscarMensagens();
-    
-    // ✅ BUSCA OS ITENS DO BANCO PARA SABERMOS QUAIS SÃO AS MOLDURAS E QUAIS SÃO OS TÍTULOS MÁGICOS
     const { data: itensDB } = await supabase.from("loja_itens").select("*");
     if (itensDB) setLojaItens(itensDB);
   }
@@ -123,25 +137,18 @@ export default function GuildaPage() {
       .select("*")
       .order("criado_em", { ascending: false })
       .limit(limiteMensagens);
-      
-    if (data) {
-      setMensagens(data.reverse());
-    }
+    if (data) setMensagens(data.reverse());
   }
 
   async function gerarRanking() {
     setCarregandoRanking(true);
-    
     const { data: m } = await supabase.from("mangas").select("usuario, capitulo_atual, favorito");
     const { data: a } = await supabase.from("animes").select("usuario, capitulo_atual, favorito");
     const { data: f } = await supabase.from("filmes").select("usuario, capitulo_atual, status, favorito");
     const { data: l } = await supabase.from("livros").select("usuario, capitulo_atual, favorito");
 
     const statsByUser: Record<string, { obras: number, caps: number, tempoMin: number, favs: number }> = {};
-
-    perfis.forEach(p => {
-      statsByUser[p.nome_original] = { obras: 0, caps: 0, tempoMin: 0, favs: 0 };
-    });
+    perfis.forEach(p => { statsByUser[p.nome_original] = { obras: 0, caps: 0, tempoMin: 0, favs: 0 }; });
 
     const processarTabela = (dados: any[] | null, tipo: "anime" | "filme" | "outro") => {
       (dados || []).forEach(obra => {
@@ -150,7 +157,6 @@ export default function GuildaPage() {
         userStats.obras += 1;
         userStats.caps += (obra.capitulo_atual || 0);
         if (obra.favorito) userStats.favs += 1;
-
         if (tipo === "anime") userStats.tempoMin += (obra.capitulo_atual || 0) * 23;
         else if (tipo === "filme" && obra.status === "Completos") userStats.tempoMin += 120;
       });
@@ -163,13 +169,11 @@ export default function GuildaPage() {
       let eloTier = "BRONZE";
       if (s.obras >= 1000) eloTier = "DIVINDADE"; else if (s.obras >= 500) eloTier = "DESAFIANTE";
       else if (s.obras >= 200) eloTier = "MESTRE"; else if (s.obras >= 100) eloTier = "DIAMANTE";
-
       return {
         ...p, esmolas: p.esmolas || 0, total_obras: s.obras, total_capitulos: s.caps,
         tempo_vida: Math.floor(s.tempoMin / 60), total_favoritos: s.favs, elo: eloTier
       };
     });
-
     setEstatisticas(statusCompletos);
     setCarregandoRanking(false);
   }
@@ -178,29 +182,21 @@ export default function GuildaPage() {
     if (e) e.preventDefault();
     const msg = urlFigurinha || novaMensagem.trim();
     if (!msg || !usuarioAtivo) return;
-
     setEnviando(true);
     const tipoMsg = urlFigurinha ? "figurinha" : "chat";
     if (!urlFigurinha) setNovaMensagem(""); 
-
-    const meuPerfil = perfis.find(p => p.nome_original === usuarioAtivo);
-    if (meuPerfil) {
+    if (meuPerfilAtivo) {
       const hoje = new Date().toISOString().split('T')[0];
-      let farm = meuPerfil.chat_farm_diario || { data: hoje, ganhos: 0 };
+      let farm = meuPerfilAtivo.chat_farm_diario || { data: hoje, ganhos: 0 };
       if (farm.data !== hoje) farm = { data: hoje, ganhos: 0 };
-      
       if (farm.ganhos < 30) {
         farm.ganhos += 5;
-        const novoSaldo = (meuPerfil.esmolas || 0) + 5;
+        const novoSaldo = (meuPerfilAtivo.esmolas || 0) + 5;
         await supabase.from("perfis").update({ esmolas: novoSaldo, chat_farm_diario: farm }).eq("nome_original", usuarioAtivo);
         setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, esmolas: novoSaldo, chat_farm_diario: farm } : p));
       }
     }
-
-    const { error } = await supabase.from("guilda_mensagens").insert([{
-      usuario: usuarioAtivo, mensagem: msg, tipo: tipoMsg
-    }]);
-
+    const { error } = await supabase.from("guilda_mensagens").insert([{ usuario: usuarioAtivo, mensagem: msg, tipo: tipoMsg }]);
     if (!error) await buscarMensagens();
     if (urlFigurinha) setPainelFigurinhas(false);
     setEnviando(false);
@@ -221,11 +217,8 @@ export default function GuildaPage() {
   }
 
   async function adicionarFigurinha() {
-    if(!novaFigurinhaUrl) return;
-    const meuPerfil = perfis.find(p => p.nome_original === usuarioAtivo);
-    if(!meuPerfil) return;
-    
-    const atualizadas = [...(meuPerfil.figurinhas || []), novaFigurinhaUrl];
+    if(!novaFigurinhaUrl || !meuPerfilAtivo) return;
+    const atualizadas = [...(meuPerfilAtivo.figurinhas || []), novaFigurinhaUrl];
     await supabase.from("perfis").update({ figurinhas: atualizadas }).eq("nome_original", usuarioAtivo);
     setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, figurinhas: atualizadas } : p));
     setNovaFigurinhaUrl("");
@@ -236,36 +229,41 @@ export default function GuildaPage() {
       setFazendoUploadFigurinha(true);
       const file = event.target.files[0];
       if (!file) throw new Error("Nenhuma imagem selecionada.");
-
       const fileExt = file.name.split('.').pop();
       const fileName = `sticker-${usuarioAtivo}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
-
       const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
       if (uploadError) throw uploadError;
-
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      
-      const meuPerfil = perfis.find(p => p.nome_original === usuarioAtivo);
-      if(meuPerfil) {
-        const atualizadas = [...(meuPerfil.figurinhas || []), data.publicUrl];
+      if(meuPerfilAtivo) {
+        const atualizadas = [...(meuPerfilAtivo.figurinhas || []), data.publicUrl];
         await supabase.from("perfis").update({ figurinhas: atualizadas }).eq("nome_original", usuarioAtivo);
         setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, figurinhas: atualizadas } : p));
       }
-
-    } catch (error: any) {
-      alert("❌ Erro no upload: " + error.message);
-    } finally {
-      setFazendoUploadFigurinha(false);
-    }
+    } catch (error: any) { alert("❌ Erro no upload: " + error.message); }
+    finally { setFazendoUploadFigurinha(false); }
   }
 
   async function deletarFigurinha(url: string) {
-    const meuPerfil = perfis.find(p => p.nome_original === usuarioAtivo);
-    if(!meuPerfil) return;
-    const atualizadas = (meuPerfil.figurinhas || []).filter(f => f !== url);
+    if(!meuPerfilAtivo) return;
+    const atualizadas = (meuPerfilAtivo.figurinhas || []).filter(f => f !== url);
     await supabase.from("perfis").update({ figurinhas: atualizadas }).eq("nome_original", usuarioAtivo);
     setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, figurinhas: atualizadas } : p));
+  }
+
+  async function salvarPlayerCard() {
+    if (!meuPerfilAtivo) return;
+    const novosAtivos = { 
+      ...(meuPerfilAtivo.cosmeticos?.ativos || {}), 
+      card_config: cardDados 
+    };
+    await supabase.from("perfis").update({ 
+      cosmeticos: { ...(meuPerfilAtivo.cosmeticos || {}), ativos: novosAtivos } 
+    }).eq("nome_original", usuarioAtivo);
+    
+    setEditandoCard(false);
+    buscarPerfis();
+    alert("Identidade Atualizada!");
   }
 
   function formatarHora(dataIso: string) {
@@ -285,7 +283,6 @@ export default function GuildaPage() {
     return p.cor_tema?.startsWith('#') ? `text-[${p.cor_tema}]` : (cores[p.cor_tema] || "text-green-500");
   }
 
-  // ✅ FUNÇÕES DE APOIO PARA EXIBIR A MOLDURA E O TÍTULO DOS USUÁRIOS
   function getMolduraPng(idItem?: string) {
     if (!idItem) return null;
     const item = lojaItens.find(i => i.id === idItem);
@@ -300,6 +297,7 @@ export default function GuildaPage() {
     return lojaItens.find(i => i.id === idItem);
   }
 
+  // ✅ CORREÇÃO 1: Reinstalando a lógica de ordenação do Ranking
   const huntersOrdenados = [...estatisticas].sort((a, b) => {
     if (filtroRanking === "OBRAS") return b.total_obras - a.total_obras;
     if (filtroRanking === "ESMOLAS") return b.esmolas - a.esmolas;
@@ -309,10 +307,8 @@ export default function GuildaPage() {
     return 0;
   });
 
-  const meuPerfilAtivo = perfis.find(p => p.nome_original === usuarioAtivo);
-
   return (
-    <main className="min-h-screen bg-[#040405] text-white p-6 md:p-12 relative overflow-hidden flex flex-col">
+    <main className="min-h-screen bg-transparent text-white p-6 md:p-12 relative overflow-hidden flex flex-col">
       <header className="flex justify-between items-center mb-8 relative z-20 border-b border-zinc-800 pb-6">
         <div>
           <h1 className="text-4xl font-black italic tracking-tighter text-blue-500">A Guilda</h1>
@@ -324,43 +320,54 @@ export default function GuildaPage() {
       </header>
 
       <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0 relative z-20">
-        
         <aside className="lg:w-80 flex flex-col gap-4">
-          <div className="bg-[#0e0e11]/95 border border-zinc-800 rounded-[2rem] p-6 flex-1">
-            <h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 border-b border-zinc-800 pb-4">Hunters Registrados</h2>
-            <div className="space-y-4 overflow-y-auto custom-scrollbar max-h-[60vh] pr-2">
-              {perfis.map(p => {
-                const molduraSidebar = getMolduraPng(p.cosmeticos?.ativos?.moldura);
-                const tituloSidebar = getTituloItem(p.cosmeticos?.ativos?.titulo);
+          <div className="bg-[#0e0e11]/95 border border-zinc-800 rounded-[2rem] p-6 flex-1 flex flex-col gap-6">
+            
+            {/* ✅ PLAYER CARD DO USUÁRIO NO TOPO DA SIDEBAR */}
+            {meuPerfilAtivo && (
+              <div className="flex flex-col gap-3">
+                <h2 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Meu Card de Hunter</h2>
+                <HunterCard 
+                  perfil={meuPerfilAtivo} 
+                  customizacao={meuPerfilAtivo.cosmeticos?.ativos?.card_config} 
+                />
+                <button 
+                  onClick={() => setEditandoCard(true)}
+                  className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 border border-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all"
+                >
+                  ⚙️ Customizar Identidade
+                </button>
+              </div>
+            )}
 
-                return (
-                  <div key={p.nome_original} className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5">
-                    
-                    {/* ✅ AVATARES DA LISTA DE HUNTERS COM MOLDURAS CORRIGIDAS */}
-                    <div className="relative shrink-0 w-10 h-10 flex items-center justify-center">
-                      {molduraSidebar && (
-                        <img src={molduraSidebar} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
-                      )}
-                      <div className={`w-10 h-10 rounded-[1rem] overflow-hidden bg-zinc-900 flex items-center justify-center text-xl relative z-10 ${!MOLDURAS_DISCORD[p.cosmeticos?.ativos?.moldura || ""] && !molduraSidebar ? "border border-white/10" : ""} ${MOLDURAS_DISCORD[p.cosmeticos?.ativos?.moldura || ""] || ""}`}>
-                        {p.avatar?.startsWith('http') ? <img src={p.avatar} className="w-full h-full object-cover" /> : <span>{p.avatar}</span>}
+            <div className="flex flex-col flex-1 min-h-0">
+              <h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 border-b border-zinc-800 pb-4">Hunters Registrados</h2>
+              <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1">
+                {perfis.map(p => {
+                  const molduraSidebar = getMolduraPng(p.cosmeticos?.ativos?.moldura);
+                  const tituloSidebar = getTituloItem(p.cosmeticos?.ativos?.titulo);
+                  return (
+                    <div key={p.nome_original} className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5">
+                      <HunterAvatar 
+                        avatarUrl={p.avatar} 
+                        idMoldura={p.cosmeticos?.ativos?.moldura} 
+                        imagemMolduraUrl={molduraSidebar || undefined}
+                        tamanho="sm"
+                        temaCor={p.cor_tema?.startsWith('#') ? p.cor_tema : p.custom_color}
+                      />
+                      <div className="overflow-hidden">
+                        <p className={`font-black text-xs truncate ${p.cor_tema?.startsWith('#') ? '' : getCor(p.nome_original)}`} style={p.cor_tema?.startsWith('#') ? { color: p.cor_tema } : {}}>{p.nome_exibicao}</p>
+                        {tituloSidebar && (
+                          <p className={`text-[7px] font-black uppercase tracking-[0.2em] truncate mt-0.5 ${tituloSidebar.imagem_url || tituloSidebar.id}`}>
+                            « {tituloSidebar.nome.replace("Título: ", "")} »
+                          </p>
+                        )}
+                        <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">ID: {p.nome_original}</p>
                       </div>
                     </div>
-
-                    <div className="overflow-hidden">
-                      <p className={`font-black text-xs truncate ${p.cor_tema?.startsWith('#') ? '' : getCor(p.nome_original)}`} style={p.cor_tema?.startsWith('#') ? { color: p.cor_tema } : {}}>{p.nome_exibicao}</p>
-                      
-                      {/* ✅ TÍTULOS SENDO RENDERIZADOS NO PAINEL LATERAL COM CSS INJETADO */}
-                      {tituloSidebar && (
-                        <p className={`text-[7px] font-black uppercase tracking-[0.2em] truncate mt-0.5 ${tituloSidebar.imagem_url || tituloSidebar.id}`}>
-                          « {tituloSidebar.nome.replace("Título: ", "")} »
-                        </p>
-                      )}
-                      
-                      <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">ID: {p.nome_original}</p>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </aside>
@@ -371,189 +378,102 @@ export default function GuildaPage() {
             <button onClick={() => setAbaAtiva("RANKING")} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${abaAtiva === "RANKING" ? 'bg-yellow-600 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-white'}`}>🏆 Pódio / Ranks</button>
           </div>
 
-          {/* ----------------- ABA 1: CHAT GLOBAL ----------------- */}
           {abaAtiva === "CHAT" && (
             <div className="flex flex-col h-full flex-1 min-h-0">
               <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-1">
-                
-                {/* BOTÃO CARREGAR MAIS MENSAGENS */}
                 {mensagens.length >= limiteMensagens && (
                   <div className="flex justify-center mb-6">
-                    <button 
-                      onClick={() => setLimiteMensagens(prev => prev + 50)} 
-                      className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
-                    >
-                      ↑ Carregar mensagens antigas
-                    </button>
+                    <button onClick={() => setLimiteMensagens(prev => prev + 50)} className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all">↑ Carregar mensagens antigas</button>
                   </div>
                 )}
-
-                {mensagens.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-zinc-600 font-bold uppercase text-xs tracking-widest italic">O mural está silencioso...</div>
-                ) : (
-                  mensagens.map((msg, index) => {
-                    const isMe = msg.usuario === usuarioAtivo;
-                    const autorPerfil = perfis.find(p => p.nome_original === msg.usuario);
-                    
-                    const corAtiva = autorPerfil?.cosmeticos?.ativos?.chat_cor;
-                    const balaoAtivo = autorPerfil?.cosmeticos?.ativos?.chat_balao;
-                    
-                    const classeTexto = corAtiva && CORES_CHAT[corAtiva] ? CORES_CHAT[corAtiva] : "text-zinc-300";
-                    const classeBalao = balaoAtivo && BALOES_CHAT[balaoAtivo] ? BALOES_CHAT[balaoAtivo] : "hover:bg-white/5 bg-transparent";
-
-                    // Puxando as Molduras e os Títulos Mágicos para o Chat
-                    const molduraChat = getMolduraPng(autorPerfil?.cosmeticos?.ativos?.moldura);
-                    const tituloChat = getTituloItem(autorPerfil?.cosmeticos?.ativos?.titulo);
-
-                    // LÓGICA DE AGRUPAMENTO DE MENSAGENS (ESTILO DISCORD)
-                    let mostrarCabecalho = true;
-                    if (index > 0) {
-                      const prevMsg = mensagens[index - 1];
-                      const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
-                      
-                      if (prevMsg.usuario === msg.usuario && diffTime < 300000) {
-                        mostrarCabecalho = false;
-                      }
-                    }
-
-                    return (
-                      <div key={msg.id} className={`group flex gap-4 items-start w-full px-4 py-1 transition-all rounded-lg ${mostrarCabecalho ? 'mt-4' : 'mt-0'} ${classeBalao.includes('bg-transparent') ? classeBalao : 'p-3 ' + classeBalao}`}>
-                        
-                        {/* ✅ Avatar com Moldura 140% no Chat */}
-                        <div className="w-10 shrink-0 flex justify-center mt-1">
-                          {mostrarCabecalho ? (
-                            <div className="relative w-10 h-10 flex items-center justify-center">
-                              {molduraChat && (
-                                <img src={molduraChat} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
-                              )}
-                              <div className={`w-10 h-10 rounded-[1rem] overflow-hidden bg-zinc-900 flex items-center justify-center text-sm relative z-10 ${MOLDURAS_DISCORD[autorPerfil?.cosmeticos?.ativos?.moldura || ""] || ""}`}>
-                                {getAvatar(msg.usuario)?.startsWith('http') ? <img src={getAvatar(msg.usuario)} className="w-full h-full object-cover" /> : <span>{getAvatar(msg.usuario)}</span>}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="w-10" /> 
-                          )}
-                        </div>
-
-                        <div className="flex flex-col w-full relative">
-                          {/* ✅ Nome, TÍTULOS CSS e Hora no Chat */}
-                          {mostrarCabecalho && (
-                            <div className="flex flex-wrap items-baseline gap-2 mb-1">
-                              <span className={`text-[12px] font-black uppercase ${getCor(msg.usuario)}`}>
-                                {autorPerfil?.nome_exibicao || msg.usuario}
-                              </span>
-                              {tituloChat && (
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${tituloChat.imagem_url || tituloChat.id}`}>
-                                  « {tituloChat.nome.replace("Título: ", "")} »
-                                </span>
-                              )}
-                              <span className="text-[10px] text-zinc-600 font-bold ml-1">
-                                {formatarHora(msg.criado_em)}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {/* CAIXA DE EDIÇÃO OU TEXTO NORMAL */}
-                          <div className="text-sm leading-relaxed pr-16 min-h-[24px] flex items-center">
-                            {editandoId === msg.id ? (
-                              <div className="flex gap-2 w-full mt-1">
-                                <input 
-                                  type="text" 
-                                  value={textoEdicao} 
-                                  onChange={(e) => setTextoEdicao(e.target.value)} 
-                                  className="flex-1 bg-black border border-blue-500/50 p-2 rounded-lg text-white text-xs outline-none" 
-                                  autoFocus
-                                />
-                                <button onClick={() => salvarEdicao(msg.id)} className="text-[9px] bg-green-600/20 text-green-500 px-3 rounded-lg font-bold hover:bg-green-600 hover:text-white transition-all">Salvar</button>
-                                <button onClick={() => setEditandoId(null)} className="text-[9px] bg-red-600/20 text-red-500 px-3 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all">Cancelar</button>
-                              </div>
-                            ) : msg.tipo === "figurinha" ? (
-                              <img src={msg.mensagem} alt="Figurinha" className="max-w-[150px] max-h-[150px] rounded-lg object-contain mt-1" />
-                            ) : (
-                              <span className={classeTexto}>{msg.mensagem}</span>
-                            )}
-                          </div>
-
-                          {/* BOTÕES FLUTUANTES DE EDITAR/EXCLUIR */}
-                          {isMe && editandoId !== msg.id && (
-                            <div className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-[#0e0e11] border border-zinc-800 px-2 py-1 rounded-lg shadow-lg">
-                              {msg.tipo !== "figurinha" && (
-                                <button 
-                                  onClick={() => { setEditandoId(msg.id); setTextoEdicao(msg.mensagem); }} 
-                                  className="text-[10px] font-bold text-zinc-400 hover:text-blue-400 transition-colors"
-                                >
-                                  ✎ Editar
-                                </button>
-                              )}
-                              <button 
-                                onClick={() => excluirMensagem(msg.id)} 
-                                className="text-[10px] font-bold text-zinc-400 hover:text-red-400 transition-colors"
-                              >
-                                🗑 Excluir
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
+                {mensagens.map((msg, index) => {
+                  const autorPerfil = perfis.find(p => p.nome_original === msg.usuario);
+                  const corAtiva = autorPerfil?.cosmeticos?.ativos?.chat_cor;
+                  const balaoAtivo = autorPerfil?.cosmeticos?.ativos?.chat_balao;
+                  const classeTexto = corAtiva && CORES_CHAT[corAtiva] ? CORES_CHAT[corAtiva] : "text-zinc-300";
+                  const classeBalao = balaoAtivo && BALOES_CHAT[balaoAtivo] ? BALOES_CHAT[balaoAtivo] : "hover:bg-white/5 bg-transparent";
+                  const molduraChat = getMolduraPng(autorPerfil?.cosmeticos?.ativos?.moldura);
+                  const tituloChat = getTituloItem(autorPerfil?.cosmeticos?.ativos?.titulo);
+                  let mostrarCabecalho = true;
+                  if (index > 0) {
+                    const prevMsg = mensagens[index - 1];
+                    const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
+                    if (prevMsg.usuario === msg.usuario && diffTime < 300000) mostrarCabecalho = false;
+                  }
+                  return (
+                    <div key={msg.id} className={`group flex gap-4 items-start w-full px-4 py-1 transition-all rounded-lg ${mostrarCabecalho ? 'mt-4' : 'mt-0'} ${classeBalao.includes('bg-transparent') ? classeBalao : 'p-3 ' + classeBalao}`}>
+                      <div className="w-10 shrink-0 flex justify-center mt-1">
+                        {mostrarCabecalho ? (
+                          <HunterAvatar 
+                            avatarUrl={getAvatar(msg.usuario)} 
+                            idMoldura={autorPerfil?.cosmeticos?.ativos?.moldura} 
+                            imagemMolduraUrl={molduraChat || undefined}
+                            tamanho="sm"
+                            temaCor={autorPerfil?.cor_tema?.startsWith('#') ? autorPerfil.cor_tema : autorPerfil?.custom_color}
+                          />
+                        ) : <div className="w-10" />}
                       </div>
-                    );
-                  })
-                )}
+                      <div className="flex flex-col w-full relative">
+                        {mostrarCabecalho && (
+                          <div className="flex flex-wrap items-baseline gap-2 mb-1">
+                            <span className={`text-[12px] font-black uppercase ${getCor(msg.usuario)}`} style={autorPerfil?.cor_tema?.startsWith('#') ? { color: autorPerfil.cor_tema } : {}}>{autorPerfil?.nome_exibicao || msg.usuario}</span>
+                            {tituloChat && <span className={`text-[8px] font-black uppercase tracking-widest ${tituloChat.imagem_url || tituloChat.id}`}>« {tituloChat.nome.replace("Título: ", "")} »</span>}
+                            <span className="text-[10px] text-zinc-600 font-bold ml-1">{formatarHora(msg.criado_em)}</span>
+                          </div>
+                        )}
+                        <div className="text-sm leading-relaxed pr-16 min-h-[24px] flex items-center">
+                          {editandoId === msg.id ? (
+                            <div className="flex gap-2 w-full mt-1">
+                              <input type="text" value={textoEdicao} onChange={(e) => setTextoEdicao(e.target.value)} className="flex-1 bg-black border border-blue-500/50 p-2 rounded-lg text-white text-xs outline-none" autoFocus />
+                              <button onClick={() => salvarEdicao(msg.id)} className="text-[9px] bg-green-600/20 text-green-500 px-3 rounded-lg font-bold hover:bg-green-600 hover:text-white transition-all">Salvar</button>
+                              <button onClick={() => setEditandoId(null)} className="text-[9px] bg-red-600/20 text-red-500 px-3 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all">Cancelar</button>
+                            </div>
+                          ) : msg.tipo === "figurinha" ? (
+                            <img src={msg.mensagem} alt="Figurinha" className="max-w-[150px] max-h-[150px] rounded-lg object-contain mt-1" />
+                          ) : <span className={classeTexto}>{msg.mensagem}</span>}
+                        </div>
+                        {msg.usuario === usuarioAtivo && editandoId !== msg.id && (
+                          <div className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-[#0e0e11] border border-zinc-800 px-2 py-1 rounded-lg shadow-lg">
+                            {msg.tipo !== "figurinha" && <button onClick={() => { setEditandoId(msg.id); setTextoEdicao(msg.mensagem); }} className="text-[10px] font-bold text-zinc-400 hover:text-blue-400 transition-colors">✎ Editar</button>}
+                            <button onClick={() => excluirMensagem(msg.id)} className="text-[10px] font-bold text-zinc-400 hover:text-red-400 transition-colors">🗑 Excluir</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-
-              {/* PAINEL DE FIGURINHAS */}
               {painelFigurinhas && (
                 <div className="px-6 py-4 bg-zinc-900 border-t border-zinc-800 flex flex-col gap-4 animate-in slide-in-from-bottom-2 shrink-0">
                   <div className="flex gap-2 items-center">
-                    <input 
-                      type="text" 
-                      placeholder="Cole a URL da imagem..." 
-                      className="flex-1 bg-black border border-zinc-800 p-3 rounded-xl text-xs outline-none text-white"
-                      value={novaFigurinhaUrl} onChange={(e) => setNovaFigurinhaUrl(e.target.value)}
-                    />
+                    <input type="text" placeholder="Cole a URL da imagem..." className="flex-1 bg-black border border-zinc-800 p-3 rounded-xl text-xs outline-none text-white" value={novaFigurinhaUrl} onChange={(e) => setNovaFigurinhaUrl(e.target.value)} />
                     <button onClick={adicionarFigurinha} className="bg-green-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-500 transition-all">Salvar URL</button>
-                    
                     <label className={`flex items-center justify-center px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all border border-blue-500/30 ${fazendoUploadFigurinha ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white'}`}>
                       {fazendoUploadFigurinha ? "⏳..." : "⬆️ Upar PC"}
                       <input type="file" accept="image/*, image/gif" className="hidden" onChange={fazerUploadFigurinha} disabled={fazendoUploadFigurinha} />
                     </label>
                   </div>
-                  
                   <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
                     {meuPerfilAtivo?.figurinhas?.length === 0 && <span className="text-[10px] text-zinc-500 italic uppercase">Você ainda não salvou nenhuma figurinha.</span>}
                     {meuPerfilAtivo?.figurinhas?.map((url, i) => (
                       <div key={i} className="relative group/sticker shrink-0">
-                        <img 
-                          src={url} alt="Figurinha Salva" 
-                          onClick={() => enviarMensagem(undefined, url)} 
-                          className="w-20 h-20 object-cover rounded-xl border border-zinc-800 cursor-pointer hover:border-blue-500 transition-all hover:scale-105 bg-black" 
-                        />
+                        <img src={url} alt="Figurinha Salva" onClick={() => enviarMensagem(undefined, url)} className="w-20 h-20 object-cover rounded-xl border border-zinc-800 cursor-pointer hover:border-blue-500 transition-all hover:scale-105 bg-black" />
                         <button onClick={() => deletarFigurinha(url)} className="absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover/sticker:opacity-100 transition-all flex items-center justify-center">✕</button>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
               <div className="p-6 bg-black/40 border-t border-zinc-800 shrink-0">
                 <form onSubmit={enviarMensagem} className="flex gap-3">
-                  <button type="button" onClick={() => setPainelFigurinhas(!painelFigurinhas)} className={`p-4 rounded-2xl border transition-all text-xl ${painelFigurinhas ? 'bg-blue-600/20 border-blue-500' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}>
-                    🌠
-                  </button>
-                  <input 
-                    type="text" placeholder="Conversar na Guilda..." 
-                    className="flex-1 bg-zinc-950 border border-zinc-800 p-5 rounded-2xl outline-none text-white text-sm focus:border-blue-500/50 transition-all"
-                    value={novaMensagem} onChange={e => setNovaMensagem(e.target.value)} maxLength={250}
-                  />
-                  <button type="submit" disabled={enviando || !novaMensagem.trim()} className="px-8 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-blue-500 disabled:opacity-50 transition-all">
-                    Enviar
-                  </button>
+                  <button type="button" onClick={() => setPainelFigurinhas(!painelFigurinhas)} className={`p-4 rounded-2xl border transition-all text-xl ${painelFigurinhas ? 'bg-blue-600/20 border-blue-500' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}>🌠</button>
+                  <input type="text" placeholder="Conversar na Guilda..." className="flex-1 bg-zinc-950 border border-zinc-800 p-5 rounded-2xl outline-none text-white text-sm focus:border-blue-500/50 transition-all" value={novaMensagem} onChange={e => setNovaMensagem(e.target.value)} maxLength={250} />
+                  <button type="submit" disabled={enviando || !novaMensagem.trim()} className="px-8 bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-blue-500 disabled:opacity-50 transition-all">Enviar</button>
                 </form>
               </div>
             </div>
           )}
 
-          {/* ----------------- ABA 2: RANKING EXPANDIDO ----------------- */}
           {abaAtiva === "RANKING" && (
             <div className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-6">
               <div className="flex flex-wrap justify-center gap-3 mb-4">
@@ -563,67 +483,106 @@ export default function GuildaPage() {
                 <button onClick={() => setFiltroRanking("CAPITULOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "CAPITULOS" ? 'bg-red-600/20 border-red-500 text-red-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>🔥 Devoradores (Caps)</button>
                 <button onClick={() => setFiltroRanking("FAVORITOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "FAVORITOS" ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⭐ Curadores</button>
               </div>
-
-              {carregandoRanking ? (
-                <div className="flex-1 flex items-center justify-center text-zinc-500 italic animate-pulse">Inspecionando Registros dos Hunters...</div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {huntersOrdenados.map((hunter, index) => {
-                    const isTop1 = index === 0; const isTop2 = index === 1; const isTop3 = index === 2;
-                    let medalha = "🏅"; if (isTop1) medalha = "👑"; else if (isTop2) medalha = "🥈"; else if (isTop3) medalha = "🥉";
-
-                    let corTexto = "text-indigo-400"; let valor = hunter.total_obras; let label = "Obras Lidas";
-                    if (filtroRanking === "ESMOLAS") { corTexto = "text-yellow-500"; valor = hunter.esmolas; label = "Esmolas"; }
-                    if (filtroRanking === "TEMPO") { corTexto = "text-purple-400"; valor = hunter.tempo_vida; label = "Horas Consumidas"; }
-                    if (filtroRanking === "CAPITULOS") { corTexto = "text-red-400"; valor = hunter.total_capitulos; label = "Caps / Episódios"; }
-                    if (filtroRanking === "FAVORITOS") { corTexto = "text-green-400"; valor = hunter.total_favoritos; label = "Obras Favoritas"; }
-
-                    // Pegando customizações
-                    const molduraRank = getMolduraPng(hunter.cosmeticos?.ativos?.moldura);
-                    const tituloRank = getTituloItem(hunter.cosmeticos?.ativos?.titulo);
-
-                    return (
-                      <div key={hunter.nome_original} className={`flex items-center justify-between p-5 rounded-3xl border transition-all ${isTop1 ? 'bg-yellow-900/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.1)]' : isTop2 ? 'bg-zinc-800/20 border-zinc-400/50' : isTop3 ? 'bg-orange-900/10 border-orange-700/50' : 'bg-zinc-900/30 border-zinc-800'}`}>
-                        <div className="flex items-center gap-6">
-                          <span className={`text-3xl font-black italic w-10 text-center ${isTop1 ? 'text-yellow-500 drop-shadow-md' : isTop2 ? 'text-zinc-300' : isTop3 ? 'text-orange-500' : 'text-zinc-600'}`}>#{index + 1}</span>
-                          
-                          {/* ✅ AVATARES DO RANKING COM MOLDURAS CORRIGIDAS */}
-                          <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
-                            {molduraRank && (
-                              <img src={molduraRank} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
-                            )}
-                            <div className={`w-14 h-14 rounded-[1.5rem] overflow-hidden bg-zinc-950 flex items-center justify-center text-2xl relative z-10 ${!MOLDURAS_DISCORD[hunter.cosmeticos?.ativos?.moldura || ""] && !molduraRank ? "border border-white/10" : ""} ${MOLDURAS_DISCORD[hunter.cosmeticos?.ativos?.moldura || ""] || ""}`}>
-                              {hunter.avatar?.startsWith('http') ? <img src={hunter.avatar} className="w-full h-full object-cover" /> : <span>{hunter.avatar}</span>}
-                            </div>
-                          </div>
-
-                          <div>
-                            <p className="font-black text-lg uppercase flex items-center gap-2">{hunter.nome_exibicao} {isTop1 || isTop2 || isTop3 ? <span className="text-xl">{medalha}</span> : ""}</p>
-                            
-                            {/* ✅ TÍTULOS SENDO RENDERIZADOS NO RANKING COM CSS INJETADO */}
-                            {tituloRank && (
-                              <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-0.5 ${tituloRank.imagem_url || tituloRank.id}`}>
-                                « {tituloRank.nome.replace("Título: ", "")} »
-                              </p>
-                            )}
-                            
-                            <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">RANK: <span className="text-white">{hunter.elo}</span></p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-3xl font-black italic ${corTexto}`}>{valor}</p>
-                          <p className="text-[8px] text-zinc-500 uppercase tracking-widest">{label}</p>
+              <div className="flex flex-col gap-4">
+                {/* ✅ CORREÇÃO 2: Tipando explicitamente os parâmetros do map */}
+                {huntersOrdenados.map((hunter: EstatisticasHunter, index: number) => {
+                  const isTop1 = index === 0; const isTop2 = index === 1; const isTop3 = index === 2;
+                  let medalha = "🏅"; if (isTop1) medalha = "👑"; else if (isTop2) medalha = "🥈"; else if (isTop3) medalha = "🥉";
+                  let corTexto = "text-indigo-400"; let valor = hunter.total_obras; let label = "Obras Lidas";
+                  if (filtroRanking === "ESMOLAS") { corTexto = "text-yellow-500"; valor = hunter.esmolas; label = "Esmolas"; }
+                  if (filtroRanking === "TEMPO") { corTexto = "text-purple-400"; valor = hunter.tempo_vida; label = "Horas Consumidas"; }
+                  if (filtroRanking === "CAPITULOS") { corTexto = "text-red-400"; valor = hunter.total_capitulos; label = "Caps / Episódios"; }
+                  if (filtroRanking === "FAVORITOS") { corTexto = "text-green-400"; valor = hunter.total_favoritos; label = "Obras Favoritas"; }
+                  const molduraRank = getMolduraPng(hunter.cosmeticos?.ativos?.moldura);
+                  const tituloRank = getTituloItem(hunter.cosmeticos?.ativos?.titulo);
+                  return (
+                    <div key={hunter.nome_original} className={`flex items-center justify-between p-5 rounded-3xl border transition-all ${isTop1 ? 'bg-yellow-900/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.1)]' : isTop2 ? 'bg-zinc-800/20 border-zinc-400/50' : isTop3 ? 'bg-orange-900/10 border-orange-700/50' : 'bg-zinc-900/30 border-zinc-800'}`}>
+                      <div className="flex items-center gap-6">
+                        <span className={`text-3xl font-black italic w-10 text-center ${isTop1 ? 'text-yellow-500 drop-shadow-md' : isTop2 ? 'text-zinc-300' : isTop3 ? 'text-orange-500' : 'text-zinc-600'}`}>#{index + 1}</span>
+                        <HunterAvatar 
+                          avatarUrl={hunter.avatar} 
+                          idMoldura={hunter.cosmeticos?.ativos?.moldura} 
+                          imagemMolduraUrl={molduraRank || undefined}
+                          tamanho="md"
+                          temaCor={hunter.cor_tema?.startsWith('#') ? hunter.cor_tema : hunter.custom_color}
+                        />
+                        <div>
+                          <p className="font-black text-lg uppercase flex items-center gap-2">{hunter.nome_exibicao} {isTop1 || isTop2 || isTop3 ? <span className="text-xl">{medalha}</span> : ""}</p>
+                          {tituloRank && <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-0.5 ${tituloRank.imagem_url || tituloRank.id}`}>« {tituloRank.nome.replace("Título: ", "")} »</p>}
+                          <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">RANK: <span className="text-white">{hunter.elo}</span></p>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      <div className="text-right">
+                        <p className={`text-3xl font-black italic ${corTexto}`}>{valor}</p>
+                        <p className="text-[8px] text-zinc-500 uppercase tracking-widest">{label}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-
         </section>
       </div>
+
+      {/* ✅ MODAL DE EDIÇÃO DO PLAYER CARD */}
+      {editandoCard && meuPerfilAtivo && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
+          <div className="bg-[#0e0e11] border border-zinc-800 w-full max-w-md rounded-[2.5rem] p-8 flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <h2 className="text-xl font-black italic uppercase tracking-tighter text-blue-500">Configurar Player Card</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">URL do Banner (Fundo)</label>
+                <input 
+                  type="text" 
+                  placeholder="Link da imagem (Ex: Flores, Paisagens...)"
+                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1"
+                  value={cardDados.banner_url}
+                  onChange={(e) => setCardDados({...cardDados, banner_url: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Texto da Tag</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1"
+                    value={cardDados.tag_texto}
+                    maxLength={6}
+                    onChange={(e) => setCardDados({...cardDados, tag_texto: e.target.value.toUpperCase()})}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Cor da Tag</label>
+                  <input 
+                    type="color" 
+                    className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1"
+                    value={cardDados.tag_cor}
+                    onChange={(e) => setCardDados({...cardDados, tag_cor: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              <button 
+                onClick={salvarPlayerCard}
+                className="flex-1 bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 transition-all text-white"
+              >
+                Salvar Alterações
+              </button>
+              <button 
+                onClick={() => setEditandoCard(false)}
+                className="px-6 bg-zinc-900 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-800 transition-all text-zinc-400"
+              >
+                Voltar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

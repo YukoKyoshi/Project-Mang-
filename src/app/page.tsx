@@ -12,8 +12,9 @@ import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 import AdminPanel from "./components/AdminPanel";
 import ProfileSelection from "./components/ProfileSelection";
-// ✅ ADICIONADO: Componente de Identidade Universal
+// ✅ ADICIONADO: Componente de Identidade Universal e Player Card
 import HunterAvatar from "./components/HunterAvatar";
+import HunterCard from "./components/HunterCard";
 
 interface Manga { 
   id: number; 
@@ -60,7 +61,6 @@ export default function Home() {
   const [livros, setLivros] = useState<Manga[]>([]); 
   const [perfis, setPerfis] = useState<any[]>([]); 
   
-  // ✅ NOVO ESTADO: Para carregar as URLs das molduras PNG da loja
   const [lojaItens, setLojaItens] = useState<any[]>([]);
 
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
@@ -76,6 +76,15 @@ export default function Home() {
   const [editandoNomeOriginal, setEditandoNomeOriginal] = useState<string | null>(null);
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
+
+  // ✅ ESTADOS DO PLAYER CARD (IDENTIDADE)
+  const [editandoCard, setEditandoCard] = useState(false);
+  const [cardDados, setCardDados] = useState({
+    banner_url: '',
+    tag_texto: 'HUNTER',
+    tag_cor: '#3b82f6',
+    fonte_cor: '#ffffff'
+  });
 
   // ==========================================
   // 🔔 [SESSÃO 4] - SISTEMA DE NOTIFICAÇÕES
@@ -114,7 +123,7 @@ export default function Home() {
     };
 
     buscarConfigs();
-    buscarLoja(); // ✅ Busca as informações de itens para os cosméticos funcionarem
+    buscarLoja(); 
     buscarPerfis().then(() => setCarregando(false));
   }, []);
 
@@ -122,8 +131,14 @@ export default function Home() {
     if (usuarioAtual) {
       setIsAdmin(usuarioAtual === "Admin");
       buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros();
+      
+      // ✅ SINCRONIZA OS DADOS DO CARD AO MUDAR DE USUÁRIO
+      const pAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+      if (pAtivo?.cosmeticos?.ativos?.card_config) {
+        setCardDados(pAtivo.cosmeticos.ativos.card_config);
+      }
     }
-  }, [usuarioAtual]);
+  }, [usuarioAtual, perfis]);
 
   // ==========================================
   // 🛠️ [SESSÃO 6] - FUNÇÕES DE BUSCA E BANCO
@@ -166,6 +181,27 @@ export default function Home() {
   async function buscarPerfis() {
     const { data } = await supabase.from("perfis").select("*");
     if (data) setPerfis(data);
+  }
+
+  // ✅ FUNÇÃO PARA SALVAR O PLAYER CARD
+  async function salvarPlayerCard() {
+    const pAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+    if (!pAtivo) return;
+    
+    const novosAtivos = { 
+      ...(pAtivo.cosmeticos?.ativos || {}), 
+      card_config: cardDados 
+    };
+
+    const { error } = await supabase.from("perfis").update({ 
+      cosmeticos: { ...(pAtivo.cosmeticos || {}), ativos: novosAtivos } 
+    }).eq("nome_original", usuarioAtual);
+    
+    if (!error) {
+      setEditandoCard(false);
+      buscarPerfis();
+      mostrarToast("Card de Identidade Atualizado!", "sucesso");
+    }
   }
 
   // ==========================================
@@ -338,8 +374,6 @@ export default function Home() {
       if (pinDigitado === pinCorreto) {
         sessionStorage.setItem("hunter_ativo", "Admin");
         setUsuarioAtual("Admin"); setPerfilAlvoParaBloqueio(null);
-        
-        // ✅ GATILHO S+: Sincroniza o VFX Global no Login de Admin
         window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: "Admin" } }));
       } else {
         mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
@@ -351,8 +385,6 @@ export default function Home() {
     if (perfil?.pin === pinDigitado) {
       sessionStorage.setItem("hunter_ativo", perfilAlvoParaBloqueio);
       setUsuarioAtual(perfilAlvoParaBloqueio); setPerfilAlvoParaBloqueio(null);
-
-      // ✅ GATILHO S+: Sincroniza o VFX Global no Login de Usuário
       window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: perfilAlvoParaBloqueio } }));
     } else { mostrarToast("PIN Incorreto!", "erro"); }
   }
@@ -363,7 +395,6 @@ export default function Home() {
     else { 
       setUsuarioAtual(nome); 
       sessionStorage.setItem('hunter_ativo', nome); 
-      // ✅ GATILHO S+: Sincroniza o VFX Global quando não há PIN
       window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome } }));
     }
   }
@@ -389,7 +420,7 @@ export default function Home() {
     />
   );
 
-  const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde", custom_color: "#22c55e" };
+  const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde", custom_color: "#22c55e", cosmeticos: { ativos: {} } };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : livros;
   const filtrosAtuais = (abaPrincipal === "MANGA" || abaPrincipal === "LIVRO") ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
@@ -403,15 +434,11 @@ export default function Home() {
     return m.status === filtroAtivo;
   }).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
-  // Lógica para moldura PNG no header
   const molduraHeader = lojaItens.find(i => i.id === perfilAtivo.cosmeticos?.ativos?.moldura);
 
   return (
-    // ✅ PASSO 1: BG TRANSPARENT PARA MOSTRAR O VFX GLOBAL
     <main className="min-h-screen bg-transparent p-6 md:p-12 text-white relative overflow-x-hidden" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as any : {}}>
       
-      {/* ⚠️ PASSO 2: REMOVIDO <EfeitosVisuais /> LOCAL DAQUI */}
-
       <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-16 border-b border-zinc-800/50 pb-10 relative z-20">
         <div className="text-center md:text-left">
           <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
@@ -429,16 +456,25 @@ export default function Home() {
             🌍
           </Link>
 
-          {/* ✅ PASSO 3: USANDO O NOVO HunterAvatar NO HEADER */}
-          <Link href="/perfil" className="hover:scale-105 transition-transform">
-            <HunterAvatar 
-              avatarUrl={perfilAtivo.avatar} 
-              idMoldura={perfilAtivo.cosmeticos?.ativos?.moldura} 
-              imagemMolduraUrl={molduraHeader?.imagem_url}
-              temaCor={perfilAtivo.custom_color}
-              tamanho="md"
-            />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/perfil" className="hover:scale-105 transition-transform">
+              <HunterAvatar 
+                avatarUrl={perfilAtivo.avatar} 
+                idMoldura={perfilAtivo.cosmeticos?.ativos?.moldura} 
+                imagemMolduraUrl={molduraHeader?.imagem_url}
+                temaCor={perfilAtivo.custom_color}
+                tamanho="md"
+              />
+            </Link>
+            {/* ✅ BOTÃO PARA CUSTOMIZAR O CARD DE IDENTIDADE */}
+            <button 
+              onClick={() => setEditandoCard(true)}
+              className="w-10 h-10 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-xl flex items-center justify-center text-xs transition-all"
+              title="Customizar Card de Hunter"
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
       </header>
 
@@ -478,6 +514,70 @@ export default function Home() {
           aoTraduzir={() => window.open(`https://translate.google.com/?sl=auto&tl=pt&text=${encodeURIComponent(mangaDetalhe.sinopse)}`, '_blank')} 
         />
       )} 
+
+      {/* ✅ MODAL DE EDIÇÃO DO PLAYER CARD (SINCRONIZADO COM A GUILDA) */}
+      {editandoCard && perfilAtivo && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md">
+          <div className="bg-[#0e0e11] border border-zinc-800 w-full max-w-md rounded-[2.5rem] p-8 flex flex-col gap-6 shadow-2xl animate-in zoom-in duration-300">
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter text-blue-500">Player Card Identity</h2>
+            
+            {/* PREVIEW EM TEMPO REAL */}
+            <div className="border border-white/5 rounded-2xl overflow-hidden scale-90 origin-center mb-2">
+              <HunterCard perfil={perfilAtivo} customizacao={cardDados} />
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Banner URL (Fundo)</label>
+                <input 
+                  type="text" 
+                  placeholder="https://exemplo.com/imagem.jpg"
+                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1"
+                  value={cardDados.banner_url}
+                  onChange={(e) => setCardDados({...cardDados, banner_url: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Tag Texto</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1 text-center"
+                    value={cardDados.tag_texto}
+                    maxLength={8}
+                    onChange={(e) => setCardDados({...cardDados, tag_texto: e.target.value.toUpperCase()})}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Tag Color</label>
+                  <input 
+                    type="color" 
+                    className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1"
+                    value={cardDados.tag_cor}
+                    onChange={(e) => setCardDados({...cardDados, tag_cor: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              <button 
+                onClick={salvarPlayerCard}
+                className="flex-1 bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 transition-all text-white shadow-lg shadow-blue-500/20"
+              >
+                Salvar Card
+              </button>
+              <button 
+                onClick={() => setEditandoCard(false)}
+                className="px-6 bg-zinc-900 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-800 transition-all text-zinc-400"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="fixed bottom-10 right-10 z-[300] flex flex-col gap-3 pointer-events-none">
         {toasts.map(t => (
