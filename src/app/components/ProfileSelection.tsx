@@ -5,9 +5,12 @@
 // ==========================================
 import { useState } from "react";
 import EfeitosVisuais from "./EfeitosVisuais";
+// ✅ ADICIONADO: Componente de Identidade para renderizar as molduras
+import HunterAvatar from "./HunterAvatar";
 
 interface ProfileSelectionProps {
   perfis: any[];
+  lojaItens: any[]; // ✅ Adicionado para buscar dados das molduras
   temas: any;
   tentarMudarPerfil: (nome: string) => void;
   perfilAlvoParaBloqueio: string | null;
@@ -21,6 +24,7 @@ interface ProfileSelectionProps {
 
 export default function ProfileSelection({ 
   perfis, 
+  lojaItens,
   temas, 
   tentarMudarPerfil, 
   perfilAlvoParaBloqueio, 
@@ -52,16 +56,41 @@ export default function ProfileSelection({
         {perfis.filter(p => p.nome_original !== "Admin").map((perfil, i) => {
           const aura = perfil.cor_tema?.startsWith('#') ? temas.custom : (temas[perfil.cor_tema as keyof typeof temas] || temas.verde);
           
-          // ✨ LÊ A MOLDURA EQUIPADA DIRETAMENTE DO BANCO
-          const moldura = perfil.cosmeticos?.ativos?.moldura || "";
+          // ✨ LOCALIZA OS DADOS DA MOLDURA EQUIPADA (PNG OU CLASSE)
+          const idMolduraAtiva = perfil.cosmeticos?.ativos?.moldura || "";
+          const dadosMoldura = lojaItens?.find(item => item.id === idMolduraAtiva);
 
           return (
-            <div key={perfil.id} className="flex flex-col items-center cursor-pointer group" onClick={() => tentarMudarPerfil(perfil.nome_original)} style={perfil.cor_tema?.startsWith('#') ? { '--aura': perfil.cor_tema } as React.CSSProperties : {}}>
-              <div className={`w-24 h-24 mx-auto bg-black rounded-3xl border-2 flex items-center justify-center text-4xl mb-4 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-2 relative overflow-hidden ${aura.border} ${aura.shadow} ${moldura}`}>
-                {perfil.avatar?.startsWith('http') ? <img src={perfil.avatar} className="w-full h-full object-cover" alt="" /> : perfil.avatar}
+            <div 
+              key={perfil.id} 
+              className="flex flex-col items-center cursor-pointer group" 
+              onClick={() => tentarMudarPerfil(perfil.nome_original)} 
+              style={perfil.cor_tema?.startsWith('#') ? { '--aura': perfil.cor_tema } as React.CSSProperties : {}}
+            >
+              {/* ✅ SUBSTITUÍDO: Agora usa o HunterAvatar para renderizar molduras corretamente */}
+              <div className="mb-4 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-2 relative">
+                <HunterAvatar 
+                  avatarUrl={perfil.avatar}
+                  idMoldura={idMolduraAtiva}
+                  imagemMolduraUrl={dadosMoldura?.imagem_url}
+                  temaCor={perfil.cor_tema?.startsWith('#') ? perfil.cor_tema : perfil.custom_color}
+                  tamanho="md"
+                />
+                
+                {/* INDICADOR DE BLOQUEIO SOBRE O AVATAR */}
+                {perfil.pin && (
+                  <div className="absolute -bottom-1 -right-1 bg-black/80 p-1.5 rounded-lg border border-white/10 z-[30] shadow-lg">
+                    <span className="text-[10px]">🔒</span>
+                  </div>
+                )}
               </div>
-              <p className="text-white font-black uppercase tracking-widest text-sm group-hover:text-yellow-500 transition-colors text-center">{perfil.nome_exibicao || perfil.nome_original}</p>
-              {perfil.pin && <p className="text-[8px] text-zinc-600 uppercase font-black tracking-widest mt-1">🔒 Bloqueado</p>}
+
+              <p className="text-white font-black uppercase tracking-widest text-sm group-hover:text-yellow-500 transition-colors text-center">
+                {perfil.nome_exibicao || perfil.nome_original}
+              </p>
+              <p className="text-[8px] text-zinc-600 uppercase font-black tracking-widest mt-1">
+                {perfil.pin ? "Acesso Restrito" : "Hunter"}
+              </p>
             </div>
           );
         })}
