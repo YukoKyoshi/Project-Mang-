@@ -71,6 +71,11 @@ export default function GuildaPage() {
   const [novaFigurinhaUrl, setNovaFigurinhaUrl] = useState("");
   const [fazendoUploadFigurinha, setFazendoUploadFigurinha] = useState(false);
 
+  // ✅ NOVOS ESTADOS: Edição, Exclusão e Paginação
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [textoEdicao, setTextoEdicao] = useState("");
+  const [limiteMensagens, setLimiteMensagens] = useState(50);
+
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { window.location.href = '/'; return; }
@@ -80,10 +85,11 @@ export default function GuildaPage() {
     
     const intervalo = setInterval(buscarMensagens, 10000);
     return () => clearInterval(intervalo);
-  }, []);
+  }, [limiteMensagens]); // ✅ Adicionado limiteMensagens como dependência para atualizar ao carregar mais
 
   useEffect(() => {
-    if (scrollRef.current && abaAtiva === "CHAT") {
+    // Só força o scroll para baixo se não estivermos paginando (vendo antigas)
+    if (scrollRef.current && abaAtiva === "CHAT" && limiteMensagens === 50) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [mensagens, abaAtiva]);
@@ -104,13 +110,12 @@ export default function GuildaPage() {
     if (data) setPerfis(data);
   }
 
-  // ✅ CORREÇÃO CIRÚRGICA: Limita a 50 mensagens e traz as mais recentes de forma correta
   async function buscarMensagens() {
     const { data } = await supabase
       .from("guilda_mensagens")
       .select("*")
       .order("criado_em", { ascending: false }) // Pega as mais novas do banco
-      .limit(50); // Limita a 50 na tela
+      .limit(limiteMensagens); // ✅ Agora usa o estado dinâmico
       
     if (data) {
       setMensagens(data.reverse()); // Inverte para renderizar de cima para baixo
@@ -192,6 +197,21 @@ export default function GuildaPage() {
     if (!error) await buscarMensagens();
     if (urlFigurinha) setPainelFigurinhas(false);
     setEnviando(false);
+  }
+
+  // ✅ NOVAS FUNÇÕES: Editar e Excluir
+  async function excluirMensagem(id: number) {
+    if (!confirm("Tem certeza que deseja apagar esta mensagem?")) return;
+    await supabase.from("guilda_mensagens").delete().eq("id", id);
+    buscarMensagens();
+  }
+
+  async function salvarEdicao(id: number) {
+    if (!textoEdicao.trim()) return;
+    await supabase.from("guilda_mensagens").update({ mensagem: textoEdicao }).eq("id", id);
+    setEditandoId(null);
+    setTextoEdicao("");
+    buscarMensagens();
   }
 
   async function adicionarFigurinha() {
@@ -316,17 +336,30 @@ export default function GuildaPage() {
           {abaAtiva === "CHAT" && (
             <div className="flex flex-col h-full flex-1 min-h-0">
               <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-1">
+                
+                {/* ✅ BOTÃO CARREGAR MAIS MENSAGENS */}
+                {mensagens.length >= limiteMensagens && (
+                  <div className="flex justify-center mb-6">
+                    <button 
+                      onClick={() => setLimiteMensagens(prev => prev + 50)} 
+                      className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+                    >
+                      ↑ Carregar mensagens antigas
+                    </button>
+                  </div>
+                )}
+
                 {mensagens.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center text-zinc-600 font-bold uppercase text-xs tracking-widest italic">O mural está silencioso...</div>
                 ) : (
                   mensagens.map((msg, index) => {
+                    const isMe = msg.usuario === usuarioAtivo;
                     const autorPerfil = perfis.find(p => p.nome_original === msg.usuario);
                     
                     const corAtiva = autorPerfil?.cosmeticos?.ativos?.chat_cor;
                     const balaoAtivo = autorPerfil?.cosmeticos?.ativos?.chat_balao;
                     
                     const classeTexto = corAtiva && CORES_CHAT[corAtiva] ? CORES_CHAT[corAtiva] : "text-zinc-300";
-                    // ✅ O Chat base ganha estilo invisível (bg-transparent) como no Discord
                     const classeBalao = balaoAtivo && BALOES_CHAT[balaoAtivo] ? BALOES_CHAT[balaoAtivo] : "hover:bg-white/5 bg-transparent";
 
                     // ✅ LÓGICA DE AGRUPAMENTO DE MENSAGENS (ESTILO DISCORD)
@@ -335,14 +368,13 @@ export default function GuildaPage() {
                       const prevMsg = mensagens[index - 1];
                       const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
                       
-                      // Se for o mesmo usuário e a mensagem anterior foi a menos de 5 minutos, agrupa
                       if (prevMsg.usuario === msg.usuario && diffTime < 300000) {
                         mostrarCabecalho = false;
                       }
                     }
 
                     return (
-                      <div key={msg.id} className={`flex gap-4 items-start w-full px-4 py-1 transition-all rounded-lg ${mostrarCabecalho ? 'mt-4' : 'mt-0'} ${classeBalao.includes('bg-transparent') ? classeBalao : 'p-3 ' + classeBalao}`}>
+                      <div key={msg.id} className={`group flex gap-4 items-start w-full px-4 py-1 transition-all rounded-lg ${mostrarCabecalho ? 'mt-4' : 'mt-0'} ${classeBalao.includes('bg-transparent') ? classeBalao : 'p-3 ' + classeBalao}`}>
                         
                         {/* Avatar com Moldura */}
                         <div className="w-10 shrink-0 flex justify-center mt-1">
@@ -353,12 +385,12 @@ export default function GuildaPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="w-10" /> // Espaçador invisível para manter as mensagens alinhadas
+                            <div className="w-10" /> 
                           )}
                         </div>
 
-                        <div className="flex flex-col w-full">
-                          {/* Nome e Hora (Só exibe se não for agrupada) */}
+                        <div className="flex flex-col w-full relative">
+                          {/* Nome e Hora */}
                           {mostrarCabecalho && (
                             <div className="flex items-baseline gap-2 mb-1">
                               <span className={`text-[12px] font-black uppercase ${getCor(msg.usuario)}`}>
@@ -370,14 +402,46 @@ export default function GuildaPage() {
                             </div>
                           )}
                           
-                          {/* Mensagem ou Figurinha */}
-                          <div className="text-sm leading-relaxed">
-                            {msg.tipo === "figurinha" ? (
+                          {/* ✅ CAIXA DE EDIÇÃO OU TEXTO NORMAL */}
+                          <div className="text-sm leading-relaxed pr-16 min-h-[24px] flex items-center">
+                            {editandoId === msg.id ? (
+                              <div className="flex gap-2 w-full mt-1">
+                                <input 
+                                  type="text" 
+                                  value={textoEdicao} 
+                                  onChange={(e) => setTextoEdicao(e.target.value)} 
+                                  className="flex-1 bg-black border border-blue-500/50 p-2 rounded-lg text-white text-xs outline-none" 
+                                  autoFocus
+                                />
+                                <button onClick={() => salvarEdicao(msg.id)} className="text-[9px] bg-green-600/20 text-green-500 px-3 rounded-lg font-bold hover:bg-green-600 hover:text-white transition-all">Salvar</button>
+                                <button onClick={() => setEditandoId(null)} className="text-[9px] bg-red-600/20 text-red-500 px-3 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all">Cancelar</button>
+                              </div>
+                            ) : msg.tipo === "figurinha" ? (
                               <img src={msg.mensagem} alt="Figurinha" className="max-w-[150px] max-h-[150px] rounded-lg object-contain mt-1" />
                             ) : (
                               <span className={classeTexto}>{msg.mensagem}</span>
                             )}
                           </div>
+
+                          {/* ✅ BOTÕES FLUTUANTES DE EDITAR/EXCLUIR (Aparecem no Hover) */}
+                          {isMe && editandoId !== msg.id && (
+                            <div className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-[#0e0e11] border border-zinc-800 px-2 py-1 rounded-lg shadow-lg">
+                              {msg.tipo !== "figurinha" && (
+                                <button 
+                                  onClick={() => { setEditandoId(msg.id); setTextoEdicao(msg.mensagem); }} 
+                                  className="text-[10px] font-bold text-zinc-400 hover:text-blue-400 transition-colors"
+                                >
+                                  ✎ Editar
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => excluirMensagem(msg.id)} 
+                                className="text-[10px] font-bold text-zinc-400 hover:text-red-400 transition-colors"
+                              >
+                                🗑 Excluir
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                       </div>
@@ -407,13 +471,13 @@ export default function GuildaPage() {
                   <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
                     {meuPerfilAtivo?.figurinhas?.length === 0 && <span className="text-[10px] text-zinc-500 italic uppercase">Você ainda não salvou nenhuma figurinha.</span>}
                     {meuPerfilAtivo?.figurinhas?.map((url, i) => (
-                      <div key={i} className="relative group shrink-0">
+                      <div key={i} className="relative group/sticker shrink-0">
                         <img 
                           src={url} alt="Figurinha Salva" 
                           onClick={() => enviarMensagem(undefined, url)} 
                           className="w-20 h-20 object-cover rounded-xl border border-zinc-800 cursor-pointer hover:border-blue-500 transition-all hover:scale-105 bg-black" 
                         />
-                        <button onClick={() => deletarFigurinha(url)} className="absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">✕</button>
+                        <button onClick={() => deletarFigurinha(url)} className="absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover/sticker:opacity-100 transition-all flex items-center justify-center">✕</button>
                       </div>
                     ))}
                   </div>

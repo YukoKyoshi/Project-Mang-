@@ -21,66 +21,67 @@ export const MOLDURAS_DISCORD: any = {
   moldura_choque: "ring-2 ring-yellow-400 border-dashed animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.5)]"
 };
 
-const LOJA_ITENS = [
+// ✅ LOJA_ITENS AGORA É APENAS UM FALLBACK (Se o banco falhar, carrega esses)
+const LOJA_ITENS_FALLBACK = [
   // --- VFX ELITE (VÍDEOS) ---
-  { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc: "Fogo real gravado em alta definição (VFX)." },
-  { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, icone: "🫠", desc: "Partículas reais se dissipando (VFX)." },
-  { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc: "Chuva real escorrendo pelo vidro (VFX)." },
-  { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc: "Fogueira real cinematográfica (VFX)." },
+  { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc_texto: "Fogo real gravado em alta definição (VFX)." },
+  { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, icone: "🫠", desc_texto: "Partículas reais se dissipando (VFX)." },
+  { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc_texto: "Chuva real escorrendo pelo vidro (VFX)." },
+  { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc_texto: "Fogueira real cinematográfica (VFX)." },
 
   // --- NOVAS PARTÍCULAS (MÍSTICAS / SOMBRIAS) ---
-  { id: "particula_corvos", nome: "Corvos Espectrais", tipo: "particula", preco: 700, icone: "🦅", desc: "Silhuetas escuras voando ao fundo." },
-  { id: "particula_areia", nome: "Tempestade de Areia", tipo: "particula", preco: 600, icone: "🌪️", desc: "Poeira dourada cobrindo a tela." },
-  { id: "particula_sangue", nome: "Aura de Sangue", tipo: "particula", preco: 850, icone: "🩸", desc: "Gotas carmesim levitando lentamente." },
-  { id: "particula_abissal", nome: "Fumaça Abissal", tipo: "particula", preco: 900, icone: "🌫️", desc: "Névoa roxa escura rastejando pela tela." },
+  { id: "particula_corvos", nome: "Corvos Espectrais", tipo: "particula", preco: 700, icone: "🦅", desc_texto: "Silhuetas escuras voando ao fundo." },
+  { id: "particula_areia", nome: "Tempestade de Areia", tipo: "particula", preco: 600, icone: "🌪️", desc_texto: "Poeira dourada cobrindo a tela." },
+  { id: "particula_sangue", nome: "Aura de Sangue", tipo: "particula", preco: 850, icone: "🩸", desc_texto: "Gotas carmesim levitando lentamente." },
+  { id: "particula_abissal", nome: "Fumaça Abissal", tipo: "particula", preco: 900, icone: "🌫️", desc_texto: "Névoa roxa escura rastejando pela tela." },
 
   // --- PARTÍCULAS CLÁSSICAS ---
-  { id: "particula_petalas", nome: "Chuva de Pétalas", tipo: "particula", preco: 300, icone: "🌸", desc: "Cerejeiras caindo com física de vento." },
-  { id: "particula_neve", nome: "Neve Silenciosa", tipo: "particula", preco: 350, icone: "❄️", desc: "Flocos de neve cobrindo sua estante." },
-  { id: "particula_estrelas", nome: "Céu Estrelado", tipo: "particula", preco: 450, icone: "✨", desc: "Fundo com estrelas cintilantes." },
-  { id: "particula_matrix", nome: "Código Matrix", tipo: "particula", preco: 600, icone: "📟", desc: "Dados verdes caindo pela tela." },
-  { id: "particula_bolhas", nome: "Abismo Subaquático", tipo: "particula", preco: 350, icone: "🫧", desc: "Bolhas translúcidas subindo devagar." },
+  { id: "particula_petalas", nome: "Chuva de Pétalas", tipo: "particula", preco: 300, icone: "🌸", desc_texto: "Cerejeiras caindo com física de vento." },
+  { id: "particula_neve", nome: "Neve Silenciosa", tipo: "particula", preco: 350, icone: "❄️", desc_texto: "Flocos de neve cobrindo sua estante." },
+  { id: "particula_estrelas", nome: "Céu Estrelado", tipo: "particula", preco: 450, icone: "✨", desc_texto: "Fundo com estrelas cintilantes." },
+  { id: "particula_matrix", nome: "Código Matrix", tipo: "particula", preco: 600, icone: "📟", desc_texto: "Dados verdes caindo pela tela." },
+  { id: "particula_bolhas", nome: "Abismo Subaquático", tipo: "particula", preco: 350, icone: "🫧", desc_texto: "Bolhas translúcidas subindo devagar." },
   
   // --- ESTAÇÕES DO ANO ---
-  { id: "particula_primavera", nome: "Brisas de Primavera", tipo: "particula", preco: 400, icone: "🍃", desc: "Folhas verdes flutuando com o vento." },
-  { id: "particula_verao", nome: "Vagalumes de Verão", tipo: "particula", preco: 400, icone: "☀️", desc: "Orbes de luz flutuando preguiçosamente." },
-  { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc: "Folhas alaranjadas caindo calmamente." },
-  { id: "particula_inverno", nome: "Inverno Rigoroso", tipo: "particula", preco: 450, icone: "⛄", desc: "Neve densa caindo sobre a tela." },
+  { id: "particula_primavera", nome: "Brisas de Primavera", tipo: "particula", preco: 400, icone: "🍃", desc_texto: "Folhas verdes flutuando com o vento." },
+  { id: "particula_verao", nome: "Vagalumes de Verão", tipo: "particula", preco: 400, icone: "☀️", desc_texto: "Orbes de luz flutuando preguiçosamente." },
+  { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc_texto: "Folhas alaranjadas caindo calmamente." },
+  { id: "particula_inverno", nome: "Inverno Rigoroso", tipo: "particula", preco: 450, icone: "⛄", desc_texto: "Neve densa caindo sobre a tela." },
 
   // --- MOLDURAS PREMIUM (ESTILO DISCORD) ---
-  { id: "moldura_aries", nome: "Avatar: Áries (Fogo)", tipo: "moldura", preco: 800, icone: "♈", desc: "Moldura de chamas ardentes e chifres flamejantes." },
-  { id: "moldura_touro", nome: "Avatar: Touro (Natureza)", tipo: "moldura", preco: 800, icone: "♉", desc: "Coroa de flores e vinhas esmeraldas." },
-  { id: "moldura_gemeos", nome: "Avatar: Gêmeos (Místico)", tipo: "moldura", preco: 800, icone: "♊", desc: "Serpentes etéreas em tons de roxo e ciano." },
+  { id: "moldura_aries", nome: "Avatar: Áries (Fogo)", tipo: "moldura", preco: 800, icone: "♈", desc_texto: "Moldura de chamas ardentes e chifres flamejantes." },
+  { id: "moldura_touro", nome: "Avatar: Touro (Natureza)", tipo: "moldura", preco: 800, icone: "♉", desc_texto: "Coroa de flores e vinhas esmeraldas." },
+  { id: "moldura_gemeos", nome: "Avatar: Gêmeos (Místico)", tipo: "moldura", preco: 800, icone: "♊", desc_texto: "Serpentes etéreas em tons de roxo e ciano." },
   
   // --- MOLDURAS CLÁSSICAS ---
-  { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc: "Moldura dourada brilhante." },
-  { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc: "Pulso cibernético rosa." },
-  { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc: "Borda animada com alta voltagem." },
-  { id: "moldura_corrompida", nome: "Ouro Corrompido", tipo: "moldura", preco: 400, icone: "🪦", desc: "Ouro escurecido escorrendo." },
-  { id: "moldura_vidro", nome: "Vidro Estilhaçado", tipo: "moldura", preco: 300, icone: "🪞", desc: "Bordas quebradas refletindo luz." },
-  { id: "moldura_chamas", nome: "Chamas Negras", tipo: "moldura", preco: 500, icone: "🌘", desc: "Fogo escuro consumindo a foto." },
+  { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc_texto: "Moldura dourada brilhante." },
+  { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc_texto: "Pulso cibernético rosa." },
+  { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc_texto: "Borda animada com alta voltagem." },
+  { id: "moldura_corrompida", nome: "Ouro Corrompido", tipo: "moldura", preco: 400, icone: "🪦", desc_texto: "Ouro escurecido escorrendo." },
+  { id: "moldura_vidro", nome: "Vidro Estilhaçado", tipo: "moldura", preco: 300, icone: "🪞", desc_texto: "Bordas quebradas refletindo luz." },
+  { id: "moldura_chamas", nome: "Chamas Negras", tipo: "moldura", preco: 500, icone: "🌘", desc_texto: "Fogo escuro consumindo a foto." },
 
   // --- TÍTULOS ---
-  { id: "titulo_deus", nome: "Divindade Ancestral", tipo: "titulo", preco: 1000, icone: "🔱", desc: "Texto brilhando como o sol." },
-  { id: "titulo_hacker", nome: "Cyber Hunter", tipo: "titulo", preco: 800, icone: "💻", desc: "Efeito de texto glitch." },
-  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc: "Texto gradiente animado." },
-  { id: "titulo_abismo", nome: "Senhor do Abismo", tipo: "titulo", preco: 1100, icone: "🕳️", desc: "Texto sombrio e pulsante." },
-  { id: "titulo_anomalia", nome: "Anomalia do Sistema", tipo: "titulo", preco: 950, icone: "⚠️", desc: "Texto trêmulo em vermelho." },
-  { id: "titulo_reliquias", nome: "Colecionador de Relíquias", tipo: "titulo", preco: 750, icone: "🏺", desc: "Texto em ouro envelhecido." },
+  { id: "titulo_deus", nome: "Divindade Ancestral", tipo: "titulo", preco: 1000, icone: "🔱", desc_texto: "Texto brilhando como o sol." },
+  { id: "titulo_hacker", nome: "Cyber Hunter", tipo: "titulo", preco: 800, icone: "💻", desc_texto: "Efeito de texto glitch." },
+  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc_texto: "Texto gradiente animado." },
+  { id: "titulo_abismo", nome: "Senhor do Abismo", tipo: "titulo", preco: 1100, icone: "🕳️", desc_texto: "Texto sombrio e pulsante." },
+  { id: "titulo_anomalia", nome: "Anomalia do Sistema", tipo: "titulo", preco: 950, icone: "⚠️", desc_texto: "Texto trêmulo em vermelho." },
+  { id: "titulo_reliquias", nome: "Colecionador de Relíquias", tipo: "titulo", preco: 750, icone: "🏺", desc_texto: "Texto em ouro envelhecido." },
 
   // --- CORES DE CHAT (GUILDA) ---
-  { id: "chat_cor_dourada", nome: "Texto Ouro Real", tipo: "chat_cor", preco: 400, icone: "📝", desc: "Sua fonte no chat fica dourada." },
-  { id: "chat_cor_glitch", nome: "Texto Degradê Glitch", tipo: "chat_cor", preco: 550, icone: "📝", desc: "Fonte com gradiente animado." },
-  { id: "chat_cor_sangue", nome: "Texto Sangrento", tipo: "chat_cor", preco: 450, icone: "📝", desc: "Sua fonte fica em um tom carmesim." },
-  { id: "chat_cor_neon", nome: "Texto Neon Cyber", tipo: "chat_cor", preco: 500, icone: "📝", desc: "Fonte brilhante e cibernética." },
-  { id: "chat_cor_fantasma", nome: "Texto Espectral", tipo: "chat_cor", preco: 350, icone: "📝", desc: "Texto cinza claro levemente transparente." },
+  { id: "chat_cor_dourada", nome: "Texto Ouro Real", tipo: "chat_cor", preco: 400, icone: "📝", desc_texto: "Sua fonte no chat fica dourada." },
+  { id: "chat_cor_glitch", nome: "Texto Degradê Glitch", tipo: "chat_cor", preco: 550, icone: "📝", desc_texto: "Fonte com gradiente animado." },
+  { id: "chat_cor_sangue", nome: "Texto Sangrento", tipo: "chat_cor", preco: 450, icone: "📝", desc_texto: "Sua fonte fica em um tom carmesim." },
+  { id: "chat_cor_neon", nome: "Texto Neon Cyber", tipo: "chat_cor", preco: 500, icone: "📝", desc_texto: "Fonte brilhante e cibernética." },
+  { id: "chat_cor_fantasma", nome: "Texto Espectral", tipo: "chat_cor", preco: 350, icone: "📝", desc_texto: "Texto cinza claro levemente transparente." },
 
   // --- BALÕES DE CHAT (GUILDA) ---
-  { id: "chat_balao_cyber", nome: "Balão Cibernético", tipo: "chat_balao", preco: 600, icone: "💬", desc: "Fundo tecnológico para mensagens." },
-  { id: "chat_balao_rpg", nome: "Balão Pergaminho", tipo: "chat_balao", preco: 500, icone: "💬", desc: "Estilo rústico de RPG de mesa." },
-  { id: "chat_balao_vidro", nome: "Balão Translúcido", tipo: "chat_balao", preco: 400, icone: "💬", desc: "Vidro fumê refinado." },
-  { id: "chat_balao_toxico", nome: "Balão Tóxico", tipo: "chat_balao", preco: 700, icone: "💬", desc: "Bordas verdes animadas." },
-  { id: "chat_balao_void", nome: "Balão do Vazio", tipo: "chat_balao", preco: 800, icone: "💬", desc: "Fundo negro como o abismo." }
+  { id: "chat_balao_cyber", nome: "Balão Cibernético", tipo: "chat_balao", preco: 600, icone: "💬", desc_texto: "Fundo tecnológico para mensagens." },
+  { id: "chat_balao_rpg", nome: "Balão Pergaminho", tipo: "chat_balao", preco: 500, icone: "💬", desc_texto: "Estilo rústico de RPG de mesa." },
+  { id: "chat_balao_vidro", nome: "Balão Translúcido", tipo: "chat_balao", preco: 400, icone: "💬", desc_texto: "Vidro fumê refinado." },
+  { id: "chat_balao_toxico", nome: "Balão Tóxico", tipo: "chat_balao", preco: 700, icone: "💬", desc_texto: "Bordas verdes animadas." },
+  { id: "chat_balao_void", nome: "Balão do Vazio", tipo: "chat_balao", preco: 800, icone: "💬", desc_texto: "Fundo negro como o abismo." }
 ];
 
 export default function PerfilPage() {
@@ -102,6 +103,9 @@ export default function PerfilPage() {
   const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 });
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40" });
 
+  // ✅ NOVO ESTADO DA LOJA DINÂMICA
+  const [lojaItens, setLojaItens] = useState<any[]>(LOJA_ITENS_FALLBACK);
+
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { 
@@ -109,11 +113,24 @@ export default function PerfilPage() {
       return; 
     }
     setUsuarioAtivo(hunter);
+    buscarItensLoja(); // ✅ Busca os itens assim que a página carrega
   }, []);
 
   useEffect(() => {
     if (usuarioAtivo) carregarDados();
   }, [usuarioAtivo]);
+
+  // ✅ FUNÇÃO PARA BUSCAR A LOJA DO BANCO DE DADOS
+  async function buscarItensLoja() {
+    try {
+      const { data, error } = await supabase.from('loja_itens').select('*');
+      if (data && data.length > 0) {
+        setLojaItens(data);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar itens da loja, usando fallback:", error);
+    }
+  }
 
   async function carregarDados() {
     const { data: m } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
@@ -334,6 +351,10 @@ export default function PerfilPage() {
 
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
 
+  // ✅ PROCURA A URL DA IMAGEM CASO O USUÁRIO TENHA COMPRADO UMA MOLDURA PNG PERSONALIZADA (Vem do banco de dados)
+  const molduraEquipadaItem = lojaItens.find(item => item.id === equipados.moldura);
+  const imagemMolduraUrl = molduraEquipadaItem?.imagem_url || null;
+
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white italic animate-pulse">SINCRONIZANDO HUB...</div>;
 
   return (
@@ -352,9 +373,17 @@ export default function PerfilPage() {
           <span className="text-white font-black">{esmolas}</span>
         </div>
 
-        {/* ✅ MOLDURA DISCORD STYLE APLICADA AQUI COM CUIDADO PARA NÃO QUEBRAR O ESTILO ANTIGO */}
-        <div className="relative mt-4 mb-2">
-          <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden flex items-center justify-center relative z-10 ${!MOLDURAS_DISCORD[equipados.moldura] ? 'border-2 ' + aura.border + ' ' + elo.glow : ''} ${MOLDURAS_DISCORD[equipados.moldura] || equipados.moldura}`}>
+        {/* ✅ O AVATAR AGORA SUPORTA MOLDURAS CSS (DISCORD) OU MOLDURAS EM PNG (CRIADAS NO PAINEL ADMIN) */}
+        <div className="relative mt-4 mb-2 flex items-center justify-center">
+          
+          {imagemMolduraUrl && (
+            <img src={imagemMolduraUrl} className="absolute z-20 w-36 h-36 object-contain pointer-events-none scale-110" alt="Moldura PNG" />
+          )}
+          
+          <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden flex items-center justify-center relative z-10 
+            ${!MOLDURAS_DISCORD[equipados.moldura] && !imagemMolduraUrl ? 'border-2 ' + aura.border + ' ' + elo.glow : ''} 
+            ${MOLDURAS_DISCORD[equipados.moldura] || (!imagemMolduraUrl ? equipados.moldura : '')}
+          `}>
             {dadosPerfil.avatar?.startsWith('http') ? <img src={dadosPerfil.avatar} className="w-full h-full object-cover rounded-[2.5rem]" /> : <span className="text-5xl">{dadosPerfil.avatar}</span>}
           </div>
         </div>
@@ -363,7 +392,7 @@ export default function PerfilPage() {
         
         {equipados.titulo && (
           <p className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 drop-shadow-md ${equipados.titulo}`}>
-            « {LOJA_ITENS.find(i => i.id === equipados.titulo)?.nome.replace("Título: ", "")} »
+            « {lojaItens.find(i => i.id === equipados.titulo)?.nome.replace("Título: ", "")} »
           </p>
         )}
         
@@ -436,19 +465,30 @@ export default function PerfilPage() {
 
           {abaAtiva === "LOJA" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-10">
-              {LOJA_ITENS.map(item => {
+              {/* ✅ RENDERIZANDO OS ITENS DINAMICAMENTE DO BANCO DE DADOS */}
+              {lojaItens.map(item => {
                 const comprado = inventario.includes(item.id); 
                 const equipado = equipados[item.tipo] === item.id;
                 
                 return (
                   <div key={item.id} className={`p-4 rounded-3xl border flex flex-col gap-4 ${comprado ? 'bg-zinc-900 border-zinc-700' : 'bg-black/50 border-zinc-800'}`}>
                     <div className="flex items-center gap-4">
-                      <span className="text-3xl bg-zinc-950 p-4 rounded-2xl border border-white/5">{item.icone}</span>
+                      
+                      {/* Se for uma imagem (PNG), exibe a imagem. Se não, exibe o ícone (Emoji) */}
+                      {item.imagem_url ? (
+                        <div className="w-14 h-14 bg-zinc-950 p-2 rounded-2xl border border-white/5 flex items-center justify-center">
+                          <img src={item.imagem_url} alt={item.nome} className="w-full h-full object-contain" />
+                        </div>
+                      ) : (
+                        <span className="text-3xl bg-zinc-950 p-4 rounded-2xl border border-white/5">{item.icone}</span>
+                      )}
+
                       <div>
                         <p className="font-black uppercase text-[10px] text-white">{item.nome}</p>
                         <p className="text-[7px] text-zinc-500 uppercase">{item.tipo}</p>
                       </div>
                     </div>
+                    
                     {!comprado ? (
                       <button onClick={() => comprarCosmetico(item)} className="w-full py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-[9px] uppercase">
                         Comprar ({item.preco} 🪙)

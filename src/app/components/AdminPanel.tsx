@@ -17,8 +17,24 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   const [formEdit, setFormEdit] = useState({ nome_exibicao: "", avatar: "", pin: "", cor_tema: "", esmolas: 0 });
   const [carregandoAcao, setCarregandoAcao] = useState(false);
 
+  // ==========================================
+  // 🛒 ESTADOS DA LOJA DE COSMÉTICOS
+  // ==========================================
+  const [lojaItens, setLojaItens] = useState<any[]>([]);
+  const [itemLojaEditando, setItemLojaEditando] = useState<any | null>(null);
+  const [formLoja, setFormLoja] = useState({ id: "", nome: "", tipo: "moldura", preco: 0, icone: "", imagem_url: "", desc_texto: "" });
+  const [fazendoUploadLoja, setFazendoUploadLoja] = useState(false);
+  const [isNovoItem, setIsNovoItem] = useState(false);
+
   // Sincroniza os perfis que vêm do banco
   useEffect(() => { setLocalPerfis(perfis); }, [perfis]);
+
+  // Carrega os itens da loja ao abrir a aba LOJA
+  useEffect(() => {
+    if (abaAtiva === "LOJA") {
+      carregarLojaItens();
+    }
+  }, [abaAtiva]);
 
   // ==========================================
   // 🛠️ FUNÇÕES DA GUILDA (GERENCIAMENTO)
@@ -87,6 +103,114 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   }
 
   // ==========================================
+  // 🛒 FUNÇÕES DA LOJA (GERENCIAMENTO DE ITENS)
+  // ==========================================
+  async function carregarLojaItens() {
+    setCarregandoAcao(true);
+    try {
+      const { data, error } = await supabase.from("loja_itens").select("*").order("tipo", { ascending: true });
+      if (error) throw error;
+      setLojaItens(data || []);
+    } catch (err: any) {
+      alert("Erro ao carregar loja: " + err.message);
+    } finally {
+      setCarregandoAcao(false);
+    }
+  }
+
+  function abrirEdicaoLoja(item: any = null) {
+    if (item) {
+      setIsNovoItem(false);
+      setItemLojaEditando(item);
+      setFormLoja({
+        id: item.id,
+        nome: item.nome,
+        tipo: item.tipo,
+        preco: item.preco,
+        icone: item.icone || "",
+        imagem_url: item.imagem_url || "",
+        desc_texto: item.desc_texto || ""
+      });
+    } else {
+      setIsNovoItem(true);
+      setItemLojaEditando({ id: "novo" });
+      setFormLoja({ id: "", nome: "", tipo: "moldura", preco: 0, icone: "🎁", imagem_url: "", desc_texto: "" });
+    }
+  }
+
+  async function salvarItemLoja() {
+    if (!formLoja.id || !formLoja.nome || formLoja.preco < 0) {
+      return alert("Preencha ID, Nome e Preço corretamente!");
+    }
+
+    setCarregandoAcao(true);
+    try {
+      if (isNovoItem) {
+        const { error } = await supabase.from("loja_itens").insert([formLoja]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("loja_itens").update({
+          nome: formLoja.nome,
+          tipo: formLoja.tipo,
+          preco: formLoja.preco,
+          icone: formLoja.icone,
+          imagem_url: formLoja.imagem_url,
+          desc_texto: formLoja.desc_texto
+        }).eq("id", formLoja.id);
+        if (error) throw error;
+      }
+      
+      alert(isNovoItem ? "✅ Item criado com sucesso!" : "✅ Item atualizado!");
+      setItemLojaEditando(null);
+      carregarLojaItens();
+    } catch (err: any) {
+      alert("Erro ao salvar item: " + err.message);
+    } finally {
+      setCarregandoAcao(false);
+    }
+  }
+
+  async function excluirItemLoja(id: string) {
+    if (!confirm("Tem certeza que deseja apagar este item da loja para sempre?")) return;
+    setCarregandoAcao(true);
+    try {
+      const { error } = await supabase.from("loja_itens").delete().eq("id", id);
+      if (error) throw error;
+      alert("🗑️ Item apagado.");
+      carregarLojaItens();
+    } catch (err: any) {
+      alert("Erro ao apagar: " + err.message);
+    } finally {
+      setCarregandoAcao(false);
+    }
+  }
+
+  async function uploadImagemLoja(event: any) {
+    try {
+      setFazendoUploadLoja(true);
+      const file = event.target.files[0];
+      if (!file) throw new Error("Nenhuma imagem selecionada.");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `item-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // ⚠️ ASSUMIMOS QUE EXISTE UM BUCKET 'cosmeticos'. SE NÃO EXISTIR, MUDE AQUI PARA 'avatars'
+      const { error: uploadError } = await supabase.storage.from('cosmeticos').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('cosmeticos').getPublicUrl(filePath);
+      
+      setFormLoja({ ...formLoja, imagem_url: data.publicUrl });
+      alert("✅ Imagem enviada! Salve o item para confirmar.");
+    } catch (error: any) {
+      alert("❌ Erro no upload: " + error.message);
+    } finally {
+      setFazendoUploadLoja(false);
+    }
+  }
+
+  // ==========================================
   // ⚡ FERRAMENTAS DIVINAS
   // ==========================================
   async function limparCachePesquisa() {
@@ -139,12 +263,13 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
 
       {/* ABAS DO PAINEL */}
       <div className="flex flex-wrap gap-4 mb-10">
-        {["GUILDA", "SISTEMA", "FERRAMENTAS"].map(aba => (
+        {/* ✅ ADICIONADO A ABA LOJA */}
+        {["GUILDA", "LOJA", "SISTEMA", "FERRAMENTAS"].map(aba => (
           <button 
             key={aba} onClick={() => setAbaAtiva(aba)} 
             className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all border ${abaAtiva === aba ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600'}`}
           >
-            {aba === "GUILDA" ? "👥 A Guilda" : aba === "SISTEMA" ? "⚙️ Sistema" : "⚡ Ferramentas"}
+            {aba === "GUILDA" ? "👥 A Guilda" : aba === "LOJA" ? "🛒 Loja S+" : aba === "SISTEMA" ? "⚙️ Sistema" : "⚡ Ferramentas"}
           </button>
         ))}
       </div>
@@ -194,6 +319,48 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                     <button onClick={() => deletarPerfil(p)} className="px-4 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">X</button>
                   </div>
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ==============================================
+          ABA: LOJA S+ (GERENCIAMENTO DE COSMÉTICOS)
+      ================================================ */}
+      {abaAtiva === "LOJA" && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex justify-between items-center mb-6">
+            <p className="text-xs font-black text-zinc-500 uppercase tracking-widest">Itens à Venda ({lojaItens.length})</p>
+            <button onClick={() => abrirEdicaoLoja()} disabled={carregandoAcao} className="px-6 py-3 bg-purple-500/10 border border-purple-500/50 text-purple-400 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-purple-500 hover:text-white transition-all">
+              + Novo Cosmético
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {lojaItens.map(item => (
+              <div key={item.id} className="bg-zinc-900/40 p-5 rounded-3xl border border-zinc-800 flex flex-col gap-3 relative">
+                
+                <div className="flex justify-between items-start">
+                  <div className="w-12 h-12 bg-black rounded-xl border border-white/5 flex items-center justify-center text-2xl overflow-hidden">
+                    {item.imagem_url ? <img src={item.imagem_url} className="w-full h-full object-contain" alt="item" /> : item.icone}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-yellow-500 font-black">{item.preco} 🪙</p>
+                    <p className="text-[8px] text-zinc-500 uppercase font-bold bg-black px-2 py-1 rounded-md mt-1 border border-zinc-800">{item.tipo}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-black text-white uppercase">{item.nome}</p>
+                  <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2">{item.desc_texto}</p>
+                  <p className="text-[8px] text-zinc-600 mt-2 font-mono">ID: {item.id}</p>
+                </div>
+
+                <div className="flex gap-2 mt-auto pt-2 border-t border-zinc-800">
+                  <button onClick={() => abrirEdicaoLoja(item)} className="flex-1 py-2 bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-bold uppercase hover:bg-white hover:text-black transition-all">Editar</button>
+                  <button onClick={() => excluirItemLoja(item.id)} className="px-3 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-[9px] font-bold uppercase hover:bg-red-500 hover:text-white transition-all">🗑️</button>
+                </div>
               </div>
             ))}
           </div>
@@ -291,6 +458,82 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
 
               <button onClick={salvarEdicao} disabled={carregandoAcao} className="w-full py-5 mt-4 rounded-xl bg-yellow-500 text-black font-black uppercase tracking-widest hover:bg-yellow-400 transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)]">
                 {carregandoAcao ? "Salvando..." : "Gravar Alterações no Banco"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==============================================
+          MODAL: CRIAÇÃO/EDIÇÃO DE ITEM DA LOJA
+      ================================================ */}
+      {itemLojaEditando && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+          <div className="bg-[#0e0e11] w-full max-w-xl p-8 rounded-[3rem] border border-purple-500/30 shadow-[0_0_40px_rgba(168,85,247,0.1)] relative animate-in zoom-in-95">
+            <button onClick={() => setItemLojaEditando(null)} className="absolute top-8 right-8 text-zinc-600 hover:text-white font-black text-xl">✕</button>
+            
+            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-2">
+              {isNovoItem ? "Forjar Cosmético" : "Editar Cosmético"}
+            </h2>
+            <p className="text-[10px] font-bold uppercase text-purple-400 tracking-widest mb-8">
+              Adicionando Itens Premium à Guilda
+            </p>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Único (ex: moldura_fogo)</label>
+                  <input type="text" disabled={!isNovoItem} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-mono text-xs outline-none focus:border-purple-500 mt-1 disabled:opacity-50" value={formLoja.id} onChange={e => setFormLoja({...formLoja, id: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Preço em Esmolas</label>
+                  <input type="number" className="w-full bg-black border border-yellow-500/30 p-4 rounded-xl text-yellow-500 font-black outline-none focus:border-yellow-500 mt-1" value={formLoja.preco} onChange={e => setFormLoja({...formLoja, preco: parseInt(e.target.value) || 0})} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome do Item</label>
+                  <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none focus:border-purple-500 mt-1" value={formLoja.nome} onChange={e => setFormLoja({...formLoja, nome: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Tipo de Equipamento</label>
+                  <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase outline-none mt-1" value={formLoja.tipo} onChange={e => setFormLoja({...formLoja, tipo: e.target.value})}>
+                    <option value="moldura">Moldura de Avatar</option>
+                    <option value="particula">Partículas de Fundo</option>
+                    <option value="titulo">Título Honroso</option>
+                    <option value="chat_cor">Cor de Chat</option>
+                    <option value="chat_balao">Balão de Chat</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Descrição Curta</label>
+                <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-purple-500 mt-1" value={formLoja.desc_texto} onChange={e => setFormLoja({...formLoja, desc_texto: e.target.value})} />
+              </div>
+
+              {/* UPLOAD DE IMAGEM */}
+              <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-2xl flex flex-col gap-3 mt-4">
+                <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Aparência do Item (PNG/GIF)</p>
+                <div className="flex gap-3">
+                  <input type="text" placeholder="URL direta da imagem ou deixe vazio..." className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={formLoja.imagem_url} onChange={e => setFormLoja({...formLoja, imagem_url: e.target.value})} />
+                  
+                  <label className={`flex items-center justify-center px-4 rounded-xl font-black uppercase text-[9px] cursor-pointer transition-all border ${fazendoUploadLoja ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-purple-600/20 text-purple-400 border-purple-500/30 hover:bg-purple-600 hover:text-white'}`}>
+                    {fazendoUploadLoja ? "⏳..." : "⬆️ Upar do PC"}
+                    <input type="file" accept="image/*" className="hidden" onChange={uploadImagemLoja} disabled={fazendoUploadLoja} />
+                  </label>
+                </div>
+                {!formLoja.imagem_url && (
+                  <div>
+                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Se não enviar imagem, qual Emoji será usado de Ícone?</label>
+                    <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-2xl text-center outline-none focus:border-purple-500 mt-1" value={formLoja.icone} onChange={e => setFormLoja({...formLoja, icone: e.target.value})} />
+                  </div>
+                )}
+              </div>
+
+              <button onClick={salvarItemLoja} disabled={carregandoAcao} className="w-full py-5 mt-4 rounded-xl bg-purple-600 text-white font-black uppercase tracking-widest hover:bg-purple-500 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                {carregandoAcao ? "Salvando..." : (isNovoItem ? "Lançar Cosmético no Mercado" : "Atualizar Item")}
               </button>
             </div>
           </div>
